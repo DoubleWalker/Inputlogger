@@ -5,34 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0c961a17-b4f6-4246-8972-3ae1841611b8" name="변경" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/Inputlogger.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Orchestrator/NightCrows/Combat_Monitor/config/template_paths.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Orchestrator/NightCrows/Combat_Monitor/monitor.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Orchestrator/NightCrows/Daily_Present/main.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Orchestrator/NightCrows/Daily_Present/src/core/daily_present.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Orchestrator/NightCrows/MSC/MSC.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Orchestrator/NightCrows/Mail_opener/main.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Orchestrator/NightCrows/Mail_opener/src/core/opener.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Orchestrator/NightCrows/utils/image_utils.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Orchestrator/NightCrows/utils/screen_info.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Orchestrator/NightCrows/utils/screen_utils.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Orchestrator/Raven2/Combat_Monitor/src/config/template_paths.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Orchestrator/Raven2/Combat_Monitor/src/models/screen_info.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Orchestrator/Raven2/Combat_Monitor/src/monitor.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Orchestrator/Raven2/Daily_Present/main.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Orchestrator/Raven2/Daily_Present/src/core/daily_present.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Orchestrator/Raven2/Mail_opener/main.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Orchestrator/Raven2/Mail_opener/src/core/opener.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Orchestrator/Raven2/utils/screen_info.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Orchestrator/main.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Orchestrator/src/core/orchestrator.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Orchestrator/src/core/vd_manager.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Orchestrator/src/utils/config.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Orchestrator.zip" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

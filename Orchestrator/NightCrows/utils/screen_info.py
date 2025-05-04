@@ -39,27 +39,32 @@ FIXED_UI_COORDS = {
         # 예시: S1 화면 내에서 '三' 버튼의 상대적 (x, y) 좌표
         'main_menu_button': (748, 15),
         'retry_confirm': (2, 2),  # 실제 좌표 측정 필요
-        'retry_close': (1, 2)  # 실제 좌표 측정 필요
+        'retry_close': (1, 2),  # 실제 좌표 측정 필요
+        'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
     },
     'S2': {
         # 예시: S2 화면 내에서 '三' 버튼의 상대적 (x, y) 좌표
         'main_menu_button': (820, 18),
         'retry_confirm': (1, 1),  # 실제 좌표 측정 필요
-        'retry_close': (1, 1)  # 실제 좌표 측정 필요 # S1과 같거나 다를 수 있음
+        'retry_close': (1, 1),  # 실제 좌표 측정 필요
+        'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요  # 실제 좌표 측정 필요 # S1과 같거나 다를 수 있음
     },
     'S3': {
         'main_menu_button': (713, 15),
         'retry_confirm': (1, 1),  # 실제 좌표 측정 필요
-        'retry_close': (1, 1)  # 실제 좌표 측정 필요 # 정확한 좌표 측정 필요
+        'retry_close': (1, 1),  # 실제 좌표 측정 필요
+        'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요  # 실제 좌표 측정 필요 # 정확한 좌표 측정 필요
     },
     'S4': {
         'main_menu_button': (748, 15),
         'retry_confirm': (1, 1),  # 실제 좌표 측정 필요
-        'retry_close': (1, 1)  # 실제 좌표 측정 필요 # 정확한 좌표 측정 필요
+        'retry_close': (1, 1),  # 실제 좌표 측정 필요
+        'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요  # 실제 좌표 측정 필요 # 정확한 좌표 측정 필요
     },
     'S5': {
         'main_menu_button': (1117, 28),
         'retry_confirm': (2, 2),  # 실제 좌표 측정 필요
-        'retry_close': (0, 1)  # 실제 좌표 측정 필요 # 정확한 좌표 측정 필요
+        'retry_close': (0, 1),  # 실제 좌표 측정 필요
+        'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요  # 실제 좌표 측정 필요 # 정확한 좌표 측정 필요
     },
 }

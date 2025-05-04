@@ -32,7 +32,8 @@ TEMPLATES = {
         'WAYPOINT_5': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "wp5_reached.png"),
         'COMBAT_SPOT': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "combat_spot.png"),
         'RETURNED': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "returned_well.png"),
-        'PARTY_UI': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "party_ui.png")
+        'PARTY_UI': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "party_ui.png"),
+        'RETURN_TARGET_LOCATION': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "return_target_location.png"),
     },
     'S2': {
         'ARENA': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "arena_indicator.png"),

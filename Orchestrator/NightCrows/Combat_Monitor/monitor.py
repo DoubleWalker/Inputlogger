@@ -313,12 +313,33 @@ class CombatMonitor(BaseMonitor):
 
             # 5. 귀환/복귀 시작 (Context에 따라 분기)
             if context == Location.FIELD:
-                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Context is FIELD. Initiating return action...")
-                # TODO: 필드에서의 귀환 동작 구현 (예: 귀환 주문서 사용)
-                #       템플릿 이름 예시: 'RETURN_SCROLL'
-                #       성공 시 True, 실패 시 False 반환하도록 구현 필요
-                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: [Placeholder] FIELD return initiation.")
-                return True # 임시 성공
+                print(
+                    f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Context is FIELD. Initiating return action...")
+
+                # 1. 메뉴 클릭 (고정 위치)
+                if not self._click_relative(screen, 'main_menu_button', delay_after=1.0):
+                    return False
+
+                # 2. 템플릿 위치 클릭
+                template_path = template_paths.get_template(screen.screen_id, 'RETURN_TARGET_LOCATION')
+                if not template_path or not os.path.exists(template_path):
+                    return False
+
+                target_location = image_utils.return_ui_location(template_path, screen.region, self.confidence)
+                if not target_location:
+                    return False
+
+                pyautogui.click(target_location)
+                time.sleep(1.0)
+
+                # 3. 확인 클릭 (고정 위치)
+                if not self._click_relative(screen, 'retry_confirm', delay_after=0.5):
+                    return False
+
+                # 4. 닫기 클릭 (고정 위치)
+                self._click_relative(screen, 'retry_close', delay_after=1.5)
+
+                return True
 
             elif context == Location.ARENA:
                 print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Context is ARENA. Return initiation not needed here.")

@@ -9,6 +9,7 @@ import threading
 import os
 import sys # if __name__ == "__main__" 에서 경로 설정 위해 추가
 import numpy as np
+import random
 from enum import Enum, auto
 from dataclasses import dataclass
 from typing import Tuple, List, Dict, Optional
@@ -359,16 +360,73 @@ class CombatMonitor(BaseMonitor):
             return False
 
     def _process_recovery(self, screen: ScreenMonitorInfo) -> bool:
-        """[플레이스홀더] 지정된 화면에서 기본적인 부활 동작을 수행합니다."""
-        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: [Placeholder Action] Processing RECOVERY (Revive)...")
-        # TODO: 실제 부활 로직 구현
-        # 1. 'REVIVE_BUTTON' 템플릿 경로 가져오기 (screen.screen_id 사용)
-        # 2. 템플릿 파일 존재 및 유효성 확인
-        # 3. image_utils.return_ui_location 으로 버튼 찾기 (screen.region 사용)
-        # 4. 찾았으면 pyautogui.click 으로 클릭
-        # 5. 성공/실패에 따라 True/False 반환
-        time.sleep(2) # 임시 동작 시간
-        return True # 임시 성공 반환
+        """지정된 화면에서 부활 동작을 수행합니다."""
+        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Processing RECOVERY (Revive)...")
+
+        try:
+            # 1. 부활 버튼 클릭
+            revive_template_path = template_paths.get_template(screen.screen_id, 'REVIVE_BUTTON')
+            if not revive_template_path or not os.path.exists(revive_template_path):
+                print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: REVIVE_BUTTON template not found.")
+                return False
+
+            revive_location = image_utils.return_ui_location(revive_template_path, screen.region, self.confidence)
+            if not revive_location:
+                print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: REVIVE_BUTTON not found on screen.")
+                return False
+
+            pyautogui.click(revive_location)
+            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Clicked REVIVE_BUTTON.")
+
+            # 2. 부활 후 마을 복귀 대기 (10-15초)
+            wait_time = random.uniform(10, 15)
+            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waiting {wait_time:.1f}s for respawn...")
+            time.sleep(wait_time)
+
+            # 3. 묘지 UI 찾기 (여러 번 시도)
+            graveyard_template_path = template_paths.get_template(screen.screen_id, 'GRAVEYARD')
+            if not graveyard_template_path or not os.path.exists(graveyard_template_path):
+                print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: GRAVEYARD template not found.")
+                return False
+
+            max_attempts = 5
+            graveyard_found = False
+
+            for attempt in range(max_attempts):
+                graveyard_location = image_utils.return_ui_location(graveyard_template_path, screen.region,
+                                                                    self.confidence)
+                if graveyard_location:
+                    pyautogui.click(graveyard_location)
+                    print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Clicked GRAVEYARD location.")
+                    graveyard_found = True
+                    break
+                else:
+                    print(
+                        f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: GRAVEYARD not found (attempt {attempt + 1}/{max_attempts})")
+                    time.sleep(1.0)
+
+            if not graveyard_found:
+                print(
+                    f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: GRAVEYARD not found after {max_attempts} attempts.")
+                return False
+
+            # 4. 잠시 대기
+            time.sleep(0.5)
+
+            # 5. 고정 위치 클릭
+            if not self._click_relative(screen, 'graveyard_confirm', delay_after=0.5):
+                print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Failed to click graveyard_confirm.")
+                return False
+
+            # 6. ESC 키 누르기
+            pyautogui.press('esc')
+            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Pressed ESC. Recovery process completed.")
+
+            return True
+
+        except Exception as e:
+            print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Exception during recovery: {e}")
+            return False
 
     def _check_returned_well(self, screen_info: 'ScreenInfo', samples: int = 7, threshold: float = 0.15, sample_interval: float = 0.5) -> bool:
         """

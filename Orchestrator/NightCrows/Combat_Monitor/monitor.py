@@ -500,7 +500,7 @@ class CombatMonitor(BaseMonitor):
         """필드 복귀 재시도: 메뉴-템플릿-확인-닫기 순으로 클릭"""
         try:
             # 1. 메뉴 클릭 (고정 위치)
-            if not self._click_relative(screen, 'RETRY_MENU_BUTTON', delay_after=1.0):
+            if not self._click_relative(screen, 'main_menu_button', delay_after=1.0):
                 return False
 
             # 2. 템플릿 위치 클릭
@@ -516,11 +516,11 @@ class CombatMonitor(BaseMonitor):
             time.sleep(1.0)
 
             # 3. 확인 클릭 (고정 위치)
-            if not self._click_relative(screen, 'RETRY_CONFIRM_BUTTON', delay_after=0.5):
+            if not self._click_relative(screen, 'retry_confirm', delay_after=0.5):
                 return False
 
             # 4. 닫기 클릭 (고정 위치)
-            self._click_relative(screen, 'RETRY_CLOSE_MAP_BUTTON', delay_after=1.5)
+            self._click_relative(screen, 'retry_close', delay_after=1.5)
 
             return True
 

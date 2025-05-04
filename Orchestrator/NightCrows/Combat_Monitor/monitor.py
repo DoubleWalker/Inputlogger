@@ -497,74 +497,35 @@ class CombatMonitor(BaseMonitor):
     # ... (_get_character_state_on_screen 등 기존 메소드) ...
 
     def _retry_field_return(self, screen: ScreenMonitorInfo) -> bool:
-        """
-        (이 메소드는 이전 답변의 코드를 여기에 삽입/수정합니다)
-        지정된 화면에서 '필드 사냥터'로의 복귀를 재시도합니다.
-        클릭 순서: 특정위치(메뉴) -> 템플릿위치 -> 특정위치 -> 특정위치
-        특정위치는 region 기준 상대좌표(_click_relative 사용)
-        """
-        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Attempting FIELD return retry sequence...")
-
+        """필드 복귀 재시도: 메뉴-템플릿-확인-닫기 순으로 클릭"""
         try:
-            # --- 1. 특정 위치 클릭 (예: 메뉴 열기) ---
-            # [주의] 'RETRY_MENU_BUTTON' 키는 screen_info.py의 FIXED_UI_COORDS에 정의되어 있어야 합니다.
+            # 1. 메뉴 클릭 (고정 위치)
             if not self._click_relative(screen, 'RETRY_MENU_BUTTON', delay_after=1.0):
-                print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Step 1/4 - Failed to click RETRY_MENU_BUTTON.")
-                return False
-            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Step 1/4 - Clicked RETRY_MENU_BUTTON.")
-
-            # --- 2. 템플릿 위치 클릭 (예: 즐겨찾기된 사냥터 위치) ---
-            target_template_key = 'RETURN_TARGET_LOCATION' # template_paths.py 에 정의된 템플릿 이름
-            target_template_path = template_paths.get_template(screen.screen_id, target_template_key)
-
-            if not target_template_path:
-                print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Step 2/4 - Template path for '{target_template_key}' not found.")
-                # 실패 시 메뉴 닫기 등 후처리 필요 시 추가
-                # self._click_relative(screen, 'RETRY_CLOSE_MAP_BUTTON', delay_after=0.1) # 예시
-                return False
-            if not os.path.exists(target_template_path):
-                print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Step 2/4 - Template file not found: {target_template_path}")
                 return False
 
-            target_location = image_utils.return_ui_location(
-                template_path=target_template_path,
-                region=screen.region,
-                threshold=self.confidence # 클래스에 정의된 confidence 사용
-            )
-
-            if target_location:
-                print(f"INFO:[{self.monitor_id}] Clicking template '{target_template_key}' at {target_location} on screen {screen.screen_id}...")
-                pyautogui.click(target_location)
-                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Step 2/4 - Clicked template '{target_template_key}'.")
-                time.sleep(1.0) # 템플릿 클릭 후 대기
-            else:
-                print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Step 2/4 - Template '{target_template_key}' not found on screen.")
-                # 실패 시 메뉴 닫기 등 후처리 필요 시 추가
-                # self._click_relative(screen, 'RETRY_CLOSE_MAP_BUTTON', delay_after=0.1) # 예시
+            # 2. 템플릿 위치 클릭
+            template_path = template_paths.get_template(screen.screen_id, 'RETURN_TARGET_LOCATION')
+            if not template_path or not os.path.exists(template_path):
                 return False
 
-            # --- 3. 특정 위치 클릭 (예: 이동 확인) ---
-            # [주의] 'RETRY_CONFIRM_BUTTON' 키는 screen_info.py의 FIXED_UI_COORDS에 정의되어 있어야 합니다.
+            target_location = image_utils.return_ui_location(template_path, screen.region, self.confidence)
+            if not target_location:
+                return False
+
+            pyautogui.click(target_location)
+            time.sleep(1.0)
+
+            # 3. 확인 클릭 (고정 위치)
             if not self._click_relative(screen, 'RETRY_CONFIRM_BUTTON', delay_after=0.5):
-                print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Step 3/4 - Failed to click RETRY_CONFIRM_BUTTON.")
                 return False
-            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Step 3/4 - Clicked RETRY_CONFIRM_BUTTON.")
 
-            # --- 4. 특정 위치 클릭 (예: 지도/메뉴 닫기) ---
-            # [주의] 'RETRY_CLOSE_MAP_BUTTON' 키는 screen_info.py의 FIXED_UI_COORDS에 정의되어 있어야 합니다.
-            if not self._click_relative(screen, 'RETRY_CLOSE_MAP_BUTTON', delay_after=1.5): # 복귀 시작 후 안정화 대기
-                print(f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Step 4/4 - Failed to click RETRY_CLOSE_MAP_BUTTON, but return might be initiated.")
-                # 실패했더라도 복귀 시도는 되었을 수 있으므로 False 대신 경고만 남길 수도 있음
-                # return False # 필요에 따라 실패 처리
-            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Step 4/4 - Clicked RETRY_CLOSE_MAP_BUTTON.")
+            # 4. 닫기 클릭 (고정 위치)
+            self._click_relative(screen, 'RETRY_CLOSE_MAP_BUTTON', delay_after=1.5)
 
-            # 모든 단계 성공
-            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Field return retry sequence initiated successfully.")
             return True
 
         except Exception as e:
-            print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Exception during _retry_field_return: {e}")
-            traceback.print_exc()
+            print(f"ERROR: Field return retry failed: {e}")
             return False
 
     # --- 상태 처리 핸들러 ---

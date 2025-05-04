@@ -915,26 +915,7 @@ if __name__ == "__main__":
         print("INFO: Standalone test finished.")
 
 
-#**주요 변경 및 정리 내용:**
-
-#1.  **임포트 정리:** 상단 임포트 블록을 정리하고, 필수 모듈 임포트 실패 시 에러 메시지와 함께 종료하도록 `sys.exit(1)` 추가 (선택 사항). `Optional` 타입 힌트 추가.
-#2.  **BaseMonitor 정리:** `config` 타입 힌트 추가 및 기본값 처리 명확화. `stop` 메서드 로그 레벨 변경.
-#3.  **플레이스홀더 함수 정리:** 클래스 외부 정의 유지. 로그 레벨(INFO) 명시. `self`나 `screen`이 필요 없는 현재 상태 유지.
-#4.  **CombatMonitor `__init__` 정리:** `_internal_death_counter` 제거. `config` 타입 힌트 및 기본값 처리 명확화. 필수 템플릿 경로 로드 실패 시 경고 메시지 개선.
-#5.  **`add_screen` 정리:** 이미 추가된 ID 확인 로직 개선. 로그 레벨 명시.
-#6.  **`_load_template` 정리:** 로그 레벨 명시. `Optional` 반환 타입 힌트 추가. `cv2.typing.MatLike` 타입 힌트 추가 (OpenCV 타입 힌트 사용 시).
-#7.  **`_get_character_state_on_screen` 정리:** 스크린샷 실패 에러 처리 추가. 예외 처리 시 `traceback` 추가. 로그 레벨 명시.
-#8.  **`_is_character_in_arena` 정리:** 스크린샷 실패 에러 처리 추가. 템플릿 로드 실패 시 로그 제거 (간결화). 로그 레벨 명시.
-#9.  **`_determine_initial_location` 정리:** 에러 발생 시 재시도 로직 개선 및 로그 레벨 명시. `stop_event` 처리 추가.
-#10. **`_attempt_flight` 정리:** 기본 경로 폴백(`or self.flight_button_template_path`) 제거. 로그 레벨 명시.
-#11. **`_buy_potion_and_initiate_return` 정리:** TODO 주석 유지. 에러 발생 시 `traceback` 추가. 로그 레벨 명시.
-#12. **`_process_recovery` 정리:** TODO 주석 유지. 로그 레벨 명시.
-#13. **`_check_returned_well` 정리:** TODO 주석 유지. 로그 레벨 명시.
-#14. **`_retry_field_return` 정리:** TODO 주석 유지. 로그 레벨 명시.
-#15. **`_handle_hostile_engage` / `_handle_death` 정리:** 내부 로직 호출 시 반환값 확인 후 에러/경고 로그 추가. 로그 레벨 명시.
-#16. **`_waypoint_navigation` 정리:** 플레이스홀더 함수 호출 유지. 로그 레벨 명시.
-#17. **`run_loop` 정리:** `triggering_screen` None 체크 강화. 예외 처리 시 `traceback` 추가. `stop_event.wait()` 사용 일관성 유지. 로그 레벨 명시.
-#18. **`stop` 정리:** 로그 레벨 명시.
-#19. **`if __name__ == "__main__":` 정리:** `screen_info` 임포트 경로 처리 개선. 에러 발생 시 `sys.exit(1)` 추가. 로그 레벨 명시. `KeyboardInterrupt` 처리 개선. 스레드 종료 로직 명확화.
-
-#전반적으로 로그 메시지에 `INFO:`, `WARN:`, `ERROR:` 접두사를 사용하여 구별하기 쉽도록 했고, 불필요한 주석이나 디버깅용 코드를 제거하여 가독성을 높였습니다. 핵심 로직과 플레이스홀더 구분은 명확하게 유지했습
+# **주요 TODO 사항:**
+# - 웨이포인트 관련 함수들 구현 필요 (_move_to_wp, _check_reached_wp 등)
+# - screen_info.py의 FIXED_UI_COORDS 실제 좌표값 측정 필요
+# - S2-S5 템플릿 경로 추가 필요 (template_paths.py)

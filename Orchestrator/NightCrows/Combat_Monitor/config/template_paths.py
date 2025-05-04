@@ -34,13 +34,19 @@ TEMPLATES = {
         'RETURNED': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "returned_well.png"),
         'PARTY_UI': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "party_ui.png"),
         'RETURN_TARGET_LOCATION': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "return_target_location.png"),
+        'REVIVE_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "revive_button.png"),
+        'GRAVEYARD': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "graveyard.png"),
+
     },
     'S2': {
         'ARENA': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "arena_indicator.png"),
         'DEAD': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "dead_indicator.png"),
         'HOSTILE': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "hostile_indicator.png"),
         'FLIGHT_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "flight_button.png"),
-        'PARTY_UI': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "party_ui.png")
+        'PARTY_UI': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "party_ui.png"),
+        'REVIVE_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "revive_button.png"),
+        'GRAVEYARD': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "graveyard.png"),
+
         # 필요한 다른 S2 템플릿도 동일하게 추가
     },
     # S3, S4, S5도 동일한 방식으로 추가

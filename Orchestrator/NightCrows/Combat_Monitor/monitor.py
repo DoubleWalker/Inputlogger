@@ -612,21 +612,28 @@ class CombatMonitor(BaseMonitor):
     def _handle_hostile_engage(self, stop_event: threading.Event, screen: ScreenMonitorInfo):
         """HOSTILE_ENGAGE 상태를 처리합니다. (도주 시도 -> 물약 구매 -> 복귀 확인/웨이포인트)"""
         print(f"INFO: [{self.monitor_id}] Handling HOSTILE_ENGAGE state on screen {screen.screen_id}...")
-        if self._attempt_flight(screen=screen):
-            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Flight successful.")
-            # 도주 성공 후 물약 구매 및 귀환 시작
-            if not self._buy_potion_and_initiate_return(screen=screen, context=self.location_flag):
-                 print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Failed potion purchase/return after flight.")
-                 return # 핸들러 종료
 
-            # 위치(Context)에 따라 후속 조치
-            if self.location_flag == Location.ARENA:
-                print(f"INFO: [{self.monitor_id}] Transitioning to Waypoint Navigation (from Arena flight)...")
-                self._waypoint_navigation(stop_event) # 플레이스홀더 호출
-                self.location_flag = Location.ARENA # 상태 업데이트
+        # 도주 전에 현재 컨텍스트 저장
+        original_context = self.location_flag
+        print(f"INFO: [{self.monitor_id}] Current context before flight: {original_context.name}")
+
+        if self._attempt_flight(screen=screen):
+            print(f"INFO: [{self.monitor_id}] Flight successful. Using original context: {original_context.name}")
+
+            # 물약 구매 및 귀환 시작 - 저장된 원래 컨텍스트 사용
+            if not self._buy_potion_and_initiate_return(screen=screen, context=original_context):
+                print(
+                    f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Failed potion purchase/return after flight.")
+                return
+
+            # 원래 컨텍스트에 따라 후속 조치
+            if original_context == Location.ARENA:
+                print(f"INFO: [{self.monitor_id}] Original context was ARENA. Transitioning to Waypoint Navigation...")
+                self._waypoint_navigation(stop_event)
+                self.location_flag = Location.ARENA  # 웨이포인트 네비게이션 후 아레나 상태로 복원
                 print(f"INFO: [{self.monitor_id}] Waypoint navigation finished, context set to ARENA.")
-            else: # Field
-                print(f"INFO: [{self.monitor_id}] Checking Field return status...")
+            else:  # Field
+                print(f"INFO: [{self.monitor_id}] Original context was FIELD. Checking return status...")
                 return_check_count = 0
                 max_return_checks = 15
                 while not stop_event.is_set() and return_check_count < max_return_checks:

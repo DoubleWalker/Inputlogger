@@ -64,12 +64,35 @@ def _move_to_wp(wp_index: int) -> None:
     print(f"INFO: [Placeholder Action] Moving to Waypoint #{wp_index}...")
     time.sleep(1)
 
-def _check_reached_wp(wp_index: int) -> bool:
-    """[플레이스홀더] 특정 웨이포인트에 도착했는지 확인"""
-    print(f"INFO: [Placeholder Action] Checking if reached Waypoint #{wp_index}...")
-    reached = time.time() % 10 > 3 # 임시 성공/실패
-    print(f"--> Reached WP {wp_index}: {reached}")
-    return reached
+
+def _check_reached_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:
+    """웨이포인트 도착 여부를 최대 3번 확인합니다."""
+    print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Checking if reached Waypoint #{wp_index}")
+
+    # 웨이포인트 도착 확인 템플릿 경로 가져오기
+    template_key = f'WAYPOINT_{wp_index}'
+    template_path = template_paths.get_template(screen.screen_id, template_key)
+
+    if not template_path or not os.path.exists(template_path):
+        print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: {template_key} template not found")
+        return False
+
+    # 최대 3번 시도
+    max_attempts = 3
+    for attempt in range(max_attempts):
+        if image_utils.is_image_present(
+                template_path=template_path,
+                region=screen.region,
+                threshold=self.confidence
+        ):
+            print(f"INFO: [{self.monitor_id}] WP {wp_index} reached confirmed on attempt {attempt + 1}")
+            return True
+
+        print(f"INFO: [{self.monitor_id}] WP {wp_index} not detected on attempt {attempt + 1}/{max_attempts}")
+        time.sleep(1.0)  # 1초 간격으로 재시도
+
+    print(f"INFO: [{self.monitor_id}] WP {wp_index} not reached after {max_attempts} attempts")
+    return False
 
 def _look_for_wp(wp_index: int) -> None:
     """[플레이스홀더] 웨이포인트를 찾거나 경로를 조정하는 동작 수행"""
@@ -81,12 +104,34 @@ def _get_max_wp_num() -> int:
     print("INFO: [Placeholder Action] Getting Max Waypoint Number...")
     return 5 # 예시 값
 
-def _is_at_combat_spot() -> bool:
-    """[플레이스홀더] 최종 전투 지점에 도착했는지 확인"""
-    print("INFO: [Placeholder Action] Checking if at final Combat Spot...")
-    at_spot = time.time() % 12 > 4 # 임시 성공/실패
-    print(f"--> At Combat Spot: {at_spot}")
-    return at_spot
+
+def _is_at_combat_spot(self, screen: ScreenMonitorInfo) -> bool:
+    """최종 전투 지점 도착 여부를 최대 3번 확인합니다."""
+    print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Checking if at combat spot")
+
+    # 전투 지점 확인 템플릿 경로 가져오기
+    template_path = template_paths.get_template(screen.screen_id, 'COMBAT_SPOT')
+
+    if not template_path or not os.path.exists(template_path):
+        print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: COMBAT_SPOT template not found")
+        return False
+
+    # 최대 3번 시도
+    max_attempts = 3
+    for attempt in range(max_attempts):
+        if image_utils.is_image_present(
+                template_path=template_path,
+                region=screen.region,
+                threshold=self.confidence
+        ):
+            print(f"INFO: [{self.monitor_id}] Combat spot reached confirmed on attempt {attempt + 1}")
+            return True
+
+        print(f"INFO: [{self.monitor_id}] Combat spot not detected on attempt {attempt + 1}/{max_attempts}")
+        time.sleep(1.0)  # 1초 간격으로 재시도
+
+    print(f"INFO: [{self.monitor_id}] Combat spot not confirmed after {max_attempts} attempts")
+    return False
 
 def _perform_combat_spot_adjustment() -> None:
     """[플레이스홀더] 최종 전투 지점 도착을 위한 위치 조정 동작 수행"""

@@ -750,62 +750,92 @@ class CombatMonitor(BaseMonitor):
             print(f"INFO: [{self.monitor_id}] Waypoint navigation complete. Returning to Arena Monitoring.")
 
     def _waypoint_navigation(self, stop_event: threading.Event):
-        """[플레이스홀더] 웨이포인트 네비게이션 로직을 처리합니다."""
+        """웨이포인트 네비게이션 로직을 처리합니다."""
         print(f"INFO: [{self.monitor_id}] Starting Waypoint Navigation...")
-        self.current_wp = 1
-        if self.max_wp <= 0:
-            print("WARN: [{self.monitor_id}] Max WP is 0 or invalid, skipping waypoint navigation.")
+
+        # 현재 화면 결정 (일단 첫 번째 화면 사용)
+        if not self.screens:
+            print(f"ERROR: [{self.monitor_id}] No screens available for waypoint navigation.")
             return
+        screen = self.screens[0]
+
+        # 웨이포인트 초기화
+        self.current_wp = 1
+        self.max_wp = 5  # 임시 값, 필요시 동적 계산 가능
 
         while self.current_wp <= self.max_wp and not stop_event.is_set():
             print(f"INFO: [{self.monitor_id}] --- Waypoint Loop: Target WP {self.current_wp}/{self.max_wp} ---")
-            _move_to_wp(self.current_wp)
 
-            # 웨이포인트 도착 확인
-            reach_check_count = 0
-            max_reach_checks = 10
-            reached_current_wp = False
-            while not stop_event.is_set() and reach_check_count < max_reach_checks:
-                if _check_reached_wp(self.current_wp):
-                    print(f"INFO: [{self.monitor_id}] Successfully reached Waypoint #{self.current_wp}.")
-                    reached_current_wp = True
+            # 1. 웨이포인트로 이동 시도
+            if not self._move_to_wp(screen, self.current_wp):
+                print(f"WARN: [{self.monitor_id}] Failed to initiate movement to WP {self.current_wp}.")
+                # 실패 시 다음 웨이포인트로 넘어갈지, 재시도할지 결정
+                # ...
+
+            # 2. 웨이포인트 도착 확인 (여러 번 시도)
+            reached = False
+            check_attempts = 0
+            max_check_attempts = 10
+
+            while not reached and check_attempts < max_check_attempts and not stop_event.is_set():
+                if self._check_reached_wp(screen, self.current_wp):
+                    print(f"INFO: [{self.monitor_id}] Successfully reached WP {self.current_wp}.")
+                    reached = True
                     break
-                else:
-                    reach_check_count += 1
-                    print(f"INFO: [{self.monitor_id}] WP {self.current_wp} not reached yet ({reach_check_count}/{max_reach_checks}). Looking for WP...")
-                    _look_for_wp(self.current_wp)
-                    if stop_event.wait(1): return # 대기 중 종료 확인
 
-            if not reached_current_wp and not stop_event.is_set():
-                print(f"WARN: [{self.monitor_id}] Could not confirm reaching WP {self.current_wp} after {max_reach_checks} checks. Aborting WP Nav.")
+                check_attempts += 1
+                print(
+                    f"INFO: [{self.monitor_id}] WP {self.current_wp} not reached yet ({check_attempts}/{max_check_attempts}).")
+
+                # 못 찾으면 조정 시도
+                if not self._look_for_wp(screen, self.current_wp):
+                    print(f"WARN: [{self.monitor_id}] Failed to look for WP {self.current_wp}.")
+
+                # 잠시 대기 후 다시 확인
+                if stop_event.wait(1.0):
+                    return  # 중지 신호 받으면 종료
+
+            if not reached:
+                print(
+                    f"WARN: [{self.monitor_id}] Could not confirm reaching WP {self.current_wp}. Aborting navigation.")
                 return
-            if stop_event.is_set(): return # 루프 중단
 
-            # 마지막 웨이포인트 도달 시 최종 전투 지점 확인
+            # 마지막 웨이포인트에 도달한 경우
             if self.current_wp == self.max_wp:
-                print(f"INFO: [{self.monitor_id}] Reached final WP #{self.max_wp}. Checking final combat spot...")
-                combat_spot_check_count = 0
-                max_combat_spot_checks = 10
-                arrived_at_spot = False
-                while not stop_event.is_set() and combat_spot_check_count < max_combat_spot_checks:
-                    if _is_at_combat_spot():
-                        print(f"INFO: [{self.monitor_id}] Successfully arrived at the Combat Spot.")
-                        arrived_at_spot = True
-                        break
-                    else:
-                        combat_spot_check_count += 1
-                        print(f"INFO: [{self.monitor_id}] Combat Spot not reached yet ({combat_spot_check_count}/{max_combat_spot_checks}). Adjusting position...")
-                        _perform_combat_spot_adjustment()
-                        if stop_event.wait(1): return # 대기 중 종료 확인
-                if not arrived_at_spot and not stop_event.is_set():
-                     print(f"WARN: [{self.monitor_id}] Could not confirm reaching Combat Spot after {max_combat_spot_checks} checks. Finishing WP Nav anyway.")
-                return # 마지막 웨이포인트 처리 후 네비게이션 종료
-            else:
-                # 다음 웨이포인트로 이동
-                self.current_wp += 1
+                print(f"INFO: [{self.monitor_id}] Reached final WP {self.max_wp}. Checking combat spot...")
 
-        if not stop_event.is_set():
-            print(f"INFO: [{self.monitor_id}] Waypoint navigation finished.")
+                # 전투 지점 확인 (여러 번 시도)
+                spot_reached = False
+                spot_check_attempts = 0
+                max_spot_checks = 10
+
+                while not spot_reached and spot_check_attempts < max_spot_checks and not stop_event.is_set():
+                    if self._is_at_combat_spot(screen):
+                        print(f"INFO: [{self.monitor_id}] Successfully arrived at combat spot.")
+                        spot_reached = True
+                        break
+
+                    spot_check_attempts += 1
+                    print(
+                        f"INFO: [{self.monitor_id}] Combat spot not reached ({spot_check_attempts}/{max_spot_checks}).")
+
+                    # 위치 조정 시도
+                    if not self._perform_combat_spot_adjustment(screen):
+                        print(f"WARN: [{self.monitor_id}] Failed to adjust position.")
+
+                    if stop_event.wait(1.0):
+                        return
+
+                if not spot_reached:
+                    print(
+                        f"WARN: [{self.monitor_id}] Could not confirm arriving at combat spot. Navigation may be incomplete.")
+
+                return  # 마지막 웨이포인트 처리 후 종료
+
+            # 다음 웨이포인트로
+            self.current_wp += 1
+
+        print(f"INFO: [{self.monitor_id}] Waypoint navigation completed.")
 
     # === 메인 모니터링 루프 ===
     def run_loop(self, stop_event: threading.Event):

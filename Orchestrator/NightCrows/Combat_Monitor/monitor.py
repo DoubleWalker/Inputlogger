@@ -65,7 +65,26 @@ def _move_to_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:
     print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Moving to waypoint {wp_index}")
 
     try:
-        # 웨이포인트별 이동 로직 분기
+        # 직접 UI 클릭 방식 이동 (WP1, WP2)
+        if wp_index in [1, 2]:
+            return self._move_to_arena_wp(screen, wp_index)
+
+        # 파티 리더-팔로워 방식 이동 (WP3, WP4)
+        elif wp_index in [3, 4]:
+            return self._move_to_party_shared_wp(screen, wp_index)
+
+        else:
+            print(f"ERROR: [{self.monitor_id}] Unknown waypoint index: {wp_index}")
+            return False
+
+    except Exception as e:
+        print(f"ERROR: [{self.monitor_id}] Exception during move to waypoint {wp_index}: {e}")
+        return False
+
+
+def _move_to_arena_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:
+    """격전지 내 웨이포인트(WP1, WP2)로 UI 클릭을 통해 이동"""
+    try:
         if wp_index == 1:
             # WP1 (아레나) 이동 로직
             # 1. 메뉴 버튼 클릭 (고정 위치)
@@ -130,55 +149,50 @@ def _move_to_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:
             # WP2 (격전지 내 특정 위치/탑) 이동 로직
             print(f"INFO: [{self.monitor_id}] Moving to WP2 (Arena Tower)...")
 
-            try:
-                # 1. 맵 인터페이스 열기 (M 키)
-                keyboard.press_and_release('m')
-                print(f"INFO: [{self.monitor_id}] Opened map interface")
-                time.sleep(1.0)  # 맵 로딩 대기
+            # 1. 맵 인터페이스 열기 (M 키)
+            keyboard.press_and_release('m')
+            print(f"INFO: [{self.monitor_id}] Opened map interface")
+            time.sleep(1.0)  # 맵 로딩 대기
 
-                # 2. 첫 번째 고정 좌표 클릭
-                if not self._click_relative(screen, 'tower_click_1', delay_after=0.5):
-                    print(f"ERROR: [{self.monitor_id}] Failed to click first tower location")
-                    keyboard.press_and_release('m')  # 맵 닫기
-                    return False
-
-                # 3. 두 번째 고정 좌표 클릭
-                if not self._click_relative(screen, 'tower_click_2', delay_after=0.5):
-                    print(f"ERROR: [{self.monitor_id}] Failed to click second tower location")
-                    keyboard.press_and_release('m')  # 맵 닫기
-                    return False
-
-                # 4. 세 번째 고정 좌표 클릭
-                if not self._click_relative(screen, 'tower_click_3', delay_after=0.5):
-                    print(f"ERROR: [{self.monitor_id}] Failed to click third tower location")
-                    keyboard.press_and_release('m')  # 맵 닫기
-                    return False
-
-                # 5. Y 키 입력으로 확인
-                keyboard.press_and_release('y')
-                print(f"INFO: [{self.monitor_id}] Pressed Y to confirm teleport")
-
-                print(f"INFO: [{self.monitor_id}] Successfully initiated tower teleport")
-                return True
-
-            except Exception as e:
-                print(f"ERROR: [{self.monitor_id}] Exception during WP2 movement: {e}")
-                # 오류 시 맵 닫기 시도
-                try:
-                    keyboard.press_and_release('m')
-                except:
-                    pass
+            # 2. 첫 번째 고정 좌표 클릭
+            if not self._click_relative(screen, 'tower_click_1', delay_after=0.5):
+                print(f"ERROR: [{self.monitor_id}] Failed to click first tower location")
+                keyboard.press_and_release('m')  # 맵 닫기
                 return False
 
-        # 기타 웨이포인트 추가 가능
+            # 3. 두 번째 고정 좌표 클릭
+            if not self._click_relative(screen, 'tower_click_2', delay_after=0.5):
+                print(f"ERROR: [{self.monitor_id}] Failed to click second tower location")
+                keyboard.press_and_release('m')  # 맵 닫기
+                return False
+
+            # 4. 세 번째 고정 좌표 클릭
+            if not self._click_relative(screen, 'tower_click_3', delay_after=0.5):
+                print(f"ERROR: [{self.monitor_id}] Failed to click third tower location")
+                keyboard.press_and_release('m')  # 맵 닫기
+                return False
+
+            # 5. Y 키 입력으로 확인
+            keyboard.press_and_release('y')
+            print(f"INFO: [{self.monitor_id}] Pressed Y to confirm teleport")
+
+            print(f"INFO: [{self.monitor_id}] Successfully initiated tower teleport")
+            return True
+
         else:
-            print(f"ERROR: [{self.monitor_id}] Unknown waypoint index: {wp_index}")
+            print(f"ERROR: [{self.monitor_id}] Unsupported arena waypoint index: {wp_index}")
             return False
 
     except Exception as e:
-        print(f"ERROR: [{self.monitor_id}] Exception during move to waypoint {wp_index}: {e}")
+        print(f"ERROR: [{self.monitor_id}] Exception during arena WP{wp_index} movement: {e}")
+        # 오류 시 맵/메뉴 닫기 시도
+        try:
+            keyboard.press_and_release('esc')
+            if wp_index == 2:  # WP2는 맵을 열었을 수 있음
+                keyboard.press_and_release('m')
+        except:
+            pass
         return False
-
 
 def _check_reached_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:
     """웨이포인트 도착 여부를 확인합니다 (공통 인터페이스)"""

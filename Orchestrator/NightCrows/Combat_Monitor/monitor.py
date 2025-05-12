@@ -82,6 +82,7 @@ def _move_to_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:
         return False
 
 
+
 def _move_to_arena_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:
     """격전지 내 웨이포인트(WP1, WP2)로 UI 클릭을 통해 이동"""
     try:
@@ -865,6 +866,146 @@ class CombatMonitor(BaseMonitor):
             self._waypoint_navigation(stop_event) # 플레이스홀더 호출
             self.location_flag = Location.ARENA # 상태 업데이트
             print(f"INFO: [{self.monitor_id}] Waypoint navigation complete. Returning to Arena Monitoring.")
+
+    def _execute_sequence(self, sequence_name: str, stop_event: threading.Event = None) -> bool:
+        """YAML에 정의된 동작 시퀀스를 실행합니다."""
+        try:
+            # YAML 파일 경로 생성
+            import yaml
+            import os
+
+            # 설정 폴더 경로 (프로젝트 루트 기준 상대 경로)
+            config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                                      "config", "sequences")
+            yaml_path = os.path.join(config_dir, f"{sequence_name}.yaml")
+
+            if not os.path.exists(yaml_path):
+                print(f"ERROR: Sequence file not found: {yaml_path}")
+                return False
+
+            # YAML 파일 로드
+            with open(yaml_path, 'r', encoding='utf-8') as f:
+                sequence_data = yaml.safe_load(f)
+
+            if not sequence_data:
+                print(f"ERROR: Empty or invalid sequence data: {sequence_name}")
+                return False
+
+            # 첫 번째 키가 시퀀스 정의를 담고 있음
+            sequence_key = next(iter(sequence_data))
+            sequence = sequence_data[sequence_key]
+
+            # 시퀀스의 각 단계(phase) 실행
+            for phase in sequence:
+                phase_name = phase.get('phase', 'unnamed')
+                print(f"INFO: [{self.monitor_id}] Executing phase: {phase_name}")
+
+                # 반복 실행이 필요한 경우
+                repeat_count = phase.get('repeat', 1)
+                interval = phase.get('interval', 0)
+
+                for _ in range(repeat_count):
+                    # 중지 신호 확인
+                    if stop_event and stop_event.is_set():
+                        print(f"INFO: [{self.monitor_id}] Sequence '{sequence_name}' interrupted by stop signal")
+                        return False
+
+                    # 단계 내 액션 실행
+                    for action in phase.get('actions', []):
+                        action_type = action.get('type', '')
+                        key = action.get('key', '')
+                        duration = action.get('duration', 0.1)
+
+                        if action_type == 'key_press':
+                            keyboard.press_and_release(key)
+                        elif action_type == 'key_hold':
+                            keyboard.press(key)
+                        elif action_type == 'key_release':
+                            keyboard.release(key)
+                        elif action_type == 'wait':
+                            pass  # duration으로만 대기
+
+                        # 액션 후 지정된 시간만큼 대기
+                        if duration > 0:
+                            if stop_event and stop_event.wait(duration):
+                                print(f"INFO: [{self.monitor_id}] Sequence interrupted during wait")
+                                return False
+                            else:
+                                time.sleep(duration)
+
+                    # 반복 간격 대기
+                    if _ < repeat_count - 1 and interval > 0:
+                        if stop_event and stop_event.wait(interval):
+                            return False
+                        else:
+                            time.sleep(interval)
+
+            print(f"INFO: [{self.monitor_id}] Sequence '{sequence_name}' completed successfully")
+            return True
+
+        except Exception as e:
+            print(f"ERROR: [{self.monitor_id}] Failed to execute sequence '{sequence_name}': {e}")
+            traceback.print_exc()
+            # 안전을 위해 모든 키 해제
+            keyboard.release('s')
+            keyboard.release('w')
+            keyboard.release('shift')
+            keyboard.release('space')
+            return False
+
+    def _move_to_party_shared_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:
+        """파티 리더-팔로워 방식 웨이포인트(WP3, WP4)로 이동"""
+        try:
+            if wp_index == 3:
+                # WP3 - 점프 시작점으로 이동
+                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Moving to WP3 (Jump point)")
+
+                # 1. 메뉴 열기 (필요시)
+                if not self._click_relative(screen, 'main_menu_button', delay_after=0.5):
+                    print(f"WARN: [{self.monitor_id}] Failed to click main menu, continuing...")
+
+                # 2. 점프 시작점으로 이동하는 로직
+                party_ui_template_path = template_paths.get_template(screen.screen_id, 'PARTY_UI')
+                if party_ui_template_path and os.path.exists(party_ui_template_path):
+                    party_ui_pos = image_utils.return_ui_location(party_ui_template_path, screen.region,
+                                                                  self.confidence)
+                    if party_ui_pos:
+                        print(f"INFO: [{self.monitor_id}] Found Party UI, clicking")
+                        pyautogui.click(party_ui_pos)
+                        time.sleep(0.5)
+
+                        # 3. 확인 또는 추가 액션 (필요시)
+                        keyboard.press_and_release('y')
+                        time.sleep(0.3)
+
+                        # 4. 도착 대기
+                        arrive_wait_time = 10  # 10초 대기
+                        print(f"INFO: [{self.monitor_id}] Waiting {arrive_wait_time}s for arrival at jump point")
+                        time.sleep(arrive_wait_time)
+
+                        return True
+                    else:
+                        print(f"ERROR: [{self.monitor_id}] Party UI not found on screen")
+                        return False
+                else:
+                    print(f"ERROR: [{self.monitor_id}] Party UI template not configured or not found")
+                    return False
+
+            elif wp_index == 4:
+                # WP4 - 글라이더 비행 시퀀스
+                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Starting WP4 (Glider sequence)")
+
+                # YAML 파일에 정의된 글라이더 시퀀스 실행
+                return self._execute_sequence("wp4_glider", stop_event=self.stop_event)
+
+            else:
+                print(f"ERROR: [{self.monitor_id}] Unsupported party waypoint index: {wp_index}")
+                return False
+
+        except Exception as e:
+            print(f"ERROR: [{self.monitor_id}] Exception during party shared waypoint {wp_index}: {e}")
+            traceback.print_exc()
+            return False
 
     def _waypoint_navigation(self, stop_event: threading.Event):
         """웨이포인트 네비게이션 로직을 처리합니다."""

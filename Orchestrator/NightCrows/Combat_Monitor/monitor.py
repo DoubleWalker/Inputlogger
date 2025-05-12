@@ -6,6 +6,7 @@ import traceback
 import cv2
 import time
 import threading
+import yaml
 import os
 import keyboard
 import sys # if __name__ == "__main__" 에서 경로 설정 위해 추가
@@ -871,8 +872,7 @@ class CombatMonitor(BaseMonitor):
         """YAML에 정의된 동작 시퀀스를 실행합니다."""
         try:
             # YAML 파일 경로 생성
-            import yaml
-            import os
+
 
             # 설정 폴더 경로 (프로젝트 루트 기준 상대 경로)
             config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),

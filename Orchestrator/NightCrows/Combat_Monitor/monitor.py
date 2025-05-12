@@ -1016,12 +1016,15 @@ class CombatMonitor(BaseMonitor):
             traceback.print_exc()
             return False
 
-        def _waypoint_navigation(self, stop_event: threading.Event, target_screen: ScreenMonitorInfo):
-            """특정 화면에 대한 웨이포인트 네비게이션 로직을 처리합니다."""
-            print(f"INFO: [{self.monitor_id}] Starting Waypoint Navigation for screen {target_screen.screen_id}...")
+    # 수정된 함수
+    def _waypoint_navigation(self, stop_event: threading.Event, target_screen: ScreenMonitorInfo):
+        """특정 화면에 대한 웨이포인트 네비게이션 로직을 처리합니다."""
+        print(f"INFO: [{self.monitor_id}] Starting Waypoint Navigation for screen {target_screen.screen_id}...")
 
-            # 전달된 화면 사용
-            screen = target_screen
+        # 전달된 화면 사용
+        screen = target_screen
+
+        # ... 나머지 코드는 동일하게 유지 ...
 
         # 웨이포인트 초기화
         self.current_wp = 1

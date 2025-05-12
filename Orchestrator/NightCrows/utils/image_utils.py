@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import pyautogui
+import time
 import os
 
 def compare_images(screen_img_obj, template_img_obj, threshold=0.8):
@@ -97,4 +98,38 @@ def click_image(template_path, region=None, threshold=0.8, button='left', clicks
             print(f"Error during click at {location}: {e}")
             return False
     else:
+        return False
+
+
+def set_focus(screen_id: str, delay_after: float = 0.2) -> bool:
+    """
+    지정된 화면 ID의 중앙을 클릭하여 포커스를 설정합니다.
+
+    Args:
+        screen_id: 포커스를 설정할 화면 ID (예: 'S1', 'S2' 등)
+        delay_after: 클릭 후 대기 시간 (초)
+
+    Returns:
+        성공 시 True, 실패 시 False
+    """
+    try:
+        from Orchestrator.NightCrows.utils.screen_info import SCREEN_REGIONS
+
+        if screen_id not in SCREEN_REGIONS:
+            print(f"Error: Screen ID '{screen_id}' not found in SCREEN_REGIONS.")
+            return False
+
+        region = SCREEN_REGIONS[screen_id]
+        center_x = region[0] + region[2] // 2
+        center_y = region[1] + region[3] // 2
+
+        pyautogui.click(center_x, center_y)
+        if delay_after > 0:
+            time.sleep(delay_after)
+
+        print(f"Focus set on screen {screen_id} at ({center_x}, {center_y})")
+        return True
+
+    except Exception as e:
+        print(f"Error setting focus on screen {screen_id}: {e}")
         return False

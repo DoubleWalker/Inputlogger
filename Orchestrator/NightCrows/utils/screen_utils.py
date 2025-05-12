@@ -111,6 +111,7 @@ class ScreenWaker:
                 time.sleep(1)
 
         return all_awake
+    
 
 
 if __name__ == "__main__":

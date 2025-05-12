@@ -149,6 +149,10 @@ def _move_to_arena_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:
             return True
 
         elif wp_index == 2:
+            # 포커스 설정
+            if not image_utils.set_focus(screen.screen_id):
+                print(f"ERROR: [{self.monitor_id}] Failed to set focus for WP2 on screen {screen.screen_id}")
+                return False
             # WP2 (격전지 내 특정 위치/탑) 이동 로직
             print(f"INFO: [{self.monitor_id}] Moving to WP2 (Arena Tower)...")
 
@@ -794,7 +798,7 @@ class CombatMonitor(BaseMonitor):
             # 원래 컨텍스트에 따라 후속 조치
             if original_context == Location.ARENA:
                 print(f"INFO: [{self.monitor_id}] Original context was ARENA. Transitioning to Waypoint Navigation...")
-                self._waypoint_navigation(stop_event)
+                self._waypoint_navigation(stop_event, screen)
                 self.location_flag = Location.ARENA  # 웨이포인트 네비게이션 후 아레나 상태로 복원
                 print(f"INFO: [{self.monitor_id}] Waypoint navigation finished, context set to ARENA.")
             else:  # Field
@@ -865,7 +869,7 @@ class CombatMonitor(BaseMonitor):
                 return # 실패 시 핸들러 종료
 
             # 웨이포인트 네비게이션 시작
-            self._waypoint_navigation(stop_event) # 플레이스홀더 호출
+            self._waypoint_navigation(stop_event, screen) # 플레이스홀더 호출
             self.location_flag = Location.ARENA # 상태 업데이트
             print(f"INFO: [{self.monitor_id}] Waypoint navigation complete. Returning to Arena Monitoring.")
 
@@ -1012,15 +1016,12 @@ class CombatMonitor(BaseMonitor):
             traceback.print_exc()
             return False
 
-    def _waypoint_navigation(self, stop_event: threading.Event):
-        """웨이포인트 네비게이션 로직을 처리합니다."""
-        print(f"INFO: [{self.monitor_id}] Starting Waypoint Navigation...")
+        def _waypoint_navigation(self, stop_event: threading.Event, target_screen: ScreenMonitorInfo):
+            """특정 화면에 대한 웨이포인트 네비게이션 로직을 처리합니다."""
+            print(f"INFO: [{self.monitor_id}] Starting Waypoint Navigation for screen {target_screen.screen_id}...")
 
-        # 현재 화면 결정 (일단 첫 번째 화면 사용)
-        if not self.screens:
-            print(f"ERROR: [{self.monitor_id}] No screens available for waypoint navigation.")
-            return
-        screen = self.screens[0]
+            # 전달된 화면 사용
+            screen = target_screen
 
         # 웨이포인트 초기화
         self.current_wp = 1

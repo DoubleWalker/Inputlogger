@@ -597,94 +597,86 @@ class CombatMonitor(BaseMonitor):
             print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Exception during recovery: {e}")
             return False
 
-    def _check_returned_well(self, screen_info: 'ScreenInfo', samples: int = 7, threshold: float = 0.15, sample_interval: float = 0.5) -> bool:
+    def _check_returned_well(self, screen: ScreenMonitorInfo, samples: int = 7, threshold: float = 0.15,
+                             sample_interval: float = 0.5) -> bool:
         """
-        주어진 화면(screen_info)에서 파티 UI 템플릿이 보이는지 (근거리 조우) 확인합니다.
-        screen_id를 사용하여 template_paths에서 동적으로 템플릿 경로를 가져옵니다.
+        Check if party UI template (close encounter) is visible on the given screen.
+        Uses screen_id to dynamically get template path from template_paths.
 
         Args:
-            screen_info: 확인할 화면의 ScreenInfo 객체 (screen_id와 region 속성 필요).
-            samples: 스크린샷 샘플링 횟수.
-            threshold: TM_SQDIFF_NORMED 매칭 임계값 (이 값보다 작으면 매칭 성공).
-            sample_interval: 샘플링 간격 (초).
+            screen: ScreenMonitorInfo object to check
+            samples: Number of screenshot samples to take
+            threshold: Matching threshold for TM_SQDIFF_NORMED (match if less than this value)
+            sample_interval: Interval between samples in seconds
 
         Returns:
-            파티 UI 템플릿이 발견되면 True, 그렇지 않으면 False.
+            True if party UI template is found, False otherwise
         """
-        if not hasattr(screen_info, 'screen_id'):
-             print(f"오류: screen_info 객체에 screen_id 속성이 없습니다.")
-             return False
+        if not hasattr(screen, 'screen_id'):
+            print(f"ERROR: [{self.monitor_id}] screen object missing 'screen_id' attribute")
+            return False
 
-        # screen_id를 사용하여 template_paths 모듈에서 파티 UI 템플릿 경로 가져오기
-        # template_paths.get_template 함수가 있다고 가정 (없으면 직접 PARTY_UI_TEMPLATES 딕셔너리 접근)
+        # Get template path using screen_id
         try:
-            # template_paths.get_template(screen_id, template_name, template_type) 형태라고 가정
-            template_path = template_paths.get_template(screen_info.screen_id, '', template_type='party_ui')
-        except AttributeError:
-             print("오류: template_paths 모듈 또는 get_template 함수를 찾을 수 없습니다.")
-             # 대체: 직접 딕셔너리 접근 (template_paths.PARTY_UI_TEMPLATES[screen_info.screen_id])
-             try:
-                 template_path = template_paths.PARTY_UI_TEMPLATES.get(screen_info.screen_id)
-             except AttributeError:
-                  print("오류: template_paths 모듈 또는 PARTY_UI_TEMPLATES 딕셔너리를 찾을 수 없습니다.")
-                  return False
-             except KeyError:
-                  print(f"오류: template_paths.PARTY_UI_TEMPLATES에 Screen ID '{screen_info.screen_id}'에 대한 정의가 없습니다.")
-                  return False
-
+            template_path = template_paths.get_template(screen.screen_id, 'PARTY_UI')
+        except Exception as e:
+            print(f"ERROR: [{self.monitor_id}] Failed to get PARTY_UI template path: {e}")
+            return False
 
         if not template_path:
-            print(f"경고: Screen {screen_info.screen_id}에 대한 파티 UI 템플릿 경로를 찾을 수 없습니다.")
-            return False # 템플릿 경로 없으면 확인 불가
+            print(f"WARNING: [{self.monitor_id}] PARTY_UI template path not found for screen {screen.screen_id}")
+            return False
 
         if not os.path.exists(template_path):
-            print(f"오류: 파티 UI 템플릿 파일을 찾을 수 없습니다: {template_path}")
-            return False # 템플릿 파일 없으면 확인 불가
+            print(f"ERROR: [{self.monitor_id}] PARTY_UI template file not found: {template_path}")
+            return False
 
         try:
             template = cv2.imread(template_path)
             if template is None:
-                print(f"오류: 파티 UI 템플릿 이미지 로드 실패: {template_path}")
+                print(f"ERROR: [{self.monitor_id}] Failed to load PARTY_UI template: {template_path}")
                 return False
 
             template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
-            min_val_overall = 1.0 # TM_SQDIFF_NORMED의 최대값은 1.0
+            min_val_overall = 1.0  # Max value for TM_SQDIFF_NORMED is 1.0
 
-            print(f"Screen {screen_info.screen_id}: 파티 UI 확인 시작 (템플릿: {os.path.basename(template_path)}, 임계값: {threshold})")
+            print(
+                f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Checking party UI (template: {os.path.basename(template_path)}, threshold: {threshold})")
 
             for i in range(samples):
                 try:
-                    screen_img = pyautogui.screenshot(region=screen_info.region)
-                    screen_gray = cv2.cvtColor(np.array(screen_img), cv2.COLOR_RGB_GRAY)
+                    screen_img = pyautogui.screenshot(region=screen.region)
+                    screen_gray = cv2.cvtColor(np.array(screen_img), cv2.COLOR_RGB2GRAY)
 
-                    # TM_SQDIFF_NORMED: 값이 작을수록 유사함
+                    # TM_SQDIFF_NORMED: lower values indicate better match
                     match_result = cv2.matchTemplate(screen_gray, template_gray, cv2.TM_SQDIFF_NORMED)
-                    min_val, _, min_loc, _ = cv2.minMaxLoc(match_result) # min_val 사용
+                    min_val, _, _, _ = cv2.minMaxLoc(match_result)
                     min_val_overall = min(min_val_overall, min_val)
 
-                    print(f"  - 샘플 {i + 1}: min_val = {min_val:.4f}")
+                    print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Sample {i + 1} match = {min_val:.4f}")
 
                     if min_val < threshold:
-                        print(f"Screen {screen_info.screen_id}: 파티 UI 발견 (매칭값: {min_val:.4f})")
-                        return True # 임계값보다 작으면 매칭 성공
+                        print(
+                            f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Party UI found (match value: {min_val:.4f})")
+                        return True
 
                 except Exception as e:
-                    print(f"오류: Screen {screen_info.screen_id} 샘플링 중 오류 발생: {e}")
-                    # 샘플링 중 오류 발생 시 다음 샘플 시도 또는 실패 처리 가능
+                    print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id} sampling error: {e}")
+                    # Continue with next sample
 
-                if i < samples - 1: # 마지막 샘플 후에는 대기 불필요
+                if i < samples - 1:  # No need to wait after last sample
                     time.sleep(sample_interval)
 
-            print(f"Screen {screen_info.screen_id}: 파티 UI 미발견 (최소 매칭값: {min_val_overall:.4f})")
-            return False # 모든 샘플 확인 후에도 임계값 이하 못 찾음
+            print(
+                f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Party UI not found (best match: {min_val_overall:.4f})")
+            return False
 
         except cv2.error as e:
-            print(f"오류: OpenCV 오류 발생 (템플릿: {template_path}): {e}")
+            print(f"ERROR: [{self.monitor_id}] OpenCV error with template {template_path}: {e}")
             return False
         except Exception as e:
-            print(f"오류: _check_returned_well 처리 중 예외 발생: {e}")
+            print(f"ERROR: [{self.monitor_id}] Exception in _check_returned_well: {e}")
             return False
-
     def _click_relative(self, screen: ScreenMonitorInfo, coord_key: str, delay_after: float = 0.5, random_offset: int = 2) -> bool:
         """
         지정된 화면 영역 내에서 FIXED_UI_COORDS에 정의된 키를 사용하여

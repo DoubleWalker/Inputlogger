@@ -16,6 +16,7 @@ from enum import Enum, auto
 from dataclasses import dataclass
 from typing import Tuple, List, Dict, Optional
 from Orchestrator.NightCrows.utils import image_utils
+from Orchestrator.NightCrows.utils.image_utils import set_focus
 from Orchestrator.NightCrows.utils.screen_info import FIXED_UI_COORDS
 from .config import template_paths
 
@@ -956,6 +957,10 @@ class CombatMonitor(BaseMonitor):
     def _move_to_party_shared_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:
         """파티 리더-팔로워 방식 웨이포인트(WP3, WP4)로 이동"""
         try:
+            if not set_focus(screen.screen_id):
+                print(f"ERROR: [{self.monitor_id}] Failed to set focus for WP{wp_index} on screen {screen.screen_id}")
+                return False
+
             if wp_index == 3:
                 # WP3 - 점프 시작점으로 이동
                 print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Moving to WP3 (Jump point)")

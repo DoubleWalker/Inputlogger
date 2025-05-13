@@ -23,7 +23,7 @@ TEMPLATES = {
         'DEAD': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "dead_indicator.png"),
         'HOSTILE': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "hostile_indicator.png"),
         'FLIGHT_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "flight_button.png"),
-        'SHOP_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "shop_button.png"),  # <-- 추가
+        'SHOP_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "shop_button.png"),
         'PURCHASE_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "purchase_button.png"),
         'WAYPOINT_1': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "wp1_reached.png"),
         'WAYPOINT_2': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "wp2_reached.png"),
@@ -36,20 +36,94 @@ TEMPLATES = {
         'RETURN_TARGET_LOCATION': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "return_target_location.png"),
         'REVIVE_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "revive_button.png"),
         'GRAVEYARD': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "graveyard.png"),
-
+        # 새로 추가된 템플릿 (비어있음)
+        'ARENA_MENU_ICON': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "arena_menu_icon.png"),
+        'ARENA_ENTRY_UI': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "arena_entry_ui.png"),
     },
     'S2': {
         'ARENA': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "arena_indicator.png"),
         'DEAD': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "dead_indicator.png"),
         'HOSTILE': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "hostile_indicator.png"),
-        'FLIGHT_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "flight_button.png"),
-        'PARTY_UI': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "party_ui.png"),
-        'REVIVE_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "revive_button.png"),
-        'GRAVEYARD': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "graveyard.png"),
-
-        # 필요한 다른 S2 템플릿도 동일하게 추가
+        'FLIGHT_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "flight_button.png"),
+        # 나머지 템플릿은 S1과 동일한 구조로 추가 필요
+        'SHOP_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "shop_button.png"),
+        'PURCHASE_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "purchase_button.png"),
+        'PARTY_UI': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "party_ui.png"),
+        'REVIVE_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "revive_button.png"),
+        'GRAVEYARD': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "graveyard.png"),
+        'RETURN_TARGET_LOCATION': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "return_target_location.png"),
+        'WAYPOINT_1': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "wp1_reached.png"),
+        'WAYPOINT_2': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "wp2_reached.png"),
+        'WAYPOINT_3': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "wp3_reached.png"),
+        'WAYPOINT_4': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "wp4_reached.png"),
+        'WAYPOINT_5': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "wp5_reached.png"),
+        'COMBAT_SPOT': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "combat_spot.png"),
+        'ARENA_MENU_ICON': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "arena_menu_icon.png"),
+        'ARENA_ENTRY_UI': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "arena_entry_ui.png"),
     },
-    # S3, S4, S5도 동일한 방식으로 추가
+    'S3': {
+        'ARENA': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "arena_indicator.png"),
+        'DEAD': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "dead_indicator.png"),
+        'HOSTILE': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "hostile_indicator.png"),
+        'FLIGHT_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "flight_button.png"),
+        # 나머지 템플릿은 S1과 동일한 구조로 추가 필요
+        'SHOP_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "shop_button.png"),
+        'PURCHASE_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "purchase_button.png"),
+        'PARTY_UI': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "party_ui.png"),
+        'REVIVE_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "revive_button.png"),
+        'GRAVEYARD': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "graveyard.png"),
+        'RETURN_TARGET_LOCATION': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "return_target_location.png"),
+        'WAYPOINT_1': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "wp1_reached.png"),
+        'WAYPOINT_2': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "wp2_reached.png"),
+        'WAYPOINT_3': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "wp3_reached.png"),
+        'WAYPOINT_4': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "wp4_reached.png"),
+        'WAYPOINT_5': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "wp5_reached.png"),
+        'COMBAT_SPOT': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "combat_spot.png"),
+        'ARENA_MENU_ICON': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "arena_menu_icon.png"),
+        'ARENA_ENTRY_UI': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "arena_entry_ui.png"),
+    },
+    'S4': {
+        'ARENA': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "arena_indicator.png"),
+        'DEAD': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "dead_indicator.png"),
+        'HOSTILE': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "hostile_indicator.png"),
+        'FLIGHT_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "flight_button.png"),
+        # 나머지 템플릿은 S1과 동일한 구조로 추가 필요
+        'SHOP_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "shop_button.png"),
+        'PURCHASE_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "purchase_button.png"),
+        'PARTY_UI': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "party_ui.png"),
+        'REVIVE_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "revive_button.png"),
+        'GRAVEYARD': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "graveyard.png"),
+        'RETURN_TARGET_LOCATION': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "return_target_location.png"),
+        'WAYPOINT_1': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "wp1_reached.png"),
+        'WAYPOINT_2': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "wp2_reached.png"),
+        'WAYPOINT_3': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "wp3_reached.png"),
+        'WAYPOINT_4': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "wp4_reached.png"),
+        'WAYPOINT_5': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "wp5_reached.png"),
+        'COMBAT_SPOT': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "combat_spot.png"),
+        'ARENA_MENU_ICON': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "arena_menu_icon.png"),
+        'ARENA_ENTRY_UI': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "arena_entry_ui.png"),
+    },
+    'S5': {
+        'ARENA': os.path.join(SCREEN_TEMPLATE_PATHS['S5'], "arena_indicator.png"),
+        'DEAD': os.path.join(SCREEN_TEMPLATE_PATHS['S5'], "dead_indicator.png"),
+        'HOSTILE': os.path.join(SCREEN_TEMPLATE_PATHS['S5'], "hostile_indicator.png"),
+        'FLIGHT_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S5'], "flight_button.png"),
+        # 나머지 템플릿은 S1과 동일한 구조로 추가 필요
+        'SHOP_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S5'], "shop_button.png"),
+        'PURCHASE_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S5'], "purchase_button.png"),
+        'PARTY_UI': os.path.join(SCREEN_TEMPLATE_PATHS['S5'], "party_ui.png"),
+        'REVIVE_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S5'], "revive_button.png"),
+        'GRAVEYARD': os.path.join(SCREEN_TEMPLATE_PATHS['S5'], "graveyard.png"),
+        'RETURN_TARGET_LOCATION': os.path.join(SCREEN_TEMPLATE_PATHS['S5'], "return_target_location.png"),
+        'WAYPOINT_1': os.path.join(SCREEN_TEMPLATE_PATHS['S5'], "wp1_reached.png"),
+        'WAYPOINT_2': os.path.join(SCREEN_TEMPLATE_PATHS['S5'], "wp2_reached.png"),
+        'WAYPOINT_3': os.path.join(SCREEN_TEMPLATE_PATHS['S5'], "wp3_reached.png"),
+        'WAYPOINT_4': os.path.join(SCREEN_TEMPLATE_PATHS['S5'], "wp4_reached.png"),
+        'WAYPOINT_5': os.path.join(SCREEN_TEMPLATE_PATHS['S5'], "wp5_reached.png"),
+        'COMBAT_SPOT': os.path.join(SCREEN_TEMPLATE_PATHS['S5'], "combat_spot.png"),
+        'ARENA_MENU_ICON': os.path.join(SCREEN_TEMPLATE_PATHS['S5'], "arena_menu_icon.png"),
+        'ARENA_ENTRY_UI': os.path.join(SCREEN_TEMPLATE_PATHS['S5'], "arena_entry_ui.png"),
+    }
 }
 
 # 편의를 위한 전역 변수 (호환성 유지용)
@@ -62,7 +136,7 @@ HOSTILE_TEMPLATE = TEMPLATES['S1']['HOSTILE']
 def verify_template_paths():
     """모든 화면의 템플릿 경로가 유효한지 확인하고 경고를 출력합니다."""
     missing_templates = []
-    # TEMPLATES 딕셔너리만 검사하면 됨 (PARTY_UI가 포함되었으므로)
+    # TEMPLATES 딕셔너리만 검사하면 됨
     for screen_id, templates in TEMPLATES.items():
         for template_name, path in templates.items():
             if not os.path.exists(path):
@@ -78,7 +152,7 @@ def verify_template_paths():
     return True
 
 
-# 특정 화면의 템플릿 경로를 반환하는 헬퍼 함수 (template_type 제거)
+# 특정 화면의 템플릿 경로를 반환하는 헬퍼 함수
 def get_template(screen_id, template_name):
     """
     특정 화면 ID와 템플릿 이름에 해당하는 템플릿 경로를 반환합니다.

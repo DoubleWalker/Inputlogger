@@ -16,7 +16,6 @@ from enum import Enum, auto
 from dataclasses import dataclass
 from typing import Tuple, List, Dict, Optional
 from Orchestrator.NightCrows.utils import image_utils
-from Orchestrator.NightCrows.utils.image_utils import set_focus
 from Orchestrator.NightCrows.utils.screen_info import FIXED_UI_COORDS
 from .config import template_paths
 

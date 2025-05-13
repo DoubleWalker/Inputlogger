@@ -61,6 +61,9 @@ class ScreenMonitorInfo:
 # [주의] 아래 함수들은 플레이스홀더입니다. 실제 게임 상호작용 로직 구현 필요
 #        (CombatMonitor 클래스 외부 정의 유지, 필요시 내부 메서드로 변경 가능)
 # ----------------------------------------------------------------------------
+# 외부함수로 존재하던 플레이스 홀더들 함수 내부로 이미그레이션 완료
+#------------------------------------------------------------------------------
+
 
 # ----------------------------------------------------------------------------
 # Combat Monitor 클래스 구현
@@ -79,6 +82,7 @@ class CombatMonitor(BaseMonitor):
         self.death_count: int = 0
         self.current_wp: int = 0
         self.max_wp: int = 0
+        self.stop_event = None  # 추가: stop_event 초기화
 
         self.screens: List[ScreenMonitorInfo] = []
         self.confidence = self.config.get('confidence', 0.8) # 신뢰도 설정

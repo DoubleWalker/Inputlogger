@@ -62,191 +62,6 @@ class ScreenMonitorInfo:
 # [주의] 아래 함수들은 플레이스홀더입니다. 실제 게임 상호작용 로직 구현 필요
 #        (CombatMonitor 클래스 외부 정의 유지, 필요시 내부 메서드로 변경 가능)
 # ----------------------------------------------------------------------------
-def _move_to_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:
-    """특정 웨이포인트로 이동 시작 (공통 인터페이스)"""
-    print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Moving to waypoint {wp_index}")
-
-    try:
-        # 직접 UI 클릭 방식 이동 (WP1, WP2)
-        if wp_index in [1, 2]:
-            return self._move_to_arena_wp(screen, wp_index)
-
-        # 파티 리더-팔로워 방식 이동 (WP3, WP4)
-        elif wp_index in [3, 4]:
-            return self._move_to_party_shared_wp(screen, wp_index)
-
-        else:
-            print(f"ERROR: [{self.monitor_id}] Unknown waypoint index: {wp_index}")
-            return False
-
-    except Exception as e:
-        print(f"ERROR: [{self.monitor_id}] Exception during move to waypoint {wp_index}: {e}")
-        return False
-
-
-
-def _move_to_arena_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:
-    """격전지 내 웨이포인트(WP1, WP2)로 UI 클릭을 통해 이동"""
-    try:
-        if wp_index == 1:
-            # WP1 (아레나) 이동 로직
-            # 1. 메뉴 버튼 클릭 (고정 위치)
-            if not self._click_relative(screen, 'main_menu_button', delay_after=1.0):
-                print(f"ERROR: [{self.monitor_id}] Failed to click main menu button")
-                return False
-
-            # 2. 격전지 아이콘 클릭
-            arena_icon_template = template_paths.get_template(screen.screen_id, 'ARENA_MENU_ICON')
-            if not arena_icon_template or not os.path.exists(arena_icon_template):
-                print(f"ERROR: [{self.monitor_id}] Arena menu icon template not found")
-                keyboard.press_and_release('esc')  # 메뉴창 닫기
-                return False
-
-            icon_pos = image_utils.return_ui_location(arena_icon_template, screen.region, self.confidence)
-            if not icon_pos:
-                print(f"ERROR: [{self.monitor_id}] Arena menu icon not found")
-                keyboard.press_and_release('esc')  # 메뉴창 닫기
-                return False
-
-            pyautogui.click(icon_pos)
-            time.sleep(1.0)
-
-            # 3. 확인창에서 Y 키 입력
-            keyboard.press_and_release('y')
-            print(f"INFO: [{self.monitor_id}] Pressed Y to confirm arena teleport")
-
-            # 4. 이동 대기 (최소 30초)
-            loading_wait_time = 35  # 여유있게 35초
-            print(f"INFO: [{self.monitor_id}] Waiting for arena loading ({loading_wait_time}s)...")
-            time.sleep(loading_wait_time)
-
-            # 5. 격전지 입장 UI에서 선택 (3개 중 첫번째 옵션)
-            arena_entry_path = template_paths.get_template(screen.screen_id, 'ARENA_ENTRY_UI')
-
-            # UI가 있는지 확인 (여러 번 시도)
-            entry_found = False
-            max_entry_attempts = 5
-
-            for attempt in range(max_entry_attempts):
-                if image_utils.is_image_present(arena_entry_path, screen.region, self.confidence):
-                    entry_found = True
-                    break
-
-                print(
-                    f"INFO: [{self.monitor_id}] Arena entry UI not found yet (attempt {attempt + 1}/{max_entry_attempts})")
-                time.sleep(2.0)
-
-            if not entry_found:
-                print(f"ERROR: [{self.monitor_id}] Arena entry UI not found after {max_entry_attempts} attempts")
-                return False
-
-            # 첫 번째 옵션 클릭 (고정 위치 사용)
-            if not self._click_relative(screen, 'arena_entry_option1', delay_after=1.0):
-                print(f"ERROR: [{self.monitor_id}] Failed to click arena entry option")
-                return False
-
-            print(f"INFO: [{self.monitor_id}] Successfully initiated arena entry")
-            return True
-
-        elif wp_index == 2:
-            # 포커스 설정
-            if not image_utils.set_focus(screen.screen_id):
-                print(f"ERROR: [{self.monitor_id}] Failed to set focus for WP2 on screen {screen.screen_id}")
-                return False
-            # WP2 (격전지 내 특정 위치/탑) 이동 로직
-            print(f"INFO: [{self.monitor_id}] Moving to WP2 (Arena Tower)...")
-
-            # 1. 맵 인터페이스 열기 (M 키)
-            keyboard.press_and_release('m')
-            print(f"INFO: [{self.monitor_id}] Opened map interface")
-            time.sleep(1.0)  # 맵 로딩 대기
-
-            # 2. 첫 번째 고정 좌표 클릭
-            if not self._click_relative(screen, 'tower_click_1', delay_after=0.5):
-                print(f"ERROR: [{self.monitor_id}] Failed to click first tower location")
-                keyboard.press_and_release('m')  # 맵 닫기
-                return False
-
-            # 3. 두 번째 고정 좌표 클릭
-            if not self._click_relative(screen, 'tower_click_2', delay_after=0.5):
-                print(f"ERROR: [{self.monitor_id}] Failed to click second tower location")
-                keyboard.press_and_release('m')  # 맵 닫기
-                return False
-
-            # 4. 세 번째 고정 좌표 클릭
-            if not self._click_relative(screen, 'tower_click_3', delay_after=0.5):
-                print(f"ERROR: [{self.monitor_id}] Failed to click third tower location")
-                keyboard.press_and_release('m')  # 맵 닫기
-                return False
-
-            # 5. Y 키 입력으로 확인
-            keyboard.press_and_release('y')
-            print(f"INFO: [{self.monitor_id}] Pressed Y to confirm teleport")
-
-            print(f"INFO: [{self.monitor_id}] Successfully initiated tower teleport")
-            return True
-
-        else:
-            print(f"ERROR: [{self.monitor_id}] Unsupported arena waypoint index: {wp_index}")
-            return False
-
-    except Exception as e:
-        print(f"ERROR: [{self.monitor_id}] Exception during arena WP{wp_index} movement: {e}")
-        # 오류 시 맵/메뉴 닫기 시도
-        try:
-            keyboard.press_and_release('esc')
-            if wp_index == 2:  # WP2는 맵을 열었을 수 있음
-                keyboard.press_and_release('m')
-        except:
-            pass
-        return False
-
-def _check_reached_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:
-    """웨이포인트 도착 여부를 확인합니다 (공통 인터페이스)"""
-    print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Checking if reached Waypoint #{wp_index}")
-
-    try:
-        # 현재는 모든 웨이포인트가 동작 완료 시 도착한 것으로 간주
-        if wp_index in [1, 2]:  # 현재 구현된 웨이포인트들
-            print(f"INFO: [{self.monitor_id}] WP{wp_index} is considered reached after movement sequence completion")
-            return True
-        else:
-            print(f"ERROR: [{self.monitor_id}] Unknown waypoint index: {wp_index}")
-            return False
-
-    except Exception as e:
-        print(f"ERROR: [{self.monitor_id}] Exception during check waypoint {wp_index}: {e}")
-        return False
-
-
-
-def _is_at_combat_spot(self, screen: ScreenMonitorInfo) -> bool:
-    """최종 전투 지점 도착 여부를 최대 3번 확인합니다."""
-    print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Checking if at combat spot")
-
-    # 전투 지점 확인 템플릿 경로 가져오기
-    template_path = template_paths.get_template(screen.screen_id, 'COMBAT_SPOT')
-
-    if not template_path or not os.path.exists(template_path):
-        print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: COMBAT_SPOT template not found")
-        return False
-
-    # 최대 3번 시도
-    max_attempts = 3
-    for attempt in range(max_attempts):
-        if image_utils.is_image_present(
-                template_path=template_path,
-                region=screen.region,
-                threshold=self.confidence
-        ):
-            print(f"INFO: [{self.monitor_id}] Combat spot reached confirmed on attempt {attempt + 1}")
-            return True
-
-        print(f"INFO: [{self.monitor_id}] Combat spot not detected on attempt {attempt + 1}/{max_attempts}")
-        time.sleep(1.0)  # 1초 간격으로 재시도
-
-    print(f"INFO: [{self.monitor_id}] Combat spot not confirmed after {max_attempts} attempts")
-    return False
 
 # ----------------------------------------------------------------------------
 # Combat Monitor 클래스 구현
@@ -718,10 +533,247 @@ class CombatMonitor(BaseMonitor):
         except Exception as e:
             print(f"ERROR:[{self.monitor_id}] Failed to click relative coordinate '{coord_key}' on screen {screen.screen_id}: {e}")
             return False
-    # ---------------------------------------------
 
-    # ... (_get_character_state_on_screen 등 기존 메소드) ...
+    def _move_to_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:
+        """특정 웨이포인트로 이동 시작 (공통 인터페이스)"""
+        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Moving to waypoint {wp_index}")
 
+        try:
+            # 직접 UI 클릭 방식 이동 (WP1, WP2)
+            if wp_index in [1, 2]:
+                return self._move_to_arena_wp(screen, wp_index)
+
+            # 파티 리더-팔로워 방식 이동 (WP3, WP4)
+            elif wp_index in [3, 4]:
+                return self._move_to_party_shared_wp(screen, wp_index)
+
+            else:
+                print(f"ERROR: [{self.monitor_id}] Unknown waypoint index: {wp_index}")
+                return False
+
+        except Exception as e:
+            print(f"ERROR: [{self.monitor_id}] Exception during move to waypoint {wp_index}: {e}")
+            return False
+
+    def _move_to_arena_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:
+        """격전지 내 웨이포인트(WP1, WP2)로 UI 클릭을 통해 이동"""
+        try:
+            if wp_index == 1:
+                # WP1 (아레나) 이동 로직
+                # 1. 메뉴 버튼 클릭 (고정 위치)
+                if not self._click_relative(screen, 'main_menu_button', delay_after=1.0):
+                    print(f"ERROR: [{self.monitor_id}] Failed to click main menu button")
+                    return False
+
+                # 2. 격전지 아이콘 클릭
+                arena_icon_template = template_paths.get_template(screen.screen_id, 'ARENA_MENU_ICON')
+                if not arena_icon_template or not os.path.exists(arena_icon_template):
+                    print(f"ERROR: [{self.monitor_id}] Arena menu icon template not found")
+                    keyboard.press_and_release('esc')  # 메뉴창 닫기
+                    return False
+
+                icon_pos = image_utils.return_ui_location(arena_icon_template, screen.region, self.confidence)
+                if not icon_pos:
+                    print(f"ERROR: [{self.monitor_id}] Arena menu icon not found")
+                    keyboard.press_and_release('esc')  # 메뉴창 닫기
+                    return False
+
+                pyautogui.click(icon_pos)
+                time.sleep(1.0)
+
+                # 3. 확인창에서 Y 키 입력
+                keyboard.press_and_release('y')
+                print(f"INFO: [{self.monitor_id}] Pressed Y to confirm arena teleport")
+
+                # 4. 이동 대기 (최소 30초)
+                loading_wait_time = 35  # 여유있게 35초
+                print(f"INFO: [{self.monitor_id}] Waiting for arena loading ({loading_wait_time}s)...")
+                time.sleep(loading_wait_time)
+
+                # 5. 격전지 입장 UI에서 선택 (3개 중 첫번째 옵션)
+                arena_entry_path = template_paths.get_template(screen.screen_id, 'ARENA_ENTRY_UI')
+
+                # UI가 있는지 확인 (여러 번 시도)
+                entry_found = False
+                max_entry_attempts = 5
+
+                for attempt in range(max_entry_attempts):
+                    if image_utils.is_image_present(arena_entry_path, screen.region, self.confidence):
+                        entry_found = True
+                        break
+
+                    print(
+                        f"INFO: [{self.monitor_id}] Arena entry UI not found yet (attempt {attempt + 1}/{max_entry_attempts})")
+                    time.sleep(2.0)
+
+                if not entry_found:
+                    print(f"ERROR: [{self.monitor_id}] Arena entry UI not found after {max_entry_attempts} attempts")
+                    return False
+
+                # 첫 번째 옵션 클릭 (고정 위치 사용)
+                if not self._click_relative(screen, 'arena_entry_option1', delay_after=1.0):
+                    print(f"ERROR: [{self.monitor_id}] Failed to click arena entry option")
+                    return False
+
+                print(f"INFO: [{self.monitor_id}] Successfully initiated arena entry")
+                return True
+
+            elif wp_index == 2:
+                # 포커스 설정
+                if not image_utils.set_focus(screen.screen_id):
+                    print(f"ERROR: [{self.monitor_id}] Failed to set focus for WP2 on screen {screen.screen_id}")
+                    return False
+                # WP2 (격전지 내 특정 위치/탑) 이동 로직
+                print(f"INFO: [{self.monitor_id}] Moving to WP2 (Arena Tower)...")
+
+                # 1. 맵 인터페이스 열기 (M 키)
+                keyboard.press_and_release('m')
+                print(f"INFO: [{self.monitor_id}] Opened map interface")
+                time.sleep(1.0)  # 맵 로딩 대기
+
+                # 2. 첫 번째 고정 좌표 클릭
+                if not self._click_relative(screen, 'tower_click_1', delay_after=0.5):
+                    print(f"ERROR: [{self.monitor_id}] Failed to click first tower location")
+                    keyboard.press_and_release('m')  # 맵 닫기
+                    return False
+
+                # 3. 두 번째 고정 좌표 클릭
+                if not self._click_relative(screen, 'tower_click_2', delay_after=0.5):
+                    print(f"ERROR: [{self.monitor_id}] Failed to click second tower location")
+                    keyboard.press_and_release('m')  # 맵 닫기
+                    return False
+
+                # 4. 세 번째 고정 좌표 클릭
+                if not self._click_relative(screen, 'tower_click_3', delay_after=0.5):
+                    print(f"ERROR: [{self.monitor_id}] Failed to click third tower location")
+                    keyboard.press_and_release('m')  # 맵 닫기
+                    return False
+
+                # 5. Y 키 입력으로 확인
+                keyboard.press_and_release('y')
+                print(f"INFO: [{self.monitor_id}] Pressed Y to confirm teleport")
+
+                print(f"INFO: [{self.monitor_id}] Successfully initiated tower teleport")
+                return True
+
+            else:
+                print(f"ERROR: [{self.monitor_id}] Unsupported arena waypoint index: {wp_index}")
+                return False
+
+        except Exception as e:
+            print(f"ERROR: [{self.monitor_id}] Exception during arena WP{wp_index} movement: {e}")
+            # 오류 시 맵/메뉴 닫기 시도
+            try:
+                keyboard.press_and_release('esc')
+                if wp_index == 2:  # WP2는 맵을 열었을 수 있음
+                    keyboard.press_and_release('m')
+            except:
+                pass
+            return False
+
+    def _check_reached_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:
+            """웨이포인트 도착 여부를 확인합니다 (공통 인터페이스)"""
+            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Checking if reached Waypoint #{wp_index}")
+
+            try:
+                # 현재는 모든 웨이포인트가 동작 완료 시 도착한 것으로 간주
+                if wp_index in [1, 2]:  # 현재 구현된 웨이포인트들
+                    print(
+                        f"INFO: [{self.monitor_id}] WP{wp_index} is considered reached after movement sequence completion")
+                    return True
+                else:
+                    print(f"ERROR: [{self.monitor_id}] Unknown waypoint index: {wp_index}")
+                    return False
+
+            except Exception as e:
+                print(f"ERROR: [{self.monitor_id}] Exception during check waypoint {wp_index}: {e}")
+                return False
+
+    def _is_at_combat_spot(self, screen: ScreenMonitorInfo) -> bool:
+        """최종 전투 지점 도착 여부를 최대 3번 확인합니다."""
+        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Checking if at combat spot")
+
+        # 전투 지점 확인 템플릿 경로 가져오기
+        template_path = template_paths.get_template(screen.screen_id, 'COMBAT_SPOT')
+
+        if not template_path or not os.path.exists(template_path):
+            print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: COMBAT_SPOT template not found")
+            return False
+
+        # 최대 3번 시도
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            if image_utils.is_image_present(
+                    template_path=template_path,
+                    region=screen.region,
+                    threshold=self.confidence
+            ):
+                print(f"INFO: [{self.monitor_id}] Combat spot reached confirmed on attempt {attempt + 1}")
+                return True
+
+            print(f"INFO: [{self.monitor_id}] Combat spot not detected on attempt {attempt + 1}/{max_attempts}")
+            time.sleep(1.0)  # 1초 간격으로 재시도
+
+        print(f"INFO: [{self.monitor_id}] Combat spot not confirmed after {max_attempts} attempts")
+        return False
+
+    def _move_to_party_shared_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:
+        """파티 리더-팔로워 방식 웨이포인트(WP3, WP4)로 이동"""
+        try:
+            if not image_utils.set_focus(screen.screen_id):
+                print(f"ERROR: [{self.monitor_id}] Failed to set focus for WP{wp_index} on screen {screen.screen_id}")
+                return False
+
+            if wp_index == 3:
+                # WP3 - 점프 시작점으로 이동
+                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Moving to WP3 (Jump point)")
+
+                # 1. 메뉴 열기 (필요시)
+                if not self._click_relative(screen, 'main_menu_button', delay_after=0.5):
+                    print(f"WARN: [{self.monitor_id}] Failed to click main menu, continuing...")
+
+                # 2. 점프 시작점으로 이동하는 로직
+                party_ui_template_path = template_paths.get_template(screen.screen_id, 'PARTY_UI')
+                if party_ui_template_path and os.path.exists(party_ui_template_path):
+                    party_ui_pos = image_utils.return_ui_location(party_ui_template_path, screen.region,
+                                                                  self.confidence)
+                    if party_ui_pos:
+                        print(f"INFO: [{self.monitor_id}] Found Party UI, clicking")
+                        pyautogui.click(party_ui_pos)
+                        time.sleep(0.5)
+
+                        # 3. 확인 또는 추가 액션 (필요시)
+                        keyboard.press_and_release('y')
+                        time.sleep(0.3)
+
+                        # 4. 도착 대기
+                        arrive_wait_time = 10  # 10초 대기
+                        print(f"INFO: [{self.monitor_id}] Waiting {arrive_wait_time}s for arrival at jump point")
+                        time.sleep(arrive_wait_time)
+
+                        return True
+                    else:
+                        print(f"ERROR: [{self.monitor_id}] Party UI not found on screen")
+                        return False
+                else:
+                    print(f"ERROR: [{self.monitor_id}] Party UI template not configured or not found")
+                    return False
+
+            elif wp_index == 4:
+                # WP4 - 글라이더 비행 시퀀스
+                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Starting WP4 (Glider sequence)")
+
+                # YAML 파일에 정의된 글라이더 시퀀스 실행
+                return self._execute_sequence("wp4_glider", stop_event=self.stop_event)
+
+            else:
+                print(f"ERROR: [{self.monitor_id}] Unsupported party waypoint index: {wp_index}")
+                return False
+
+        except Exception as e:
+            print(f"ERROR: [{self.monitor_id}] Exception during party shared waypoint {wp_index}: {e}")
+            traceback.print_exc()
+            return False
     def _retry_field_return(self, screen: ScreenMonitorInfo) -> bool:
         """필드 복귀 재시도: 메뉴-템플릿-확인-닫기 순으로 클릭"""
         try:
@@ -936,65 +988,6 @@ class CombatMonitor(BaseMonitor):
             keyboard.release('space')
             return False
 
-    def _move_to_party_shared_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:
-        """파티 리더-팔로워 방식 웨이포인트(WP3, WP4)로 이동"""
-        try:
-            if not set_focus(screen.screen_id):
-                print(f"ERROR: [{self.monitor_id}] Failed to set focus for WP{wp_index} on screen {screen.screen_id}")
-                return False
-
-            if wp_index == 3:
-                # WP3 - 점프 시작점으로 이동
-                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Moving to WP3 (Jump point)")
-
-                # 1. 메뉴 열기 (필요시)
-                if not self._click_relative(screen, 'main_menu_button', delay_after=0.5):
-                    print(f"WARN: [{self.monitor_id}] Failed to click main menu, continuing...")
-
-                # 2. 점프 시작점으로 이동하는 로직
-                party_ui_template_path = template_paths.get_template(screen.screen_id, 'PARTY_UI')
-                if party_ui_template_path and os.path.exists(party_ui_template_path):
-                    party_ui_pos = image_utils.return_ui_location(party_ui_template_path, screen.region,
-                                                                  self.confidence)
-                    if party_ui_pos:
-                        print(f"INFO: [{self.monitor_id}] Found Party UI, clicking")
-                        pyautogui.click(party_ui_pos)
-                        time.sleep(0.5)
-
-                        # 3. 확인 또는 추가 액션 (필요시)
-                        keyboard.press_and_release('y')
-                        time.sleep(0.3)
-
-                        # 4. 도착 대기
-                        arrive_wait_time = 10  # 10초 대기
-                        print(f"INFO: [{self.monitor_id}] Waiting {arrive_wait_time}s for arrival at jump point")
-                        time.sleep(arrive_wait_time)
-
-                        return True
-                    else:
-                        print(f"ERROR: [{self.monitor_id}] Party UI not found on screen")
-                        return False
-                else:
-                    print(f"ERROR: [{self.monitor_id}] Party UI template not configured or not found")
-                    return False
-
-            elif wp_index == 4:
-                # WP4 - 글라이더 비행 시퀀스
-                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Starting WP4 (Glider sequence)")
-
-                # YAML 파일에 정의된 글라이더 시퀀스 실행
-                return self._execute_sequence("wp4_glider", stop_event=self.stop_event)
-
-            else:
-                print(f"ERROR: [{self.monitor_id}] Unsupported party waypoint index: {wp_index}")
-                return False
-
-        except Exception as e:
-            print(f"ERROR: [{self.monitor_id}] Exception during party shared waypoint {wp_index}: {e}")
-            traceback.print_exc()
-            return False
-
-    # 수정된 함수
     def _waypoint_navigation(self, stop_event: threading.Event, target_screen: ScreenMonitorInfo):
         """특정 화면에 대한 웨이포인트 네비게이션 로직을 처리합니다."""
         print(f"INFO: [{self.monitor_id}] Starting Waypoint Navigation for screen {target_screen.screen_id}...")

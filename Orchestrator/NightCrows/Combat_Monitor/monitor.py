@@ -1103,8 +1103,11 @@ class CombatMonitor(BaseMonitor):
         """Orchestrator가 제어하는 메인 모니터링 루프."""
         print(f"INFO: Starting CombatMonitor {self.monitor_id} on {self.vd_name}...")
         if not self.screens:
-             print(f"ERROR: [{self.monitor_id}] No screens added. Stopping monitor.")
-             return
+            print(f"ERROR: [{self.monitor_id}] No screens added. Stopping monitor.")
+            return
+
+        # stop_event 저장 (추가)
+        self.stop_event = stop_event
 
         # 초기화
         self.death_count = 0

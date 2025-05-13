@@ -909,7 +909,8 @@ class CombatMonitor(BaseMonitor):
     def _execute_sequence(self, sequence_name: str, stop_event: threading.Event = None) -> bool:
         """YAML에 정의된 동작 시퀀스를 실행합니다."""
         try:
-            # YAML 파일 경로 생성
+            # 매개변수가 없으면 인스턴스 변수 사용
+            local_stop_event = stop_event if stop_event is not None else self.stop_event
 
 
             # 설정 폴더 경로 (프로젝트 루트 기준 상대 경로)

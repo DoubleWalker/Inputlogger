@@ -12,7 +12,7 @@ SCREEN_REGIONS: Dict[str, Tuple[int, int, int, int]] = {
 # 추가: 이벤트 UI 관련 영역 정보
 EVENT_UI_REGIONS: Dict[str, Dict[str, Tuple[int, int, int, int]]] = {
     'S1': {
-        'left_menu': (129, 47, 111, 258),    # 왼쪽 20% 정도
+        'left_menu': (129, 47, 111, 258),  # 왼쪽 20% 정도
         'right_content': (245, 59, 392, 243)  # 나머지 80%
     },
     'S2': {
@@ -36,35 +36,68 @@ EVENT_UI_REGIONS: Dict[str, Dict[str, Tuple[int, int, int, int]]] = {
 # 각 화면별 고정 UI 요소의 상대 좌표 (화면 영역의 좌상단 기준)
 FIXED_UI_COORDS = {
     'S1': {
-        # 예시: S1 화면 내에서 '三' 버튼의 상대적 (x, y) 좌표
+        # 기존 좌표 유지
         'main_menu_button': (748, 15),
         'retry_confirm': (2, 2),  # 실제 좌표 측정 필요
         'retry_close': (1, 2),  # 실제 좌표 측정 필요
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
+
+        # 새로 추가된 좌표 (빈칸)
+        'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
+        'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
+        'tower_click_2': (0, 0),  # 실제 좌표 측정 필요
+        'tower_click_3': (0, 0),  # 실제 좌표 측정 필요
     },
     'S2': {
-        # 예시: S2 화면 내에서 '三' 버튼의 상대적 (x, y) 좌표
+        # 기존 좌표 유지
         'main_menu_button': (820, 18),
         'retry_confirm': (1, 1),  # 실제 좌표 측정 필요
         'retry_close': (1, 1),  # 실제 좌표 측정 필요
-        'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요  # 실제 좌표 측정 필요 # S1과 같거나 다를 수 있음
+        'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
+
+        # 새로 추가된 좌표 (빈칸)
+        'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
+        'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
+        'tower_click_2': (0, 0),  # 실제 좌표 측정 필요
+        'tower_click_3': (0, 0),  # 실제 좌표 측정 필요
     },
     'S3': {
+        # 기존 좌표 유지
         'main_menu_button': (713, 15),
         'retry_confirm': (1, 1),  # 실제 좌표 측정 필요
         'retry_close': (1, 1),  # 실제 좌표 측정 필요
-        'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요  # 실제 좌표 측정 필요 # 정확한 좌표 측정 필요
+        'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
+
+        # 새로 추가된 좌표 (빈칸)
+        'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
+        'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
+        'tower_click_2': (0, 0),  # 실제 좌표 측정 필요
+        'tower_click_3': (0, 0),  # 실제 좌표 측정 필요
     },
     'S4': {
+        # 기존 좌표 유지
         'main_menu_button': (748, 15),
         'retry_confirm': (1, 1),  # 실제 좌표 측정 필요
         'retry_close': (1, 1),  # 실제 좌표 측정 필요
-        'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요  # 실제 좌표 측정 필요 # 정확한 좌표 측정 필요
+        'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
+
+        # 새로 추가된 좌표 (빈칸)
+        'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
+        'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
+        'tower_click_2': (0, 0),  # 실제 좌표 측정 필요
+        'tower_click_3': (0, 0),  # 실제 좌표 측정 필요
     },
     'S5': {
+        # 기존 좌표 유지
         'main_menu_button': (1117, 28),
         'retry_confirm': (2, 2),  # 실제 좌표 측정 필요
         'retry_close': (0, 1),  # 실제 좌표 측정 필요
-        'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요  # 실제 좌표 측정 필요 # 정확한 좌표 측정 필요
+        'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
+
+        # 새로 추가된 좌표 (빈칸)
+        'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
+        'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
+        'tower_click_2': (0, 0),  # 실제 좌표 측정 필요
+        'tower_click_3': (0, 0),  # 실제 좌표 측정 필요
     },
 }

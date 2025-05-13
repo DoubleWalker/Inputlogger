@@ -218,15 +218,6 @@ def _check_reached_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:
         print(f"ERROR: [{self.monitor_id}] Exception during check waypoint {wp_index}: {e}")
         return False
 
-def _look_for_wp(wp_index: int) -> None:
-    """[플레이스홀더] 웨이포인트를 찾거나 경로를 조정하는 동작 수행"""
-    print(f"INFO: [Placeholder Action] Looking for/Adjusting path to Waypoint #{wp_index}...")
-    time.sleep(1)
-
-def _get_max_wp_num() -> int:
-    """[플레이스홀더] 전체 웨이포인트 개수 반환"""
-    print("INFO: [Placeholder Action] Getting Max Waypoint Number...")
-    return 5 # 예시 값
 
 
 def _is_at_combat_spot(self, screen: ScreenMonitorInfo) -> bool:
@@ -256,11 +247,6 @@ def _is_at_combat_spot(self, screen: ScreenMonitorInfo) -> bool:
 
     print(f"INFO: [{self.monitor_id}] Combat spot not confirmed after {max_attempts} attempts")
     return False
-
-def _perform_combat_spot_adjustment() -> None:
-    """[플레이스홀더] 최종 전투 지점 도착을 위한 위치 조정 동작 수행"""
-    print("INFO: [Placeholder Action] Adjusting position to reach Combat Spot...")
-    time.sleep(1)
 
 # ----------------------------------------------------------------------------
 # Combat Monitor 클래스 구현
@@ -1096,6 +1082,26 @@ class CombatMonitor(BaseMonitor):
 
         print(f"INFO: [{self.monitor_id}] Waypoint navigation completed.")
 
+    def _look_for_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:
+        """웨이포인트를 찾거나 경로를 조정하는 동작을 수행합니다."""
+        print(
+            f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Looking for/Adjusting path to Waypoint #{wp_index}...")
+        # 실제 구현
+        time.sleep(1)
+        return True  # 성공/실패 여부 반환
+
+    def _get_max_wp_num(self) -> int:
+        """전체 웨이포인트 개수를 반환합니다."""
+        print(f"INFO: [{self.monitor_id}] Getting Max Waypoint Number...")
+        return 5  # 현재 고정값, 추후 설정 또는 동적 계산 가능
+
+    def _perform_combat_spot_adjustment(self, screen: ScreenMonitorInfo) -> bool:
+        """최종 전투 지점 도착을 위한 위치 조정 동작을 수행합니다."""
+        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Adjusting position to reach Combat Spot...")
+        # 실제 구현
+        time.sleep(1)
+        return True  # 성공/실패 여부 반환
+
     # === 메인 모니터링 루프 ===
     def run_loop(self, stop_event: threading.Event):
         """Orchestrator가 제어하는 메인 모니터링 루프."""
@@ -1107,7 +1113,7 @@ class CombatMonitor(BaseMonitor):
         # 초기화
         self.death_count = 0
         try:
-            self.max_wp = _get_max_wp_num() # 플레이스홀더 호출
+            self.max_wp = self._get_max_wp_num()  # 클래스 메서드로 호출
         except Exception as e:
             print(f"ERROR: [{self.monitor_id}] Error getting max waypoint number: {e}. Setting to 0.")
             self.max_wp = 0

@@ -1083,9 +1083,38 @@ class CombatMonitor(BaseMonitor):
         """웨이포인트를 찾거나 경로를 조정하는 동작을 수행합니다."""
         print(
             f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Looking for/Adjusting path to Waypoint #{wp_index}...")
-        # 실제 구현
-        time.sleep(1)
-        return True  # 성공/실패 여부 반환
+
+        try:
+            # 웨이포인트 인덱스에 따른 조정 동작 분기 (WP1, WP2 제거)
+            if wp_index == 3:  # 점프 시작점
+                # 파티 리더 방향으로 시야 조정
+                keyboard.press_and_release('a')  # 왼쪽으로 회전
+                time.sleep(0.3)
+                keyboard.press_and_release('d')  # 원위치
+                # 파티 리더 방향 다시 확인
+                if not self._check_returned_well(screen):
+                    # 추가 회전 시도
+                    keyboard.press_and_release('d')  # 오른쪽으로 회전
+                    time.sleep(0.3)
+                    keyboard.press_and_release('a')  # 원위치
+
+            elif wp_index == 4:  # 글라이더 이륙 지점
+                # 고도 및 방향 조정 (간단한 조정, 실제 글라이더 시퀀스는 _execute_sequence에서 처리)
+                keyboard.press_and_release('space')  # 점프
+                time.sleep(0.2)
+                keyboard.press_and_release('w')  # 약간 전진
+
+            else:  # 알 수 없는 웨이포인트
+                print(f"WARN: [{self.monitor_id}] Unknown waypoint index for adjustment: {wp_index}")
+                return False
+
+            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Adjusted position for Waypoint #{wp_index}")
+            return True
+
+        except Exception as e:
+            print(f"ERROR: [{self.monitor_id}] Exception during waypoint adjustment: {e}")
+            traceback.print_exc()
+            return False
 
     def _get_max_wp_num(self) -> int:
         """전체 웨이포인트 개수를 반환합니다."""
@@ -1095,9 +1124,57 @@ class CombatMonitor(BaseMonitor):
     def _perform_combat_spot_adjustment(self, screen: ScreenMonitorInfo) -> bool:
         """최종 전투 지점 도착을 위한 위치 조정 동작을 수행합니다."""
         print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Adjusting position to reach Combat Spot...")
-        # 실제 구현
-        time.sleep(1)
-        return True  # 성공/실패 여부 반환
+
+        try:
+            # 1. 먼저 현재 위치가 대략적으로 전투 지점 근처인지 확인
+            near_combat_spot = False
+
+            # Combat_spot_near 템플릿 사용 (템플릿 경로가 정의되어 있다면)
+            template_path = template_paths.get_template(screen.screen_id, 'COMBAT_SPOT_NEAR')
+            if template_path and os.path.exists(template_path):
+                near_combat_spot = image_utils.is_image_present(
+                    template_path=template_path,
+                    region=screen.region,
+                    threshold=self.confidence
+                )
+
+            # 2. 대략적인 위치 조정 (필요시)
+            if not near_combat_spot:
+                print(
+                    f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Not near combat spot yet. Doing major adjustment...")
+
+                # 주요 조정 (방향키로 위치 이동)
+                keyboard.press_and_release('w')  # 앞으로 이동
+                time.sleep(1.0)
+                # 시야 회전
+                keyboard.press_and_release('d')  # 오른쪽으로 회전
+                time.sleep(0.5)
+                keyboard.press_and_release('w')  # 다시 앞으로 이동
+                time.sleep(0.5)
+
+            # 3. 미세 조정 (항상 수행)
+            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Fine-tuning position...")
+
+            # 현재 위치 기준으로 전투 위치 미세 조정 패턴
+            # (실제 구현 시 필요에 따라 세밀한 조정 로직 추가)
+            keyboard.press_and_release('a')  # 왼쪽으로 약간 회전
+            time.sleep(0.2)
+            keyboard.press_and_release('w')  # 약간 앞으로 이동
+            time.sleep(0.1)
+            keyboard.press_and_release('s')  # 약간 뒤로 이동 (원위치)
+            time.sleep(0.1)
+            keyboard.press_and_release('d')  # 오른쪽으로 약간 회전 (원위치)
+
+            # 최종 위치 확인
+            time.sleep(0.5)  # 조정 후 화면 안정화 대기
+
+            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Combat spot adjustment completed")
+            return True
+
+        except Exception as e:
+            print(f"ERROR: [{self.monitor_id}] Exception during combat spot adjustment: {e}")
+            traceback.print_exc()
+            return False
 
     # === 메인 모니터링 루프 ===
     def run_loop(self, stop_event: threading.Event):

@@ -50,18 +50,36 @@ class Location(Enum):
     FIELD = auto()          # 필드 (또는 마을 등 안전 지역)
     UNKNOWN = auto()        # 알 수 없음
 
+class ScreenState(Enum):
+    """화면 처리 상태"""
+    NORMAL = auto()
+    DEAD = auto()
+    RECOVERING = auto()
+    HOSTILE = auto()
+    FLEEING = auto()
+    BUYING_POTIONS = auto()
+    RETURNING = auto()
+
 # --- 화면 정보 데이터 클래스 ---
 @dataclass
 class ScreenMonitorInfo:
     """모니터링할 개별 화면의 정보"""
     screen_id: str
     region: Tuple[int, int, int, int]
+class ScreenMonitorInfo:
+    """모니터링할 개별 화면의 정보"""
+    screen_id: str
+    region: Tuple[int, int, int, int]
+    current_state: ScreenState = ScreenState.NORMAL
+    retry_count: int = 0
+    last_state_change_time: float = 0.0
 
 # ----------------------------------------------------------------------------
 # [주의] 아래 함수들은 플레이스홀더입니다. 실제 게임 상호작용 로직 구현 필요
 #        (CombatMonitor 클래스 외부 정의 유지, 필요시 내부 메서드로 변경 가능)
 # ----------------------------------------------------------------------------
-# 외부함수로 존재하던 플레이스 홀더들 함수 내부로 이미그레이션 완료
+# 외부함수로 존재하던 플레이스 홀더들 함수 내부로 이미그레이션 완료. 따라서 [주의]이하 무시 가능.
+# IMPORTANT: 현재 SRM1을 상태머신으로 전환하는 작업을 진행하는 중. 조언 시 상태머신 전환 이슈를 최우선할 것.
 #------------------------------------------------------------------------------
 
 
@@ -216,6 +234,121 @@ class CombatMonitor(BaseMonitor):
         return False
 
     # --- 게임 상호작용 메서드들 ---
+
+    def _change_state(self, screen: ScreenMonitorInfo, new_state: ScreenState):
+        """화면 상태 변경 및 관련 정보 업데이트"""
+        old_state = screen.current_state
+        screen.current_state = new_state
+        screen.last_state_change_time = time.time()
+
+        # 특정 상태에서는 retry_count 초기화
+        if new_state != old_state:
+            screen.retry_count = 0
+
+        print(
+            f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: State changed: {old_state.name} -> {new_state.name}")
+
+    def _handle_screen_state(self, screen: ScreenMonitorInfo, stop_event: threading.Event):
+        """현재 화면 상태에 따라 처리"""
+        state = screen.current_state
+
+        # 1. NORMAL 상태 - 이상 상태 감지
+        if state == ScreenState.NORMAL:
+            character_state = self._get_character_state_on_screen(screen)
+            if character_state == CharacterState.DEAD:
+                # 사망 상태로 전환
+                self._change_state(screen, ScreenState.DEAD)
+            elif character_state == CharacterState.HOSTILE_ENGAGE:
+                # 적대 상태로 전환
+                self._change_state(screen, ScreenState.HOSTILE)
+
+        # 2. DEAD 상태 - 부활 버튼 클릭
+        elif state == ScreenState.DEAD:
+            if self._initiate_recovery(screen):
+                self._change_state(screen, ScreenState.RECOVERING)
+            else:
+                # 실패 시 재시도 로직
+                screen.retry_count += 1
+                if screen.retry_count > 3:
+                    # 너무 많은 실패시 NORMAL로 리셋 (다음 검출 기회에)
+                    self._change_state(screen, ScreenState.NORMAL)
+
+        # 3. RECOVERING 상태 - 부활 완료 체크 및 물약 구매
+        elif state == ScreenState.RECOVERING:
+            # 최소 대기 시간 확인
+            elapsed = time.time() - screen.last_state_change_time
+            if elapsed < 10.0:
+                return  # 아직 대기 중
+
+            # 부활 완료 확인 (e.g., 묘지 UI, 필드 UI 등)
+            if self._check_recovery_complete(screen):
+                # 부활 완료 - 물약 구매로 전환
+                self._change_state(screen, ScreenState.BUYING_POTIONS)
+            elif elapsed > 30.0:
+                # 타임아웃 - 너무 오래 기다림
+                print(f"WARN: Recovery timeout for screen {screen.screen_id}")
+                self._change_state(screen, ScreenState.NORMAL)
+
+        # 4. HOSTILE 상태 - 도주 버튼 클릭
+        elif state == ScreenState.HOSTILE:
+            if self._initiate_flight(screen):
+                self._change_state(screen, ScreenState.FLEEING)
+            else:
+                # 실패 시 재시도 로직
+                screen.retry_count += 1
+                if screen.retry_count > 3:
+                    self._change_state(screen, ScreenState.NORMAL)
+
+        # 5. FLEEING 상태 - 도주 완료 체크 및 물약 구매
+        elif state == ScreenState.FLEEING:
+            # 도주 완료 확인 (5초 정도 대기 후)
+            elapsed = time.time() - screen.last_state_change_time
+            if elapsed < 5.0:
+                return  # 아직 대기 중
+
+            # 물약 구매로 전환
+            self._change_state(screen, ScreenState.BUYING_POTIONS)
+
+        # 6. BUYING_POTIONS 상태 - 물약 구매 및 귀환 시작
+        elif state == ScreenState.BUYING_POTIONS:
+            context = self.location_flag  # 현재 컨텍스트 (ARENA/FIELD)
+            if self._buy_potion_and_initiate_return(screen, context):
+                self._change_state(screen, ScreenState.RETURNING)
+            else:
+                # 실패 시 재시도 로직
+                screen.retry_count += 1
+                if screen.retry_count > 3:
+                    self._change_state(screen, ScreenState.NORMAL)
+
+        # 7. RETURNING 상태 - 복귀 완료 확인
+        elif state == ScreenState.RETURNING:
+            elapsed = time.time() - screen.last_state_change_time
+
+            if self.location_flag == Location.FIELD:
+                # 필드 복귀 확인
+                if self._check_returned_well(screen) or elapsed > 30.0:
+                    self._change_state(screen, ScreenState.NORMAL)
+            else:  # ARENA
+                # 아레나 복귀 확인 (웨이포인트 네비게이션 등 포함)
+                if elapsed > 5.0 and not stop_event.is_set():
+                    # 웨이포인트 네비게이션 시작 (기존 함수 활용)
+                    self._waypoint_navigation(stop_event, screen)
+                    self._change_state(screen, ScreenState.NORMAL)
+
+    # _check_recovery_complete 함수 (새로 추가 필요)
+    def _check_recovery_complete(self, screen: ScreenMonitorInfo) -> bool:
+        """부활 완료 여부 확인"""
+        # 이 함수는 묘지 UI가 보이는지 확인하는 등의 로직 구현 필요
+        # 기존 코드를 활용하거나 새로 구현
+
+        # 예시 구현 (실제 코드에 맞게 조정 필요)
+        graveyard_template_path = template_paths.get_template(screen.screen_id, 'GRAVEYARD')
+        if not graveyard_template_path or not os.path.exists(graveyard_template_path):
+            return False
+
+        # 묘지 UI 확인
+        graveyard_visible = image_utils.is_image_present(graveyard_template_path, screen.region, self.confidence)
+        return graveyard_visible
 
     def _attempt_flight(self, screen: ScreenMonitorInfo) -> bool:
         """지정된 화면에서 '도주' 버튼 템플릿을 찾아 클릭을 시도합니다."""
@@ -1237,46 +1370,21 @@ class CombatMonitor(BaseMonitor):
             return
         print(f"INFO: [{self.monitor_id}] Initial monitoring context: {self.location_flag.name}")
 
+        # 각 화면의 상태를 NORMAL로 초기화
+        for screen in self.screens:
+            screen.current_state = ScreenState.NORMAL
+            screen.last_state_change_time = time.time()
+            screen.retry_count = 0
+
         # 메인 루프 시작
         while not stop_event.is_set():
             try:
-                # 1. 모든 화면 상태 확인 및 문제 화면 목록 수집
-                screens_with_issues = []
+                # 모든 화면에 대해 현재 상태에 맞는 처리 수행
                 for screen in self.screens:
                     if stop_event.is_set(): break
-                    current_screen_state = self._get_character_state_on_screen(screen)
 
-                    if current_screen_state != CharacterState.NORMAL:
-                        screens_with_issues.append((screen, current_screen_state))
-                        # 로깅
-                        print(
-                            f"\nINFO: [{self.monitor_id}] Screen {screen.screen_id}: Detected {current_screen_state.name} state")
-
-                # 문제가 있는 화면이 없으면 다음 루프로
-                if not screens_with_issues:
-                    if stop_event.wait(1.0): break  # 1초 대기하며 종료 신호 확인
-                    continue
-
-                # 2. 초기 대응 (모든 화면에 빠르게 수행)
-                print(
-                    f"INFO: [{self.monitor_id}] Processing initial responses for {len(screens_with_issues)} screens with issues...")
-                for screen, state in screens_with_issues:
-                    if stop_event.is_set(): break
-
-                    if state == CharacterState.DEAD:
-                        self._initiate_recovery(screen)
-                    elif state == CharacterState.HOSTILE_ENGAGE:
-                        self._initiate_flight(screen)
-
-                # 3. 후속 조치 (시간이 더 걸리는 작업)
-                print(f"INFO: [{self.monitor_id}] Processing follow-up actions...")
-                for screen, state in screens_with_issues:
-                    if stop_event.is_set(): break
-
-                    if state == CharacterState.DEAD:
-                        self._complete_recovery_process(stop_event, screen)
-                    elif state == CharacterState.HOSTILE_ENGAGE:
-                        self._complete_hostile_resolution(stop_event, screen)
+                    # 각 화면의 현재 상태에 맞는 처리 수행
+                    self._handle_screen_state(screen, stop_event)
 
                 # 루프 주기 조절
                 if stop_event.wait(1.0): break  # 1초 대기하며 종료 신호 확인

@@ -797,70 +797,66 @@ class CombatMonitor(BaseMonitor):
             return False
     # --- 상태 처리 핸들러 ---
 
-    def _handle_hostile_engage(self, stop_event: threading.Event, screen: ScreenMonitorInfo):
-        """HOSTILE_ENGAGE 상태를 처리합니다. (도주 시도 -> 물약 구매 -> 복귀 확인/웨이포인트)"""
-        print(f"INFO: [{self.monitor_id}] Handling HOSTILE_ENGAGE state on screen {screen.screen_id}...")
+    # 1. 초기 대응 함수들
+    def _initiate_recovery(self, screen: ScreenMonitorInfo) -> bool:
+        """부활 버튼 클릭만 담당하는 초기 대응 함수"""
+        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Initiating recovery (clicking revive button)...")
 
-        # 도주 전에 현재 컨텍스트 저장
-        original_context = self.location_flag
-        print(f"INFO: [{self.monitor_id}] Current context before flight: {original_context.name}")
+        # 부활 버튼 템플릿 경로 가져오기
+        revive_template_path = template_paths.get_template(screen.screen_id, 'REVIVE_BUTTON')
+        if not revive_template_path or not os.path.exists(revive_template_path):
+            print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: REVIVE_BUTTON template not found.")
+            return False
 
-        if self._attempt_flight(screen=screen):
-            print(f"INFO: [{self.monitor_id}] Flight successful. Using original context: {original_context.name}")
+        # 부활 버튼 위치 찾기
+        revive_location = image_utils.return_ui_location(revive_template_path, screen.region, self.confidence)
+        if not revive_location:
+            print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: REVIVE_BUTTON not found on screen.")
+            return False
 
-            # 물약 구매 및 귀환 시작 - 저장된 원래 컨텍스트 사용
-            if not self._buy_potion_and_initiate_return(screen=screen, context=original_context):
-                print(
-                    f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Failed potion purchase/return after flight.")
-                return
+        # 부활 버튼 클릭
+        pyautogui.click(revive_location)
+        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Clicked REVIVE_BUTTON.")
+        time.sleep(0.2)  # 클릭 후 약간의 대기
 
-            # 원래 컨텍스트에 따라 후속 조치
-            if original_context == Location.ARENA:
-                print(f"INFO: [{self.monitor_id}] Original context was ARENA. Transitioning to Waypoint Navigation...")
-                self._waypoint_navigation(stop_event, screen)
-                self.location_flag = Location.ARENA  # 웨이포인트 네비게이션 후 아레나 상태로 복원
-                print(f"INFO: [{self.monitor_id}] Waypoint navigation finished, context set to ARENA.")
-            else:  # Field
-                print(f"INFO: [{self.monitor_id}] Original context was FIELD. Checking return status...")
-                return_check_count = 0
-                max_return_checks = 15
-                while not stop_event.is_set() and return_check_count < max_return_checks:
-                    if self._check_returned_well(screen=screen):
-                        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Returned well to Field.")
-                        break
-                    else:
-                        return_check_count += 1
-                        print(f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Field return check failed ({return_check_count}/{max_return_checks}). Retrying return...")
-                        if not self._retry_field_return(screen=screen):
-                            print(f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Failed to initiate field return retry.")
-                        if stop_event.wait(2): break # 재시도 후 대기
-                if return_check_count >= max_return_checks and not stop_event.is_set():
-                     print(f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Field return check timed out after {max_return_checks} checks.")
-        else:
-            print(f"WARN: [{self.monitor_id}] Flight Failed on screen {screen.screen_id}. Returning to Monitoring.")
+        return True
 
-    def _handle_death(self, stop_event: threading.Event, screen: ScreenMonitorInfo):
-        """DEAD 상태를 처리합니다. (부활 -> 물약 구매 -> 복귀 확인/웨이포인트)"""
-        print(f"INFO: [{self.monitor_id}] Handling DEAD state on screen {screen.screen_id}...")
+    def _initiate_flight(self, screen: ScreenMonitorInfo) -> bool:
+        """도주 버튼 클릭만 담당하는 초기 대응 함수"""
+        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Initiating flight (clicking escape button)...")
 
-        # 1. 부활 시도
-        if not self._process_recovery(screen=screen):
-             print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Failed to process recovery (revive).")
-             return # 부활 실패 시 핸들러 종료
+        # 기존 도주 버튼 클릭 함수 호출 (이미 도주 버튼 클릭만 담당)
+        return self._attempt_flight(screen=screen)
 
-        # 2. 죽음 횟수 증가 및 로깅
+    # 2. 후속 처리 함수들
+    def _complete_recovery_process(self, stop_event: threading.Event, screen: ScreenMonitorInfo) -> bool:
+        """부활 후 물약 구매 및 복귀를 담당하는 후속 처리 함수"""
+        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Completing recovery process...")
+
+        # 대기 시간 (부활 애니메이션 등)
+        wait_time = random.uniform(10, 15)
+        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waiting {wait_time:.1f}s for respawn...")
+
+        # stop_event를 확인하면서 대기
+        end_time = time.time() + wait_time
+        while time.time() < end_time:
+            if stop_event.wait(0.5):  # 0.5초마다 중지 신호 확인
+                return False
+
+        # 1. 죽음 횟수 증가 및 로깅
         self.death_count += 1
         print(f"INFO: [{self.monitor_id}] Death Count: {self.death_count}")
 
-        # 3. 죽음 횟수에 따른 분기
+        # 2. 죽음 횟수에 따른 분기
         if self.death_count > 2:
-            # 3-A. 강제 필드 복귀
+            # 2-A. 강제 필드 복귀
             print(f"INFO: [{self.monitor_id}] Death count > 2. Forcing FIELD context.")
             self.location_flag = Location.FIELD
             # 물약 구매 및 필드 귀환 시작
             if not self._buy_potion_and_initiate_return(screen=screen, context=Location.FIELD):
-                 print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Failed potion purchase/return after >2 deaths.")
-                 return # 실패 시 핸들러 종료
+                print(
+                    f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Failed potion purchase/return after >2 deaths.")
+                return False  # 실패 시 종료
 
             # 필드 복귀 확인
             print(f"INFO: [{self.monitor_id}] Checking Field return status (after >2 deaths)...")
@@ -869,28 +865,82 @@ class CombatMonitor(BaseMonitor):
             while not stop_event.is_set() and return_check_count < max_return_checks:
                 if self._check_returned_well(screen=screen):
                     print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Returned well to Field.")
-                    break
+                    return True
                 else:
                     return_check_count += 1
-                    print(f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Field return check failed ({return_check_count}/{max_return_checks}). Retrying return...")
+                    print(
+                        f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Field return check failed ({return_check_count}/{max_return_checks}). Retrying return...")
                     if not self._retry_field_return(screen=screen):
-                        print(f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Failed to initiate field return retry.")
-                    if stop_event.wait(2): break
-            if return_check_count >= max_return_checks and not stop_event.is_set():
-                 print(f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Field return check timed out after {max_return_checks} checks (death > 2).")
+                        print(
+                            f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Failed to initiate field return retry.")
+                    if stop_event.wait(2):
+                        return False  # 중지 신호
 
-        else: # self.death_count <= 2
-            # 3-B. 아레나 복귀 시도
+            if return_check_count >= max_return_checks and not stop_event.is_set():
+                print(
+                    f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Field return check timed out after {max_return_checks} checks (death > 2).")
+                return False
+
+        else:  # self.death_count <= 2
+            # 2-B. 아레나 복귀 시도
             print(f"INFO: [{self.monitor_id}] Death count <= 2. Initiating Arena return & Waypoint Navigation.")
             # 물약 구매 (아레나 복귀 시나리오)
             if not self._buy_potion_and_initiate_return(screen=screen, context=Location.ARENA):
-                print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Failed potion purchase/return after <=2 deaths.")
-                return # 실패 시 핸들러 종료
+                print(
+                    f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Failed potion purchase/return after <=2 deaths.")
+                return False  # 실패 시 종료
 
             # 웨이포인트 네비게이션 시작
-            self._waypoint_navigation(stop_event, screen) # 플레이스홀더 호출
-            self.location_flag = Location.ARENA # 상태 업데이트
+            self._waypoint_navigation(stop_event, screen)
+            self.location_flag = Location.ARENA  # 상태 업데이트
             print(f"INFO: [{self.monitor_id}] Waypoint navigation complete. Returning to Arena Monitoring.")
+
+        return True
+
+    def _complete_hostile_resolution(self, stop_event: threading.Event, screen: ScreenMonitorInfo) -> bool:
+        """도주 후 물약 구매 및 복귀를 담당하는 후속 처리 함수"""
+        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Completing hostile resolution...")
+
+        # 도주 전에 현재 컨텍스트 저장
+        original_context = self.location_flag
+        print(f"INFO: [{self.monitor_id}] Current context for resolution: {original_context.name}")
+
+        # 물약 구매 및 귀환 시작 - 저장된 원래 컨텍스트 사용
+        if not self._buy_potion_and_initiate_return(screen=screen, context=original_context):
+            print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Failed potion purchase/return after flight.")
+            return False
+
+        # 원래 컨텍스트에 따라 후속 조치
+        if original_context == Location.ARENA:
+            print(f"INFO: [{self.monitor_id}] Original context was ARENA. Transitioning to Waypoint Navigation...")
+            self._waypoint_navigation(stop_event, screen)
+            self.location_flag = Location.ARENA  # 웨이포인트 네비게이션 후 아레나 상태로 복원
+            print(f"INFO: [{self.monitor_id}] Waypoint navigation finished, context set to ARENA.")
+            return True
+        else:  # Field
+            print(f"INFO: [{self.monitor_id}] Original context was FIELD. Checking return status...")
+            return_check_count = 0
+            max_return_checks = 15
+            while not stop_event.is_set() and return_check_count < max_return_checks:
+                if self._check_returned_well(screen=screen):
+                    print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Returned well to Field.")
+                    return True
+                else:
+                    return_check_count += 1
+                    print(
+                        f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Field return check failed ({return_check_count}/{max_return_checks}). Retrying return...")
+                    if not self._retry_field_return(screen=screen):
+                        print(
+                            f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Failed to initiate field return retry.")
+                    if stop_event.wait(2):
+                        return False  # 중지 신호
+
+            if return_check_count >= max_return_checks and not stop_event.is_set():
+                print(
+                    f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Field return check timed out after {max_return_checks} checks.")
+                return False
+
+        return True
 
     def _execute_sequence(self, sequence_name: str, stop_event: threading.Event = None) -> bool:
         """YAML에 정의된 동작 시퀀스를 실행합니다."""
@@ -1170,78 +1220,73 @@ class CombatMonitor(BaseMonitor):
             print(f"ERROR: [{self.monitor_id}] No screens added. Stopping monitor.")
             return
 
-        # stop_event 저장 (추가)
+        # stop_event 저장
         self.stop_event = stop_event
 
         # 초기화
         self.death_count = 0
         try:
-            self.max_wp = self._get_max_wp_num()  # 클래스 메서드로 호출
+            self.max_wp = self._get_max_wp_num()
         except Exception as e:
             print(f"ERROR: [{self.monitor_id}] Error getting max waypoint number: {e}. Setting to 0.")
             self.max_wp = 0
 
         # 시작 위치 결정
         if not self._determine_initial_location(stop_event):
-             print(f"INFO: [{self.monitor_id}] CombatMonitor stopped during initial location check.")
-             return
+            print(f"INFO: [{self.monitor_id}] CombatMonitor stopped during initial location check.")
+            return
         print(f"INFO: [{self.monitor_id}] Initial monitoring context: {self.location_flag.name}")
 
         # 메인 루프 시작
         while not stop_event.is_set():
-            overall_state = CharacterState.NORMAL
-            triggering_screen: Optional[ScreenMonitorInfo] = None
-
             try:
-                # 모든 화면 상태 확인
+                # 1. 모든 화면 상태 확인 및 문제 화면 목록 수집
+                screens_with_issues = []
                 for screen in self.screens:
                     if stop_event.is_set(): break
                     current_screen_state = self._get_character_state_on_screen(screen)
 
-                    # 상태 우선순위: DEAD > HOSTILE_ENGAGE > NORMAL
-                    if current_screen_state == CharacterState.DEAD:
-                        overall_state = CharacterState.DEAD
-                        triggering_screen = screen
-                        break # DEAD가 최우선
-                    elif current_screen_state == CharacterState.HOSTILE_ENGAGE:
-                        if overall_state == CharacterState.NORMAL:
-                            overall_state = CharacterState.HOSTILE_ENGAGE
-                            triggering_screen = screen
-                            # HOSTILE은 다른 화면에서 DEAD가 나올 수 있으므로 break하지 않음
+                    if current_screen_state != CharacterState.NORMAL:
+                        screens_with_issues.append((screen, current_screen_state))
+                        # 로깅
+                        print(
+                            f"\nINFO: [{self.monitor_id}] Screen {screen.screen_id}: Detected {current_screen_state.name} state")
 
-                if stop_event.is_set(): break # 상태 확인 중 종료 신호
+                # 문제가 있는 화면이 없으면 다음 루프로
+                if not screens_with_issues:
+                    if stop_event.wait(1.0): break  # 1초 대기하며 종료 신호 확인
+                    continue
 
-                # 상태 변경 로깅
-                current_context = self.location_flag.name
-                triggering_id_for_log = triggering_screen.screen_id if triggering_screen else "N/A"
-                if overall_state != CharacterState.NORMAL:
-                     print(f"\nINFO: [{self.monitor_id}] Cycle Update. Overall State: {overall_state.name} "
-                           f"(Triggered by: {triggering_id_for_log}, Context: {current_context})")
+                # 2. 초기 대응 (모든 화면에 빠르게 수행)
+                print(
+                    f"INFO: [{self.monitor_id}] Processing initial responses for {len(screens_with_issues)} screens with issues...")
+                for screen, state in screens_with_issues:
+                    if stop_event.is_set(): break
 
-                # 상태별 핸들러 호출
-                if overall_state == CharacterState.NORMAL:
-                    pass # 정상 상태에서는 특별한 조치 없음
-                elif overall_state == CharacterState.HOSTILE_ENGAGE:
-                    if triggering_screen:
-                        self._handle_hostile_engage(stop_event, triggering_screen)
-                    else: # 이론적으로 발생하면 안 되지만 방어 코드
-                        print(f"WARN: [{self.monitor_id}] HOSTILE_ENGAGE detected but triggering_screen is None.")
-                elif overall_state == CharacterState.DEAD:
-                    if triggering_screen:
-                        self._handle_death(stop_event, triggering_screen)
-                    else: # 이론적으로 발생하면 안 되지만 방어 코드
-                       print(f"WARN: [{self.monitor_id}] DEAD detected but triggering_screen is None.")
+                    if state == CharacterState.DEAD:
+                        self._initiate_recovery(screen)
+                    elif state == CharacterState.HOSTILE_ENGAGE:
+                        self._initiate_flight(screen)
 
-                # 루프 주기 조절 (stop_event.wait 사용)
-                if stop_event.wait(1.0): # 1초 대기하며 종료 신호 확인
-                    break # 종료 신호 받으면 루프 탈출
+                # 3. 후속 조치 (시간이 더 걸리는 작업)
+                print(f"INFO: [{self.monitor_id}] Processing follow-up actions...")
+                for screen, state in screens_with_issues:
+                    if stop_event.is_set(): break
+
+                    if state == CharacterState.DEAD:
+                        self._complete_recovery_process(stop_event, screen)
+                    elif state == CharacterState.HOSTILE_ENGAGE:
+                        self._complete_hostile_resolution(stop_event, screen)
+
+                # 루프 주기 조절
+                if stop_event.wait(1.0): break  # 1초 대기하며 종료 신호 확인
 
             except Exception as e:
                 # 메인 루프 내 예상치 못한 오류 처리
                 print(f"ERROR: [{self.monitor_id}] Unhandled exception in main loop: {e}")
                 traceback.print_exc()
-                if stop_event.wait(5.0): # 오류 발생 시 5초 대기하며 종료 신호 확인
-                     break # 종료 신호 받으면 루프 탈출
+                if stop_event.wait(5.0):  # 오류 발생 시 5초 대기하며 종료 신호 확인
+                    break  # 종료 신호 받으면 루프 탈출
 
         # 루프 종료 시 stop 메서드 호출
         self.stop()

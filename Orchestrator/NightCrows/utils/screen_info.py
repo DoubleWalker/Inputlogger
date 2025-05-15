@@ -41,7 +41,7 @@ FIXED_UI_COORDS = {
         'retry_confirm': (2, 2),  # 실제 좌표 측정 필요
         'retry_close': (1, 2),  # 실제 좌표 측정 필요
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
-
+        'return_target_location': (300, 150),  # 실제 좌표로 수정 필요
         # 새로 추가된 좌표 (빈칸)
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
@@ -54,7 +54,7 @@ FIXED_UI_COORDS = {
         'retry_confirm': (1, 1),  # 실제 좌표 측정 필요
         'retry_close': (1, 1),  # 실제 좌표 측정 필요
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
-
+        'return_target_location': (300, 150),  # 실제 좌표로 수정 필요
         # 새로 추가된 좌표 (빈칸)
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
@@ -67,7 +67,7 @@ FIXED_UI_COORDS = {
         'retry_confirm': (1, 1),  # 실제 좌표 측정 필요
         'retry_close': (1, 1),  # 실제 좌표 측정 필요
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
-
+        'return_target_location': (300, 150),  # 실제 좌표로 수정 필요
         # 새로 추가된 좌표 (빈칸)
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
@@ -80,7 +80,7 @@ FIXED_UI_COORDS = {
         'retry_confirm': (1, 1),  # 실제 좌표 측정 필요
         'retry_close': (1, 1),  # 실제 좌표 측정 필요
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
-
+        'return_target_location': (300, 150),  # 실제 좌표로 수정 필요
         # 새로 추가된 좌표 (빈칸)
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
@@ -93,7 +93,7 @@ FIXED_UI_COORDS = {
         'retry_confirm': (2, 2),  # 실제 좌표 측정 필요
         'retry_close': (0, 1),  # 실제 좌표 측정 필요
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
-
+        'return_target_location': (300, 150),  # 실제 좌표로 수정 필요
         # 새로 추가된 좌표 (빈칸)
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (0, 0),  # 실제 좌표 측정 필요

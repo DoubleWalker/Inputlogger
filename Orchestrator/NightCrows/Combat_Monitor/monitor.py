@@ -294,17 +294,9 @@ class CombatMonitor(BaseMonitor):
                 if not self._click_relative(screen, 'main_menu_button', delay_after=1.0):
                     return False
 
-                # 2. 템플릿 위치 클릭
-                template_path = template_paths.get_template(screen.screen_id, 'RETURN_TARGET_LOCATION')
-                if not template_path or not os.path.exists(template_path):
+                # 2. 귀환 목적지 클릭 (템플릿 대신 고정 위치 사용)
+                if not self._click_relative(screen, 'return_target_location', delay_after=1.0):
                     return False
-
-                target_location = image_utils.return_ui_location(template_path, screen.region, self.confidence)
-                if not target_location:
-                    return False
-
-                pyautogui.click(target_location)
-                time.sleep(1.0)
 
                 # 3. 확인 클릭 (고정 위치)
                 if not self._click_relative(screen, 'retry_confirm', delay_after=0.5):
@@ -314,6 +306,8 @@ class CombatMonitor(BaseMonitor):
                 self._click_relative(screen, 'retry_close', delay_after=1.5)
 
                 return True
+
+
 
             elif context == Location.ARENA:
                 print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Context is ARENA. Return initiation not needed here.")
@@ -777,6 +771,7 @@ class CombatMonitor(BaseMonitor):
             print(f"ERROR: [{self.monitor_id}] Exception during party shared waypoint {wp_index}: {e}")
             traceback.print_exc()
             return False
+
     def _retry_field_return(self, screen: ScreenMonitorInfo) -> bool:
         """필드 복귀 재시도: 메뉴-템플릿-확인-닫기 순으로 클릭"""
         try:
@@ -784,17 +779,9 @@ class CombatMonitor(BaseMonitor):
             if not self._click_relative(screen, 'main_menu_button', delay_after=1.0):
                 return False
 
-            # 2. 템플릿 위치 클릭
-            template_path = template_paths.get_template(screen.screen_id, 'RETURN_TARGET_LOCATION')
-            if not template_path or not os.path.exists(template_path):
+            # 2. 귀환 목적지 클릭 (템플릿 대신 고정 위치 사용)
+            if not self._click_relative(screen, 'return_target_location', delay_after=1.0):
                 return False
-
-            target_location = image_utils.return_ui_location(template_path, screen.region, self.confidence)
-            if not target_location:
-                return False
-
-            pyautogui.click(target_location)
-            time.sleep(1.0)
 
             # 3. 확인 클릭 (고정 위치)
             if not self._click_relative(screen, 'retry_confirm', delay_after=0.5):
@@ -808,7 +795,6 @@ class CombatMonitor(BaseMonitor):
         except Exception as e:
             print(f"ERROR: Field return retry failed: {e}")
             return False
-
     # --- 상태 처리 핸들러 ---
 
     def _handle_hostile_engage(self, stop_event: threading.Event, screen: ScreenMonitorInfo):

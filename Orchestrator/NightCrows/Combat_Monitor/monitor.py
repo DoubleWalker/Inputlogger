@@ -62,10 +62,7 @@ class ScreenState(Enum):
 
 # --- 화면 정보 데이터 클래스 ---
 @dataclass
-class ScreenMonitorInfo:
-    """모니터링할 개별 화면의 정보"""
-    screen_id: str
-    region: Tuple[int, int, int, int]
+
 class ScreenMonitorInfo:
     """모니터링할 개별 화면의 정보"""
     screen_id: str

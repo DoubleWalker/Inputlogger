@@ -1405,6 +1405,15 @@ class CombatMonitor(BaseMonitor):
 # === 독립 실행 테스트용 코드 ===
 if __name__ == "__main__":
     print("INFO: Running CombatMonitor in standalone test mode...")
+    print("INFO: 시작 대기중... 10초 후에 모니터링이 시작됩니다.")
+
+    # 가상 데스크톱 전환을 위한 시작 전 딜레이 추가
+    start_delay = 10  # 10초 딜레이
+    for i in range(start_delay, 0, -1):
+        print(f"INFO: {i}초 후 시작...")
+        time.sleep(1)
+
+    print("INFO: 모니터링을 시작합니다!")
     stop_event = threading.Event()
 
     # 1. 모니터 인스턴스 생성

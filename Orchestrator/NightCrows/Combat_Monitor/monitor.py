@@ -202,33 +202,72 @@ class CombatMonitor(BaseMonitor):
             return False
 
     def _determine_initial_location(self, stop_event: threading.Event) -> bool:
-        """등록된 첫 번째 화면을 사용하여 시작 위치를 결정합니다."""
+        """S1 화면을 깨워서 ARENA 또는 FIELD 상태를 정확히 판단합니다."""
         if not self.screens:
             print(f"ERROR: [{self.monitor_id}] No screens added. Cannot determine initial location.")
             self.location_flag = Location.UNKNOWN
             return False
 
-        first_screen = self.screens[0]
+        first_screen = self.screens[0]  # S1 화면
         print(f"INFO: [{self.monitor_id}] Determining initial location using screen {first_screen.screen_id}...")
-        retry_count = 0
-        max_retries = 3
 
-        while not stop_event.is_set() and retry_count < max_retries:
+        # 1. 대기 화면 깨우기
+        print(f"INFO: [{self.monitor_id}] Waking up screen {first_screen.screen_id}...")
+        if not image_utils.set_focus(first_screen.screen_id, delay_after=0.5):
+            print(f"ERROR: [{self.monitor_id}] Failed to set focus on screen {first_screen.screen_id}")
+            return False
+
+        # ESC 키를 눌러 대기화면 해제
+        keyboard.press_and_release('esc')
+        time.sleep(1.0)  # 대기화면 해제 후 잠시 대기
+
+        # 2. Arena 상태 확인 (여러 번 시도)
+        arena_template_path = template_paths.get_template(first_screen.screen_id, 'ARENA') or self.arena_template_path
+        if not arena_template_path or not os.path.exists(arena_template_path):
+            print(f"ERROR: [{self.monitor_id}] Arena template not found for screen {first_screen.screen_id}")
+            self.location_flag = Location.FIELD  # 템플릿 없으면 기본값 FIELD 사용
+            return False
+
+        max_attempts = 5
+        check_interval = 0.5  # 0.5초 간격으로 확인
+        is_arena = False
+
+        for attempt in range(max_attempts):
+            if stop_event.is_set():
+                return False
+
             try:
-                is_arena = self._is_character_in_arena(screen=first_screen)
-                self.location_flag = Location.ARENA if is_arena else Location.FIELD
-                print(f"INFO: [{self.monitor_id}] Initial Location determined: {self.location_flag.name}")
-                return True
-            except Exception as e:
-                retry_count += 1
-                print(f"ERROR: [{self.monitor_id}] Error checking location (Attempt {retry_count}/{max_retries}): {e}. Retrying...")
-                if stop_event.wait(3):
-                    print(f"INFO: [{self.monitor_id}] Stop event received during location check retry.")
-                    return False
+                # 화면 캡처 및 템플릿 매칭
+                screen_capture = pyautogui.screenshot(region=first_screen.region)
+                if screen_capture:
+                    # arena 인디케이터 체크
+                    if image_utils.compare_images(
+                            screen_capture,
+                            self._load_template(arena_template_path),
+                            threshold=self.confidence
+                    ):
+                        print(
+                            f"INFO: [{self.monitor_id}] Arena indicator found on attempt {attempt + 1}/{max_attempts}")
+                        is_arena = True
+                        break
+                    else:
+                        print(
+                            f"INFO: [{self.monitor_id}] Arena indicator not found on attempt {attempt + 1}/{max_attempts}")
 
-        print(f"ERROR: [{self.monitor_id}] Failed to determine initial location after {max_retries} retries or stop signal.")
-        self.location_flag = Location.UNKNOWN
-        return False
+                # 다음 시도 전 대기
+                if attempt < max_attempts - 1 and not stop_event.wait(check_interval):
+                    continue
+
+            except Exception as e:
+                print(f"ERROR: [{self.monitor_id}] Error during arena check (attempt {attempt + 1}): {e}")
+                if attempt < max_attempts - 1:
+                    continue
+
+        # 3. 결과에 따라 FLAG 설정
+        self.location_flag = Location.ARENA if is_arena else Location.FIELD
+        print(
+            f"INFO: [{self.monitor_id}] Initial Location determined after {max_attempts} checks: {self.location_flag.name}")
+        return True
 
     # --- 게임 상호작용 메서드들 ---
 

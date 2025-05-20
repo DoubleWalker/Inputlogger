@@ -168,11 +168,38 @@ class CombatMonitor(BaseMonitor):
             if dead_template is not None and image_utils.compare_images(screenshot, dead_template, threshold=self.confidence):
                 return CharacterState.DEAD
 
-            # HOSTILE 상태 확인
-            hostile_template = self._load_template(hostile_template_path)
-            if hostile_template is not None and image_utils.compare_images(screenshot, hostile_template, threshold=self.confidence):
-                return CharacterState.HOSTILE_ENGAGE
+            # HOSTILE 상태 확인 - 연속 샘플링으로 수정
+            hostile_template_path = template_paths.get_template(screen.screen_id,
+                                                                'HOSTILE') or self.hostile_template_path
+            if hostile_template_path is not None:
+                hostile_template = self._load_template(hostile_template_path)
+                if hostile_template is not None:
+                    # 연속 샘플링 (최대 3회, 각 0.1초 간격)
+                    max_samples = 3
+                    sample_interval = 0.1
 
+                    for sample_idx in range(max_samples):
+                        # 새 스크린샷 캡처
+                        try:
+                            current_screenshot = pyautogui.screenshot(region=screen.region)
+                            if current_screenshot is None:
+                                continue
+
+                            # 템플릿 매칭 시도
+                            if image_utils.compare_images(current_screenshot, hostile_template,
+                                                          threshold=self.confidence):
+                                # 로그 추가 (어떤 샘플에서 감지되었는지)
+                                print(
+                                    f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: HOSTILE detected on sample {sample_idx + 1}/{max_samples}")
+                                return CharacterState.HOSTILE_ENGAGE
+                        except Exception as e:
+                            print(f"ERROR: [{self.monitor_id}] Error during HOSTILE sampling {sample_idx + 1}: {e}")
+
+                        # 중지 신호 확인 (필요시)
+                        if sample_idx < max_samples - 1:  # 마지막 샘플이 아니면 대기
+                            time.sleep(sample_interval)
+
+            # HOSTILE 감지 실패 시 NORMAL 반환 (기존과 동일)
             return CharacterState.NORMAL
 
         except Exception as e:

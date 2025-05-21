@@ -522,11 +522,11 @@ class CombatMonitor(BaseMonitor):
                     return False
 
                 # 3. 확인 클릭 (고정 위치)
-                if not self._click_relative(screen, 'retry_confirm', delay_after=0.5):
+                if not self._click_relative(screen, 'field_return_reset', delay_after=0.5):
                     return False
 
                 # 4. 닫기 클릭 (고정 위치)
-                self._click_relative(screen, 'retry_close', delay_after=1.5)
+                self._click_relative(screen, 'field_return_start', delay_after=1.5)
 
                 return True
 

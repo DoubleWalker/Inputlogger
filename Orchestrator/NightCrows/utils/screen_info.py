@@ -38,10 +38,11 @@ FIXED_UI_COORDS = {
     'S1': {
         # 기존 좌표 유지
         'main_menu_button': (748, 15),
-        'retry_confirm': (2, 2),  # 실제 좌표 측정 필요
-        'retry_close': (1, 2),  # 실제 좌표 측정 필요
+        'field_return_reset': (2, 2),  # 실제 좌표 측정 필요
+        'field_return_start': (1, 2),  # 실제 좌표 측정 필요
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
         'field_schedule_button': (503, 319),  # 실제 좌표로 수정 필요
+        'flight_button':(470,310),  # 실제 좌표로 수정 필요
         # 새로 추가된 좌표 (빈칸)
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
@@ -51,10 +52,11 @@ FIXED_UI_COORDS = {
     'S2': {
         # 기존 좌표 유지
         'main_menu_button': (820, 18),
-        'retry_confirm': (1, 1),  # 실제 좌표 측정 필요
-        'retry_close': (1, 1),  # 실제 좌표 측정 필요
+        'field_return_reset': (1, 1),  # 실제 좌표 측정 필요
+        'field_return_start': (1, 1),  # 실제 좌표 측정 필요
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
         'field_schedule_button': (555, 346),  # 실제 좌표로 수정 필요
+        'flight_button':(515,350),  # 실제 좌표로 수정 필요
         # 새로 추가된 좌표 (빈칸)
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
@@ -64,10 +66,11 @@ FIXED_UI_COORDS = {
     'S3': {
         # 기존 좌표 유지
         'main_menu_button': (713, 15),
-        'retry_confirm': (1, 1),  # 실제 좌표 측정 필요
-        'retry_close': (1, 1),  # 실제 좌표 측정 필요
+        'field_return_reset': (1, 1),  # 실제 좌표 측정 필요
+        'field_return_start': (1, 1),  # 실제 좌표 측정 필요
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
         'field_schedule_button': (503, 319),  # 실제 좌표로 수정 필요
+        'flight_button':(467,316),  # 실제 좌표로 수정 필요
         # 새로 추가된 좌표 (빈칸)
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
@@ -77,10 +80,11 @@ FIXED_UI_COORDS = {
     'S4': {
         # 기존 좌표 유지
         'main_menu_button': (748, 15),
-        'retry_confirm': (1, 1),  # 실제 좌표 측정 필요
-        'retry_close': (1, 1),  # 실제 좌표 측정 필요
+        'field_return_reset': (1, 1),  # 실제 좌표 측정 필요
+        'field_return_start': (1, 1),  # 실제 좌표 측정 필요
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
         'field_schedule_button': (503, 310),  # 실제 좌표로 수정 필요
+        'flight_button':(469,311),  # 실제 좌표로 수정 필요
         # 새로 추가된 좌표 (빈칸)
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
@@ -90,10 +94,11 @@ FIXED_UI_COORDS = {
     'S5': {
         # 기존 좌표 유지
         'main_menu_button': (1117, 28),
-        'retry_confirm': (2, 2),  # 실제 좌표 측정 필요
-        'retry_close': (0, 1),  # 실제 좌표 측정 필요
+        'field_return_reset': (2, 2),  # 실제 좌표 측정 필요
+        'field_return_start': (0, 1),  # 실제 좌표 측정 필요
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
         'field_schedule_button': (753, 596),  # 실제 좌표로 수정 필요
+        'flight_button':(700,596),
         # 새로 추가된 좌표 (빈칸)
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (0, 0),  # 실제 좌표 측정 필요

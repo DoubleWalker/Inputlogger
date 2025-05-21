@@ -985,31 +985,28 @@ class CombatMonitor(BaseMonitor):
             traceback.print_exc()
             return False
 
-    def _retry_field_return(self, screen: ScreenMonitorInfo) -> bool:
-        """필드 복귀 재시도: 메뉴-템플릿-확인-닫기 순으로 클릭"""
+    def _retry_field_return(self, screen: ScreenMonitorInfo, is_first_attempt: bool = False) -> bool:
+        """필드 복귀 재시도: 단일 버튼 클릭 (첫 시도시에만 Y키 입력)"""
         try:
-            # 1. 메뉴 클릭 (고정 위치)
-            if not self._click_relative(screen, 'main_menu_button', delay_after=1.0):
+            print(
+                f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Retrying field return (first attempt: {is_first_attempt})...")
+
+            # 1. 단일 버튼 클릭
+            if not self._click_relative(screen, 'field_return_button', delay_after=0.5):
+                print(f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Failed to click field return button.")
                 return False
 
-            # 2. 귀환 목적지 클릭 (템플릿 대신 고정 위치 사용)
-            if not self._click_relative(screen, 'field_schedule_button', delay_after=1.0):
-                return False
-
-            # 3. 확인 클릭 (고정 위치)
-            if not self._click_relative(screen, 'retry_confirm', delay_after=0.5):
-                return False
-
-            # 4. 닫기 클릭 (고정 위치)
-            self._click_relative(screen, 'retry_close', delay_after=1.5)
+            # 2. Y키 입력 (첫 시도일 때만)
+            if is_first_attempt:
+                time.sleep(0.3)  # 클릭 후 잠시 대기
+                keyboard.press_and_release('y')
+                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Pressed Y key (first attempt).")
 
             return True
 
         except Exception as e:
-            print(f"ERROR: Field return retry failed: {e}")
+            print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Field return retry failed: {e}")
             return False
-    # --- 상태 처리 핸들러 ---
-
     # 1. 초기 대응 함수들
     def _initiate_recovery(self, screen: ScreenMonitorInfo) -> bool:
         """부활 버튼 클릭만 담당하는 초기 대응 함수"""
@@ -1075,6 +1072,12 @@ class CombatMonitor(BaseMonitor):
             print(f"INFO: [{self.monitor_id}] Checking Field return status (after >2 deaths)...")
             return_check_count = 0
             max_return_checks = 15
+
+            # 첫 번째 필드 복귀 시도 (버튼 클릭 + Y키)
+            if not self._retry_field_return(screen=screen, is_first_attempt=True):
+                print(f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Failed to initiate first field return.")
+
+            # 복귀 확인 및 필요시 재시도
             while not stop_event.is_set() and return_check_count < max_return_checks:
                 if self._check_returned_well(screen=screen):
                     print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Returned well to Field.")
@@ -1083,9 +1086,12 @@ class CombatMonitor(BaseMonitor):
                     return_check_count += 1
                     print(
                         f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Field return check failed ({return_check_count}/{max_return_checks}). Retrying return...")
-                    if not self._retry_field_return(screen=screen):
+
+                    # 이후 재시도는 버튼 클릭만 (Y키 입력 없음)
+                    if not self._retry_field_return(screen=screen, is_first_attempt=False):
                         print(
                             f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Failed to initiate field return retry.")
+
                     if stop_event.wait(2):
                         return False  # 중지 신호
 
@@ -1134,6 +1140,12 @@ class CombatMonitor(BaseMonitor):
             print(f"INFO: [{self.monitor_id}] Original context was FIELD. Checking return status...")
             return_check_count = 0
             max_return_checks = 15
+
+            # 첫 번째 필드 복귀 시도 (버튼 클릭 + Y키)
+            if not self._retry_field_return(screen=screen, is_first_attempt=True):
+                print(f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Failed to initiate first field return.")
+
+            # 복귀 확인 및 필요시 재시도
             while not stop_event.is_set() and return_check_count < max_return_checks:
                 if self._check_returned_well(screen=screen):
                     print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Returned well to Field.")
@@ -1142,9 +1154,12 @@ class CombatMonitor(BaseMonitor):
                     return_check_count += 1
                     print(
                         f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Field return check failed ({return_check_count}/{max_return_checks}). Retrying return...")
-                    if not self._retry_field_return(screen=screen):
+
+                    # 이후 재시도는 버튼 클릭만 (Y키 입력 없음)
+                    if not self._retry_field_return(screen=screen, is_first_attempt=False):
                         print(
                             f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Failed to initiate field return retry.")
+
                     if stop_event.wait(2):
                         return False  # 중지 신호
 
@@ -1154,7 +1169,6 @@ class CombatMonitor(BaseMonitor):
                 return False
 
         return True
-
     def _execute_sequence(self, sequence_name: str, stop_event: threading.Event = None) -> bool:
         """YAML에 정의된 동작 시퀀스를 실행합니다."""
         try:

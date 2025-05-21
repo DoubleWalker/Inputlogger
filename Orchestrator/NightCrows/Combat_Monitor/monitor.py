@@ -417,13 +417,14 @@ class CombatMonitor(BaseMonitor):
         """지정된 화면에서 '도주' 버튼 템플릿을 찾아 클릭을 시도합니다."""
         flight_template_path = template_paths.get_template(screen.screen_id, 'FLIGHT_BUTTON')
         if not flight_template_path:
-            print(f"ERROR: [{self.monitor_id}] Flight template path not configured for screen {screen.screen_id}.")
+            print(f"ERROR: [{self.monitor_id}] Flight 실패: 템플릿 경로가 설정되지 않음 (Screen {screen.screen_id})")
             return False
         if not os.path.exists(flight_template_path):
-            print(f"ERROR: [{self.monitor_id}] Flight template file not found: {flight_template_path}")
+            print(f"ERROR: [{self.monitor_id}] Flight 실패: 템플릿 파일이 존재하지 않음: {flight_template_path}")
             return False
 
         try:
+            # 1. 먼저 템플릿 매칭 시도
             center_coords = image_utils.return_ui_location(
                 template_path=flight_template_path,
                 region=screen.region,
@@ -431,12 +432,21 @@ class CombatMonitor(BaseMonitor):
             )
             if center_coords:
                 pyautogui.click(center_coords)
-                print(f"INFO: [{self.monitor_id}] Flight (escape) initiated on screen {screen.screen_id}.")
+                print(f"INFO: [{self.monitor_id}] Flight initiated via template matching on screen {screen.screen_id}.")
                 return True
             else:
-                return False # 버튼 못 찾음
+                print(f"WARN: [{self.monitor_id}] 템플릿 매칭 실패, 고정 좌표 시도...")
+
+                # 2. 템플릿 매칭 실패 시 고정 좌표 사용
+                if self._click_relative(screen, 'flight_button', delay_after=0.2):
+                    print(
+                        f"INFO: [{self.monitor_id}] Flight initiated via fixed coordinates on screen {screen.screen_id}.")
+                    return True
+                else:
+                    print(f"ERROR: [{self.monitor_id}] Flight 실패: 템플릿 매칭 및 고정 좌표 모두 실패")
+                    return False
         except Exception as e:
-            print(f"ERROR: [{self.monitor_id}] Exception during flight attempt on screen {screen.screen_id}: {e}")
+            print(f"ERROR: [{self.monitor_id}] Flight 실패: 예외 발생: {e}")
             return False
 
     def _buy_potion_and_initiate_return(self, screen: ScreenMonitorInfo, context: Location) -> bool:

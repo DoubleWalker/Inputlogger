@@ -508,7 +508,7 @@ class CombatMonitor(BaseMonitor):
                     return False
 
                 # 2. 귀환 목적지 클릭 (템플릿 대신 고정 위치 사용)
-                if not self._click_relative(screen, 'return_target_location', delay_after=1.0):
+                if not self._click_relative(screen, field_schedule_button, delay_after=1.0):
                     return False
 
                 # 3. 확인 클릭 (고정 위치)
@@ -993,7 +993,7 @@ class CombatMonitor(BaseMonitor):
                 return False
 
             # 2. 귀환 목적지 클릭 (템플릿 대신 고정 위치 사용)
-            if not self._click_relative(screen, 'return_target_location', delay_after=1.0):
+            if not self._click_relative(screen, field_schedule_button, delay_after=1.0):
                 return False
 
             # 3. 확인 클릭 (고정 위치)

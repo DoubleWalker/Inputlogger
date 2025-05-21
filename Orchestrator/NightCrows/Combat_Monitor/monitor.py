@@ -440,44 +440,61 @@ class CombatMonitor(BaseMonitor):
             return False
 
     def _buy_potion_and_initiate_return(self, screen: ScreenMonitorInfo, context: Location) -> bool:
-        """지정된 화면에서 물약을 구매하고, 상황(context)에 따라 귀환/복귀를 시작합니다."""
-        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Starting potion purchase sequence (Context: {context.name})...")
+        print(
+            f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Starting potion purchase sequence (Context: {context.name})...")
         try:
             # 1. 상점 열기
             shop_template_path = template_paths.get_template(screen.screen_id, 'SHOP_BUTTON')
             if not shop_template_path or not os.path.exists(shop_template_path):
-                print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: SHOP_BUTTON template invalid or not found.")
+                print(
+                    f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: SHOP_BUTTON template invalid or not found.")
                 return False
+
             shop_button_loc = image_utils.return_ui_location(shop_template_path, screen.region, self.confidence)
             if not shop_button_loc:
                 print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: SHOP_BUTTON not found.")
                 return False
+
             pyautogui.click(shop_button_loc)
             print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Clicked SHOP_BUTTON.")
-            time.sleep(1.5) # 상점 로딩 대기
 
-            # 2. 구매 버튼 클릭
+            # 상점 로딩 대기 시간 증가 (15초)
+            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waiting 15s for shop UI to load...")
+            time.sleep(15.0)
+
+            # 2. 구매 버튼 찾기 (3회 시도)
             purchase_template_path = template_paths.get_template(screen.screen_id, 'PURCHASE_BUTTON')
-            if not purchase_template_path or not os.path.exists(purchase_template_path):
-                print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: PURCHASE_BUTTON template invalid or not found.")
-                pyautogui.press('esc'); time.sleep(0.5) # 상점 닫기 시도
-                return False
-            purchase_button_loc = image_utils.return_ui_location(purchase_template_path, screen.region, self.confidence)
-            if not purchase_button_loc:
-                print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: PURCHASE_BUTTON not found.")
-                pyautogui.press('esc'); time.sleep(0.5) # 상점 닫기 시도
-                return False
-            pyautogui.click(purchase_button_loc)
-            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Clicked PURCHASE_BUTTON.")
-            time.sleep(0.5) # 확인 창 대기
+            purchase_button_loc = None
 
-            # 3. 확인 ('Y' 키)
+            for attempt in range(3):
+                purchase_button_loc = image_utils.return_ui_location(purchase_template_path, screen.region,
+                                                                     self.confidence)
+                if purchase_button_loc:
+                    break
+
+                print(
+                    f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: PURCHASE_BUTTON not found on attempt {attempt + 1}/3. Retrying...")
+                time.sleep(3.0)  # 3초 간격으로 재시도
+
+            if not purchase_button_loc:
+                print(
+                    f"WARNING: [{self.monitor_id}] Screen {screen.screen_id}: PURCHASE_BUTTON not found after 3 attempts. Returning to NORMAL state.")
+                return False  # NORMAL 상태로 전환되도록 False 반환
+
+            # 3. 구매 버튼 클릭
+            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Clicking PURCHASE_BUTTON.")
+            pyautogui.click(purchase_button_loc[0], purchase_button_loc[1])
+            time.sleep(0.8)  # 대기 시간 조정
+
+            # 4. 확인 ('Y' 키)
+            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Pressing 'Y' key to confirm purchase.")
             pyautogui.press('y')
-            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Pressed 'Y' key.")
             time.sleep(0.5)
 
-            # 4. 상점 닫기 (ESC 두 번)
-            pyautogui.press('esc'); time.sleep(0.2)
+            # 5. 상점 닫기 (ESC 두 번)
+            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Closing shop (ESC key).")
+            pyautogui.press('esc')
+            time.sleep(0.2)
             pyautogui.press('esc')
             print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Potion purchase sequence finished.")
 

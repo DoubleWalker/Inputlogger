@@ -452,8 +452,9 @@ class CombatMonitor(BaseMonitor):
     def _buy_potion_and_initiate_return(self, screen: ScreenMonitorInfo, context: Location) -> bool:
         print(
             f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Starting potion purchase sequence (Context: {context.name})...")
+
         try:
-            # 1. 상점 열기
+            # 1. 상점 버튼 찾기 (락 밖에서 - 병렬)
             shop_template_path = template_paths.get_template(screen.screen_id, 'SHOP_BUTTON')
             if not shop_template_path or not os.path.exists(shop_template_path):
                 print(
@@ -465,14 +466,16 @@ class CombatMonitor(BaseMonitor):
                 print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: SHOP_BUTTON not found.")
                 return False
 
-            pyautogui.click(shop_button_loc)
-            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Clicked SHOP_BUTTON.")
+            # 1-1. 상점 버튼 클릭 (락 안에서 - 순차)
+            with self.io_lock:
+                pyautogui.click(shop_button_loc)
+                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Clicked SHOP_BUTTON.")
 
-            # 상점 로딩 대기 시간 증가 (15초)
+            # 1-2. 상점 로딩 대기 (락 밖에서 - 병렬)
             print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waiting 15s for shop UI to load...")
             time.sleep(15.0)
 
-            # 2. 구매 버튼 찾기 (3회 시도)
+            # 2. 구매 버튼 찾기 (락 밖에서 - 병렬, 3회 시도)
             purchase_template_path = template_paths.get_template(screen.screen_id, 'PURCHASE_BUTTON')
             purchase_button_loc = None
 
@@ -481,31 +484,38 @@ class CombatMonitor(BaseMonitor):
                                                                      self.confidence)
                 if purchase_button_loc:
                     break
-
                 print(
                     f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: PURCHASE_BUTTON not found on attempt {attempt + 1}/3. Retrying...")
-                time.sleep(3.0)  # 3초 간격으로 재시도
+                time.sleep(3.0)
 
             if not purchase_button_loc:
                 print(
                     f"WARNING: [{self.monitor_id}] Screen {screen.screen_id}: PURCHASE_BUTTON not found after 3 attempts. Returning to NORMAL state.")
-                return False  # NORMAL 상태로 전환되도록 False 반환
+                return False
 
-            # 3. 구매 버튼 클릭
-            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Clicking PURCHASE_BUTTON.")
-            pyautogui.click(purchase_button_loc[0], purchase_button_loc[1])
-            time.sleep(1.5)  # 대기 시간 조정
+            # 2-1. 구매 버튼 클릭 (락 안에서 - 순차)
+            with self.io_lock:
+                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Clicking PURCHASE_BUTTON.")
+                pyautogui.click(purchase_button_loc[0], purchase_button_loc[1])
 
-            # 4. 확인 ('Y' 키)
-            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Pressing 'Y' key to confirm purchase.")
-            pyautogui.press('y')
-            time.sleep(1.0)
+            # 2-2. 구매 처리 대기 (락 밖에서 - 병렬)
+            time.sleep(1.5)  # 0.8초에서 1.5초로 증가
 
-            # 5. 상점 닫기 (ESC 두 번)
-            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Closing shop (ESC key).")
-            pyautogui.press('esc')
-            time.sleep(0.5)
-            pyautogui.press('esc')
+            # 3. 확인 Y키 입력 (락 안에서 - 순차)
+            with self.io_lock:
+                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Pressing 'Y' key to confirm purchase.")
+                pyautogui.press('y')
+
+            # 3-1. Y키 처리 대기 (락 밖에서 - 병렬)
+            time.sleep(1.0)  # 0.5초에서 1.0초로 증가
+
+            # 4. 상점 닫기 ESC (락 안에서 - 순차)
+            with self.io_lock:
+                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Closing shop (ESC key).")
+                pyautogui.press('esc')
+                time.sleep(0.5)  # 0.2초에서 0.5초로 증가
+                pyautogui.press('esc')
+
             print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Potion purchase sequence finished.")
 
             # 5. 귀환/복귀 시작 (Context에 따라 분기)
@@ -513,40 +523,46 @@ class CombatMonitor(BaseMonitor):
                 print(
                     f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Context is FIELD. Initiating return action...")
 
-                # 1. 메뉴 클릭 (고정 위치)
-                if not self._click_relative(screen, 'main_menu_button', delay_after=1.0):
-                    return False
+                # 필드 귀환은 전체를 락으로 보호 (복잡한 시퀀스)
+                with self.io_lock:
+                    # 1. 메뉴 클릭 (고정 위치)
+                    if not self._click_relative(screen, 'main_menu_button', delay_after=1.0):
+                        return False
 
-                # 2. 귀환 목적지 클릭 (템플릿 대신 고정 위치 사용)
-                if not self._click_relative(screen, 'field_schedule_button', delay_after=1.0):
-                    return False
+                    # 2. 귀환 목적지 클릭 (템플릿 대신 고정 위치 사용)
+                    if not self._click_relative(screen, 'field_schedule_button', delay_after=1.0):
+                        return False
 
-                # 3. 리셋버튼 클릭 (고정 위치)
-                if not self._click_relative(screen, 'field_return_reset', delay_after=0.5):
-                    return False
+                    # 3. 확인 클릭 (고정 위치)
+                    if not self._click_relative(screen, 'field_return_reset', delay_after=0.5):
+                        return False
 
-                # 4. 스케쥴 시작하기 클릭 (고정 위치)
-                self._click_relative(screen, 'field_return_start', delay_after=1.5)
+                    # 4. 닫기 클릭 (고정 위치)
+                    self._click_relative(screen, 'field_return_start', delay_after=1.5)
 
                 return True
 
-
-
             elif context == Location.ARENA:
-                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Context is ARENA. Return initiation not needed here.")
-                return True # 아레나에서는 후속 웨이포인트 네비게이션이 처리
+                print(
+                    f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Context is ARENA. Return initiation not needed here.")
+                return True  # 아레나에서는 후속 웨이포인트 네비게이션이 처리
 
-            else: # UNKNOWN 등
-                print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Unknown context '{context.name}'. Cannot initiate return.")
+            else:  # UNKNOWN 등
+                print(
+                    f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Unknown context '{context.name}'. Cannot initiate return.")
                 return False
 
         except Exception as e:
             print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Exception during potion purchase/return: {e}")
             traceback.print_exc()
-            try: # 에러 시 상점 닫기 시도
-                pyautogui.press('esc'); time.sleep(0.2); pyautogui.press('esc')
+            try:  # 에러 시 상점 닫기 시도
+                with self.io_lock:
+                    pyautogui.press('esc')
+                    time.sleep(0.2)
+                    pyautogui.press('esc')
             except Exception as esc_e:
-                print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Error pressing ESC during exception handling: {esc_e}")
+                print(
+                    f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Error pressing ESC during exception handling: {esc_e}")
             return False
 
     def _process_recovery(self, screen: ScreenMonitorInfo) -> bool:

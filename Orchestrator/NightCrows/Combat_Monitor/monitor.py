@@ -502,13 +502,24 @@ class CombatMonitor(BaseMonitor):
             # 2-2. 구매 처리 대기 (락 밖에서 - 병렬)
             time.sleep(1.5)  # 0.8초에서 1.5초로 증가
 
-            # 3. 확인 Y키 입력 (락 안에서 - 순차)
-            with self.io_lock:
-                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Pressing 'Y' key to confirm purchase.")
-                pyautogui.press('y')
+            # 3. 확인 버튼 클릭 (템플릿 매칭)
+            confirm_template_path = template_paths.get_template(screen.screen_id, 'CONFIRM_BUTTON')
+            if not confirm_template_path or not os.path.exists(confirm_template_path):
+                print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: CONFIRM_BUTTON template not found.")
+                return False
 
-            # 3-1. Y키 처리 대기 (락 밖에서 - 병렬)
-            time.sleep(1.0)  # 0.5초에서 1.0초로 증가
+            confirm_button_loc = image_utils.return_ui_location(confirm_template_path, screen.region, self.confidence)
+            if not confirm_button_loc:
+                print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: CONFIRM_BUTTON not found.")
+                return False
+
+            # 3-1. 확인 버튼 클릭 (락 안에서 - 순차)
+            with self.io_lock:
+                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Clicking CONFIRM_BUTTON.")
+                pyautogui.click(confirm_button_loc[0], confirm_button_loc[1])
+
+            # 3-2. 확인 처리 대기 (락 밖에서 - 병렬)
+            time.sleep(1.0)
 
             # 4. 상점 닫기 ESC (락 안에서 - 순차)
             with self.io_lock:
@@ -565,7 +576,6 @@ class CombatMonitor(BaseMonitor):
                 print(
                     f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Error pressing ESC during exception handling: {esc_e}")
             return False
-
     def _process_recovery(self, screen: ScreenMonitorInfo) -> bool:
         """지정된 화면에서 부활 동작을 수행합니다."""
         print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Processing RECOVERY (Revive)...")

@@ -521,11 +521,11 @@ class CombatMonitor(BaseMonitor):
                 if not self._click_relative(screen, 'field_schedule_button', delay_after=1.0):
                     return False
 
-                # 3. 확인 클릭 (고정 위치)
+                # 3. 리셋버튼 클릭 (고정 위치)
                 if not self._click_relative(screen, 'field_return_reset', delay_after=0.5):
                     return False
 
-                # 4. 닫기 클릭 (고정 위치)
+                # 4. 스케쥴 시작하기 클릭 (고정 위치)
                 self._click_relative(screen, 'field_return_start', delay_after=1.5)
 
                 return True

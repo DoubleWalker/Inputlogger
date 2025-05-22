@@ -366,7 +366,7 @@ class CombatMonitor(BaseMonitor):
         elif state == ScreenState.FLEEING:
             # 도주 완료 확인 (5초 정도 대기 후)
             elapsed = time.time() - screen.last_state_change_time
-            if elapsed < 5.0:
+            if elapsed < 9.0:
                 return  # 아직 대기 중
 
             # 물약 구매로 전환

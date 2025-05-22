@@ -28,6 +28,7 @@ class BaseMonitor:
         self.monitor_id = monitor_id
         self.config = config if isinstance(config, dict) else {}
         self.vd_name = vd_name
+        self.io_lock = threading.Lock()  # ← 이 줄 추가
 
     def run_loop(self, stop_event: threading.Event):
         """Orchestrator가 스레드에서 실행할 메인 루프. stop_event로 종료 제어."""

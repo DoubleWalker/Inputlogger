@@ -494,17 +494,17 @@ class CombatMonitor(BaseMonitor):
             # 3. 구매 버튼 클릭
             print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Clicking PURCHASE_BUTTON.")
             pyautogui.click(purchase_button_loc[0], purchase_button_loc[1])
-            time.sleep(0.8)  # 대기 시간 조정
+            time.sleep(1.5)  # 대기 시간 조정
 
             # 4. 확인 ('Y' 키)
             print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Pressing 'Y' key to confirm purchase.")
             pyautogui.press('y')
-            time.sleep(0.5)
+            time.sleep(1.0)
 
             # 5. 상점 닫기 (ESC 두 번)
             print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Closing shop (ESC key).")
             pyautogui.press('esc')
-            time.sleep(0.2)
+            time.sleep(0.5)
             pyautogui.press('esc')
             print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Potion purchase sequence finished.")
 

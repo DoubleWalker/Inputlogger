@@ -38,71 +38,71 @@ FIXED_UI_COORDS = {
     'S1': {
         # 기존 좌표 유지
         'main_menu_button': (748, 15),
-        'field_return_reset': (535, 327),  # 실제 좌표 측정 필요
-        'field_return_start': (716, 328),  # 실제 좌표 측정 필요
+        'field_return_reset': (535, 327),  #
+        'field_return_start': (716, 328),  #
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
         'field_schedule_button': (688, 212),  # 실제 좌표로 수정 필요
         'flight_button':(470,310),  # 실제 좌표로 수정 필요
         # 새로 추가된 좌표 (빈칸)
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
-        'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
-        'tower_click_2': (0, 0),  # 실제 좌표 측정 필요
-          # 실제 좌표 측정 필요
+        'tower_click_1': (711, 66),  #
+        'tower_click_2': (746, 190),  #
+          #
     },
     'S2': {
         # 기존 좌표 유지
         'main_menu_button': (820, 18),
-        'field_return_reset': (571, 359),  # 실제 좌표 측정 필요
-        'field_return_start': (763, 355),  # 실제 좌표 측정 필요
+        'field_return_reset': (571, 359),  #
+        'field_return_start': (763, 355),  #
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
         'field_schedule_button': (750, 224),  # 실제 좌표로 수정 필요
         'flight_button':(515,350),  # 실제 좌표로 수정 필요
         # 새로 추가된 좌표 (빈칸)
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
-        'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
-        'tower_click_2': (0, 0),  # 실제 좌표 측정 필요
-          # 실제 좌표 측정 필요
+        'tower_click_1': (790, 77),  #
+        'tower_click_2': (814, 270),  #
+          #
     },
     'S3': {
         # 기존 좌표 유지
         'main_menu_button': (713, 15),
-        'field_return_reset': (512, 327),  # 실제 좌표 측정 필요
-        'field_return_start': (688, 327),  # 실제 좌표 측정 필요
+        'field_return_reset': (512, 327),  #
+        'field_return_start': (688, 327),  #
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
         'field_schedule_button': (657, 203),  # 실제 좌표로 수정 필요
         'flight_button':(467,316),  # 실제 좌표로 수정 필요
         # 새로 추가된 좌표 (빈칸)
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
-        'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
-        'tower_click_2': (0, 0),  # 실제 좌표 측정 필요
-          # 실제 좌표 측정 필요
+        'tower_click_1': (683, 70),  #
+        'tower_click_2': (714, 185),  #
+          #
     },
     'S4': {
         # 기존 좌표 유지
         'main_menu_button': (748, 15),
-        'field_return_reset': (543, 324),  # 실제 좌표 측정 필요
-        'field_return_start': (732, 323),  # 실제 좌표 측정 필요
+        'field_return_reset': (543, 324),  #
+        'field_return_start': (732, 323),  #
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
         'field_schedule_button': (689, 197),  # 실제 좌표로 수정 필요
         'flight_button':(469,311),  # 실제 좌표로 수정 필요
         # 새로 추가된 좌표 (빈칸)
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
-        'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
-        'tower_click_2': (0, 0),  # 실제 좌표 측정 필요
-          # 실제 좌표 측정 필요
+        'tower_click_1': (713, 65),  #
+        'tower_click_2': (744, 180),  #
+          #
     },
     'S5': {
         # 기존 좌표 유지
         'main_menu_button': (1117, 28),
-        'field_return_reset': (822, 621),  # 실제 좌표 측정 필요
-        'field_return_start': (1057, 618),  # 실제 좌표 측정 필요
+        'field_return_reset': (822, 621),  #
+        'field_return_start': (1057, 618),  #
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
         'field_schedule_button': (1033, 304),  # 실제 좌표로 수정 필요
         'flight_button':(700,596),
         # 새로 추가된 좌표 (빈칸)
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
-        'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
-        'tower_click_2': (0, 0),  # 실제 좌표 측정 필요
-          # 실제 좌표 측정 필요
+        'tower_click_1': (1084, 98),  #
+        'tower_click_2': (1114, 290),  #
+          #
     },
 }

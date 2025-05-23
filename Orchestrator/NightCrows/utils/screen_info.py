@@ -47,7 +47,7 @@ FIXED_UI_COORDS = {
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_2': (0, 0),  # 실제 좌표 측정 필요
-        'tower_click_3': (0, 0),  # 실제 좌표 측정 필요
+          # 실제 좌표 측정 필요
     },
     'S2': {
         # 기존 좌표 유지
@@ -61,7 +61,7 @@ FIXED_UI_COORDS = {
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_2': (0, 0),  # 실제 좌표 측정 필요
-        'tower_click_3': (0, 0),  # 실제 좌표 측정 필요
+          # 실제 좌표 측정 필요
     },
     'S3': {
         # 기존 좌표 유지
@@ -75,7 +75,7 @@ FIXED_UI_COORDS = {
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_2': (0, 0),  # 실제 좌표 측정 필요
-        'tower_click_3': (0, 0),  # 실제 좌표 측정 필요
+          # 실제 좌표 측정 필요
     },
     'S4': {
         # 기존 좌표 유지
@@ -89,7 +89,7 @@ FIXED_UI_COORDS = {
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_2': (0, 0),  # 실제 좌표 측정 필요
-        'tower_click_3': (0, 0),  # 실제 좌표 측정 필요
+          # 실제 좌표 측정 필요
     },
     'S5': {
         # 기존 좌표 유지
@@ -103,6 +103,6 @@ FIXED_UI_COORDS = {
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_2': (0, 0),  # 실제 좌표 측정 필요
-        'tower_click_3': (0, 0),  # 실제 좌표 측정 필요
+          # 실제 좌표 측정 필요
     },
 }

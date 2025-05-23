@@ -895,15 +895,15 @@ class CombatMonitor(BaseMonitor):
                         keyboard.press_and_release('m')  # 맵 닫기
                         return False
 
-                    # 두 번째 고정 좌표 클릭
-                    if not self._click_relative(screen, 'tower_click_2', delay_after=0.5):
+                    # 두 번째 고정 좌표 더블클릭 (tower_click_2와 3이 동일한 위치)
+                    if not self._click_relative(screen, 'tower_click_2', delay_after=0.3):
                         print(f"ERROR: [{self.monitor_id}] Failed to click second tower location")
                         keyboard.press_and_release('m')  # 맵 닫기
                         return False
 
-                    # 세 번째 고정 좌표 클릭
-                    if not self._click_relative(screen, 'tower_click_3', delay_after=0.5):
-                        print(f"ERROR: [{self.monitor_id}] Failed to click third tower location")
+                    # 같은 위치 더블클릭
+                    if not self._click_relative(screen, 'tower_click_2', delay_after=0.5):
+                        print(f"ERROR: [{self.monitor_id}] Failed to double-click tower location")
                         keyboard.press_and_release('m')  # 맵 닫기
                         return False
 
@@ -913,7 +913,6 @@ class CombatMonitor(BaseMonitor):
 
                 print(f"INFO: [{self.monitor_id}] Successfully initiated tower teleport")
                 return True
-
             else:
                 print(f"ERROR: [{self.monitor_id}] Unsupported arena waypoint index: {wp_index}")
                 return False

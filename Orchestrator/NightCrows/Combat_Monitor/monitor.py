@@ -807,48 +807,55 @@ class CombatMonitor(BaseMonitor):
         try:
             if wp_index == 1:
                 # WP1 (아레나) 이동 로직
-                # 1. 메뉴 버튼 클릭 (고정 위치)
-                if not self._click_relative(screen, 'main_menu_button', delay_after=1.0):
-                    print(f"ERROR: [{self.monitor_id}] Failed to click main menu button")
-                    return False
+                # 1. 메뉴 버튼 클릭 (IO_LOCK 필요)
+                with self.io_lock:
+                    if not self._click_relative(screen, 'main_menu_button', delay_after=1.0):
+                        print(f"ERROR: [{self.monitor_id}] Failed to click main menu button")
+                        return False
 
-                # 2. 격전지 아이콘 클릭
+                # 2. 격전지 아이콘 템플릿 경로 확인 (락 밖에서)
                 arena_icon_template = template_paths.get_template(screen.screen_id, 'ARENA_MENU_ICON')
                 if not arena_icon_template or not os.path.exists(arena_icon_template):
                     print(f"ERROR: [{self.monitor_id}] Arena menu icon template not found")
-                    keyboard.press_and_release('esc')  # 메뉴창 닫기
+                    with self.io_lock:
+                        keyboard.press_and_release('esc')  # 메뉴창 닫기
                     return False
 
+                # 3. 아이콘 위치 찾기 (락 밖에서)
                 icon_pos = image_utils.return_ui_location(arena_icon_template, screen.region, self.confidence)
                 if not icon_pos:
                     print(f"ERROR: [{self.monitor_id}] Arena menu icon not found")
-                    keyboard.press_and_release('esc')  # 메뉴창 닫기
+                    with self.io_lock:
+                        keyboard.press_and_release('esc')  # 메뉴창 닫기
                     return False
 
-                pyautogui.click(icon_pos)
-                time.sleep(1.0)
+                # 4. 아이콘 클릭 및 확인 (IO_LOCK 필요)
+                with self.io_lock:
+                    pyautogui.click(icon_pos)
+                    time.sleep(1.0)
+                    # Y 키 입력으로 확인
+                    keyboard.press_and_release('y')
+                    print(f"INFO: [{self.monitor_id}] Pressed Y to confirm arena teleport")
 
-                # 3. 확인창에서 Y 키 입력
-                keyboard.press_and_release('y')
-                print(f"INFO: [{self.monitor_id}] Pressed Y to confirm arena teleport")
-
-                # 4. 이동 대기 (최소 30초)
-                loading_wait_time = 35  # 여유있게 35초
-                print(f"INFO: [{self.monitor_id}] Waiting for arena loading ({loading_wait_time}s)...")
+                # 5. 이동 대기 (락 밖에서 - 병렬 처리 가능)
+                loading_wait_time = 35
+                print(
+                    f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waiting for arena loading ({loading_wait_time}s)...")
                 time.sleep(loading_wait_time)
 
-                # 5. 격전지 입장 UI에서 선택 (3개 중 첫번째 옵션)
+                # 6. 격전지 입장 UI 확인 (락 밖에서 - 병렬 처리 가능)
                 arena_entry_path = template_paths.get_template(screen.screen_id, 'ARENA_ENTRY_UI')
+                if not arena_entry_path:
+                    print(f"ERROR: [{self.monitor_id}] Arena entry UI template not found")
+                    return False
 
-                # UI가 있는지 확인 (여러 번 시도)
+                # UI 존재 확인 (여러 번 시도)
                 entry_found = False
                 max_entry_attempts = 5
-
                 for attempt in range(max_entry_attempts):
                     if image_utils.is_image_present(arena_entry_path, screen.region, self.confidence):
                         entry_found = True
                         break
-
                     print(
                         f"INFO: [{self.monitor_id}] Arena entry UI not found yet (attempt {attempt + 1}/{max_entry_attempts})")
                     time.sleep(2.0)
@@ -857,48 +864,52 @@ class CombatMonitor(BaseMonitor):
                     print(f"ERROR: [{self.monitor_id}] Arena entry UI not found after {max_entry_attempts} attempts")
                     return False
 
-                # 첫 번째 옵션 클릭 (고정 위치 사용)
-                if not self._click_relative(screen, 'arena_entry_option1', delay_after=1.0):
-                    print(f"ERROR: [{self.monitor_id}] Failed to click arena entry option")
-                    return False
+                # 7. 첫 번째 옵션 클릭 (IO_LOCK 필요)
+                with self.io_lock:
+                    if not self._click_relative(screen, 'arena_entry_option1', delay_after=1.0):
+                        print(f"ERROR: [{self.monitor_id}] Failed to click arena entry option")
+                        return False
 
                 print(f"INFO: [{self.monitor_id}] Successfully initiated arena entry")
                 return True
 
             elif wp_index == 2:
-                # 포커스 설정
-                if not image_utils.set_focus(screen.screen_id):
-                    print(f"ERROR: [{self.monitor_id}] Failed to set focus for WP2 on screen {screen.screen_id}")
-                    return False
                 # WP2 (격전지 내 특정 위치/탑) 이동 로직
                 print(f"INFO: [{self.monitor_id}] Moving to WP2 (Arena Tower)...")
 
-                # 1. 맵 인터페이스 열기 (M 키)
-                keyboard.press_and_release('m')
-                print(f"INFO: [{self.monitor_id}] Opened map interface")
-                time.sleep(1.0)  # 맵 로딩 대기
-
-                # 2. 첫 번째 고정 좌표 클릭
-                if not self._click_relative(screen, 'tower_click_1', delay_after=0.5):
-                    print(f"ERROR: [{self.monitor_id}] Failed to click first tower location")
-                    keyboard.press_and_release('m')  # 맵 닫기
+                # 1. 포커스 설정 (락 밖에서)
+                if not image_utils.set_focus(screen.screen_id):
+                    print(f"ERROR: [{self.monitor_id}] Failed to set focus for WP2 on screen {screen.screen_id}")
                     return False
 
-                # 3. 두 번째 고정 좌표 클릭
-                if not self._click_relative(screen, 'tower_click_2', delay_after=0.5):
-                    print(f"ERROR: [{self.monitor_id}] Failed to click second tower location")
-                    keyboard.press_and_release('m')  # 맵 닫기
-                    return False
+                # 2. 맵 인터페이스 열기 및 클릭 시퀀스 (IO_LOCK 필요)
+                with self.io_lock:
+                    # 맵 열기
+                    keyboard.press_and_release('m')
+                    print(f"INFO: [{self.monitor_id}] Opened map interface")
+                    time.sleep(1.0)  # 맵 로딩 대기
 
-                # 4. 세 번째 고정 좌표 클릭
-                if not self._click_relative(screen, 'tower_click_3', delay_after=0.5):
-                    print(f"ERROR: [{self.monitor_id}] Failed to click third tower location")
-                    keyboard.press_and_release('m')  # 맵 닫기
-                    return False
+                    # 첫 번째 고정 좌표 클릭
+                    if not self._click_relative(screen, 'tower_click_1', delay_after=0.5):
+                        print(f"ERROR: [{self.monitor_id}] Failed to click first tower location")
+                        keyboard.press_and_release('m')  # 맵 닫기
+                        return False
 
-                # 5. Y 키 입력으로 확인
-                keyboard.press_and_release('y')
-                print(f"INFO: [{self.monitor_id}] Pressed Y to confirm teleport")
+                    # 두 번째 고정 좌표 클릭
+                    if not self._click_relative(screen, 'tower_click_2', delay_after=0.5):
+                        print(f"ERROR: [{self.monitor_id}] Failed to click second tower location")
+                        keyboard.press_and_release('m')  # 맵 닫기
+                        return False
+
+                    # 세 번째 고정 좌표 클릭
+                    if not self._click_relative(screen, 'tower_click_3', delay_after=0.5):
+                        print(f"ERROR: [{self.monitor_id}] Failed to click third tower location")
+                        keyboard.press_and_release('m')  # 맵 닫기
+                        return False
+
+                    # Y 키 입력으로 확인
+                    keyboard.press_and_release('y')
+                    print(f"INFO: [{self.monitor_id}] Pressed Y to confirm teleport")
 
                 print(f"INFO: [{self.monitor_id}] Successfully initiated tower teleport")
                 return True

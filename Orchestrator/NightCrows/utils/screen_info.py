@@ -43,7 +43,7 @@ FIXED_UI_COORDS = {
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
         'field_schedule_button': (688, 212),
         'flight_button':(470,310),
-        # 새로 추가된 좌표 (빈칸)
+        'field_return_button': (499,311),
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (711, 66),  #
         'tower_click_2': (746, 190),  #
@@ -56,6 +56,7 @@ FIXED_UI_COORDS = {
         'field_return_start': (763, 355),  #
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
         'field_schedule_button': (750, 224),  #
+        'field_return_button':(554,349),
         'flight_button':(515,350),  #
         # 새로 추가된 좌표 (빈칸)
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
@@ -71,6 +72,7 @@ FIXED_UI_COORDS = {
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
         'field_schedule_button': (657, 203),  #
         'flight_button':(467,316),  #
+        'field_return_button': (502,308),
         # 새로 추가된 좌표 (빈칸)
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (683, 70),  #
@@ -85,6 +87,7 @@ FIXED_UI_COORDS = {
         'graveyard_confirm': (1, 2),  #
         'field_schedule_button': (689, 197),  #
         'flight_button':(469,311),  #
+        'field_return_button': (507,316),
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (713, 65),  #
         'tower_click_2': (744, 180),  #
@@ -98,7 +101,7 @@ FIXED_UI_COORDS = {
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
         'field_schedule_button': (1033, 304),  # 실제 좌표로 수정 필요
         'flight_button':(700,596),
-        # 새로 추가된 좌표 (빈칸)
+        'field_return_button': (750,591),
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (1084, 98),  #
         'tower_click_2': (1114, 290),  #

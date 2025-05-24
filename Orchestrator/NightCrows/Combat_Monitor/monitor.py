@@ -390,12 +390,22 @@ class CombatMonitor(BaseMonitor):
 
             if self.location_flag == Location.FIELD:
                 # 필드 복귀 확인
-                if self._check_returned_well(screen) or elapsed > 30.0:
+                if self._check_returned_well(screen):
+                    print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Field return confirmed.")
                     self._change_state(screen, ScreenState.NORMAL)
-            else:  # ARENA
-                # 아레나 복귀 확인 (웨이포인트 네비게이션 등 포함)
+                elif elapsed > 30.0:
+                    # 타임아웃 - 최종 포기
+                    print(f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Field return timeout after 30s.")
+                    self._change_state(screen, ScreenState.NORMAL)
+                else:
+                    # 파티 UI 안 보임 - 다시 귀환 버튼 클릭 시도
+                    print(
+                        f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Party UI not detected, retrying field return...")
+                    self._retry_field_return(screen, is_first_attempt=False)  # Y키 없이 버튼만 클릭
+                    time.sleep(2.0)  # 2초 대기 후 다음 루프에서 다시 확인
+
+            else:  # ARENA는 기존 로직 유지
                 if elapsed > 5.0 and not stop_event.is_set():
-                    # 웨이포인트 네비게이션 시작 (기존 함수 활용)
                     self._waypoint_navigation(stop_event, screen)
                     self._change_state(screen, ScreenState.NORMAL)
 
@@ -505,13 +515,19 @@ class CombatMonitor(BaseMonitor):
             # 3. 확인 버튼 클릭 (템플릿 매칭)
             confirm_template_path = template_paths.get_template(screen.screen_id, 'CONFIRM_BUTTON')
             if not confirm_template_path or not os.path.exists(confirm_template_path):
-                print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: CONFIRM_BUTTON template not found.")
-                return False
+                print(
+                    f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: CONFIRM_BUTTON template not found. Assuming purchase complete.")
+                pyautogui.press('esc')
+                pyautogui.press('esc')
+                return True
 
             confirm_button_loc = image_utils.return_ui_location(confirm_template_path, screen.region, self.confidence)
             if not confirm_button_loc:
-                print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: CONFIRM_BUTTON not found.")
-                return False
+                print(
+                    f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: CONFIRM_BUTTON not found. Assuming purchase complete.")
+                pyautogui.press('esc')
+                pyautogui.press('esc')
+                return True
 
             # 3-1. 확인 버튼 클릭 (락 안에서 - 순차)
             with self.io_lock:

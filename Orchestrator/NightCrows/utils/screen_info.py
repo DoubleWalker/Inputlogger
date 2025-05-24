@@ -41,8 +41,8 @@ FIXED_UI_COORDS = {
         'field_return_reset': (535, 327),  #
         'field_return_start': (716, 328),  #
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
-        'field_schedule_button': (688, 212),  # 실제 좌표로 수정 필요
-        'flight_button':(470,310),  # 실제 좌표로 수정 필요
+        'field_schedule_button': (688, 212),
+        'flight_button':(470,310),
         # 새로 추가된 좌표 (빈칸)
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (711, 66),  #
@@ -55,8 +55,8 @@ FIXED_UI_COORDS = {
         'field_return_reset': (571, 359),  #
         'field_return_start': (763, 355),  #
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
-        'field_schedule_button': (750, 224),  # 실제 좌표로 수정 필요
-        'flight_button':(515,350),  # 실제 좌표로 수정 필요
+        'field_schedule_button': (750, 224),  #
+        'flight_button':(515,350),  #
         # 새로 추가된 좌표 (빈칸)
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (790, 77),  #
@@ -69,8 +69,8 @@ FIXED_UI_COORDS = {
         'field_return_reset': (512, 327),  #
         'field_return_start': (688, 327),  #
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
-        'field_schedule_button': (657, 203),  # 실제 좌표로 수정 필요
-        'flight_button':(467,316),  # 실제 좌표로 수정 필요
+        'field_schedule_button': (657, 203),  #
+        'flight_button':(467,316),  #
         # 새로 추가된 좌표 (빈칸)
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (683, 70),  #
@@ -82,10 +82,9 @@ FIXED_UI_COORDS = {
         'main_menu_button': (748, 15),
         'field_return_reset': (543, 324),  #
         'field_return_start': (732, 323),  #
-        'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
-        'field_schedule_button': (689, 197),  # 실제 좌표로 수정 필요
-        'flight_button':(469,311),  # 실제 좌표로 수정 필요
-        # 새로 추가된 좌표 (빈칸)
+        'graveyard_confirm': (1, 2),  #
+        'field_schedule_button': (689, 197),  #
+        'flight_button':(469,311),  #
         'arena_entry_option1': (0, 0),  # 실제 좌표 측정 필요
         'tower_click_1': (713, 65),  #
         'tower_click_2': (744, 180),  #

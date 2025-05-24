@@ -541,8 +541,9 @@ class CombatMonitor(BaseMonitor):
             with self.io_lock:
                 print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Closing shop (ESC key).")
                 pyautogui.press('esc')
-                time.sleep(0.5)  # 0.2초에서 0.5초로 증가
+                time.sleep(1.0)
                 pyautogui.press('esc')
+                time.sleep(0.5)
 
             print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Potion purchase sequence finished.")
 
@@ -562,11 +563,11 @@ class CombatMonitor(BaseMonitor):
                         return False
 
                     # 3. 확인 클릭 (고정 위치)
-                    if not self._click_relative(screen, 'field_return_reset', delay_after=0.5):
+                    if not self._click_relative(screen, 'field_return_reset', delay_after=1.0):
                         return False
 
                     # 4. 닫기 클릭 (고정 위치)
-                    self._click_relative(screen, 'field_return_start', delay_after=1.5)
+                    self._click_relative(screen, 'field_return_start', delay_after=1.0)
 
                 return True
 
@@ -586,7 +587,7 @@ class CombatMonitor(BaseMonitor):
             try:  # 에러 시 상점 닫기 시도
                 with self.io_lock:
                     pyautogui.press('esc')
-                    time.sleep(0.2)
+                    time.sleep(1.0)
                     pyautogui.press('esc')
             except Exception as esc_e:
                 print(

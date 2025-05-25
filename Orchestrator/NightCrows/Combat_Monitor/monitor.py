@@ -309,6 +309,16 @@ class CombatMonitor(BaseMonitor):
         if new_state != old_state:
             screen.retry_count = 0
 
+        # ★ 새로 추가: 누군가 HOSTILE되면 S1을 BUYING_POTIONS로 강제 변경
+        if new_state == ScreenState.HOSTILE and screen.screen_id != 'S1':
+            s1_screen = next((s for s in self.screens if s.screen_id == 'S1'), None)
+            if s1_screen and s1_screen.current_state == ScreenState.NORMAL:
+                print(
+                    f"INFO: [{self.monitor_id}] Forcing S1 to BUYING_POTIONS due to {screen.screen_id} being attacked")
+                s1_screen.current_state = ScreenState.BUYING_POTIONS
+                s1_screen.last_state_change_time = time.time()
+                s1_screen.retry_count = 0
+
         print(
             f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: State changed: {old_state.name} -> {new_state.name}")
 
@@ -408,6 +418,11 @@ class CombatMonitor(BaseMonitor):
                 if elapsed > 5.0 and not stop_event.is_set():
                     self._waypoint_navigation(stop_event, screen)
                     self._change_state(screen, ScreenState.NORMAL)
+
+    def _is_s1_normal(self) -> bool:
+        """S1이 NORMAL 상태인지 확인"""
+        s1_screen = next((s for s in self.screens if s.screen_id == 'S1'), None)
+        return s1_screen and s1_screen.current_state == ScreenState.NORMAL
 
     # _check_recovery_complete 함수 (새로 추가 필요)
     def _check_recovery_complete(self, screen: ScreenMonitorInfo) -> bool:

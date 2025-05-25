@@ -662,38 +662,12 @@ class CombatMonitor(BaseMonitor):
             print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Exception during recovery: {e}")
             return False
 
-    def _check_returned_well(self, screen: ScreenMonitorInfo, samples: int = 7, threshold: float = 0.15,
-                             sample_interval: float = 0.5) -> bool:
+    def _check_single_party_template(self, screen: ScreenMonitorInfo, template_path: str, threshold: float = 0.15,
+                                     samples: int = 7, sample_interval: float = 0.5) -> bool:
         """
-        Check if party UI template (close encounter) is visible on the given screen.
-        Uses screen_id to dynamically get template path from template_paths.
-
-        Args:
-            screen: ScreenMonitorInfo object to check
-            samples: Number of screenshot samples to take
-            threshold: Matching threshold for TM_SQDIFF_NORMED (match if less than this value)
-            sample_interval: Interval between samples in seconds
-
-        Returns:
-            True if party UI template is found, False otherwise
+        단일 파티 템플릿으로 파티 UI 체크 (공통 로직)
         """
-        if not hasattr(screen, 'screen_id'):
-            print(f"ERROR: [{self.monitor_id}] screen object missing 'screen_id' attribute")
-            return False
-
-        # Get template path using screen_id
-        try:
-            template_path = template_paths.get_template(screen.screen_id, 'PARTY_UI')
-        except Exception as e:
-            print(f"ERROR: [{self.monitor_id}] Failed to get PARTY_UI template path: {e}")
-            return False
-
-        if not template_path:
-            print(f"WARNING: [{self.monitor_id}] PARTY_UI template path not found for screen {screen.screen_id}")
-            return False
-
-        if not os.path.exists(template_path):
-            print(f"ERROR: [{self.monitor_id}] PARTY_UI template file not found: {template_path}")
+        if not template_path or not os.path.exists(template_path):
             return False
 
         try:
@@ -703,45 +677,72 @@ class CombatMonitor(BaseMonitor):
                 return False
 
             template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
-            min_val_overall = 1.0  # Max value for TM_SQDIFF_NORMED is 1.0
-
-            print(
-                f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Checking party UI (template: {os.path.basename(template_path)}, threshold: {threshold})")
+            min_val_overall = 1.0
 
             for i in range(samples):
                 try:
                     screen_img = pyautogui.screenshot(region=screen.region)
                     screen_gray = cv2.cvtColor(np.array(screen_img), cv2.COLOR_RGB2GRAY)
 
-                    # TM_SQDIFF_NORMED: lower values indicate better match
                     match_result = cv2.matchTemplate(screen_gray, template_gray, cv2.TM_SQDIFF_NORMED)
                     min_val, _, _, _ = cv2.minMaxLoc(match_result)
                     min_val_overall = min(min_val_overall, min_val)
 
-                    print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Sample {i + 1} match = {min_val:.4f}")
-
                     if min_val < threshold:
                         print(
-                            f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Party UI found (match value: {min_val:.4f})")
+                            f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Party UI found (template: {os.path.basename(template_path)}, match: {min_val:.4f})")
                         return True
 
                 except Exception as e:
                     print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id} sampling error: {e}")
-                    # Continue with next sample
 
-                if i < samples - 1:  # No need to wait after last sample
+                if i < samples - 1:
                     time.sleep(sample_interval)
 
-            print(
-                f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Party UI not found (best match: {min_val_overall:.4f})")
             return False
 
-        except cv2.error as e:
-            print(f"ERROR: [{self.monitor_id}] OpenCV error with template {template_path}: {e}")
-            return False
         except Exception as e:
-            print(f"ERROR: [{self.monitor_id}] Exception in _check_returned_well: {e}")
+            print(f"ERROR: [{self.monitor_id}] Exception in _check_single_party_template: {e}")
             return False
+
+    def _check_returned_well_s1(self, screen: ScreenMonitorInfo) -> bool:
+        """
+        S1용: S2~S5 파티 템플릿 중 하나라도 매칭되면 True
+        """
+        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: S1 searching for any party member (S2~S5)...")
+
+        for other_screen_id in ['S2', 'S3', 'S4', 'S5']:
+            template_path = template_paths.get_template(other_screen_id, 'PARTY_UI')
+            if template_path and self._check_single_party_template(screen, template_path):
+                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Found party member {other_screen_id}")
+                return True
+
+        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: No party members found (S2~S5)")
+        return False
+
+    def _check_returned_well_others(self, screen: ScreenMonitorInfo) -> bool:
+        """
+        S2~S5용: S1 파티 템플릿만 체크
+        """
+        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Searching for S1...")
+
+        s1_template_path = template_paths.get_template('S1', 'PARTY_UI')
+        if s1_template_path and self._check_single_party_template(screen, s1_template_path):
+            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Found S1")
+            return True
+
+        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: S1 not found")
+        return False
+
+
+    def _check_returned_well(self, screen: ScreenMonitorInfo, samples: int = 7, threshold: float = 0.15,
+                             sample_interval: float = 0.5) -> bool:
+        """
+        기존 호환성을 위한 함수 (자신의 화면 ID에 맞는 PARTY_UI 템플릿 사용)
+        """
+        template_path = template_paths.get_template(screen.screen_id, 'PARTY_UI')
+        return self._check_single_party_template(screen, template_path, threshold, samples, sample_interval)
+
     def _click_relative(self, screen: ScreenMonitorInfo, coord_key: str, delay_after: float = 0.5, random_offset: int = 2) -> bool:
         """
         지정된 화면 영역 내에서 FIXED_UI_COORDS에 정의된 키를 사용하여

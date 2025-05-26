@@ -1301,7 +1301,7 @@ class CombatMonitor(BaseMonitor):
 
             # 설정 폴더 경로 (프로젝트 루트 기준 상대 경로)
             config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-                                      "config", "sequences")
+                                      "config")
             yaml_path = os.path.join(config_dir, f"{sequence_name}.yaml")
 
             if not os.path.exists(yaml_path):

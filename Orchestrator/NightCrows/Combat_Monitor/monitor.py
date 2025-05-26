@@ -460,11 +460,6 @@ class CombatMonitor(BaseMonitor):
                     self._waypoint_navigation(stop_event, screen)
                     self._change_state(screen, ScreenState.NORMAL)
 
-    def _is_s1_normal(self) -> bool:
-        """S1이 NORMAL 상태인지 확인"""
-        s1_screen = next((s for s in self.screens if s.screen_id == 'S1'), None)
-        return s1_screen and s1_screen.current_state == ScreenState.NORMAL
-
     # _check_recovery_complete 함수 (새로 추가 필요)
     def _check_recovery_complete(self, screen: ScreenMonitorInfo) -> bool:
         """부활 완료 여부 확인"""

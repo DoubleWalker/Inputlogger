@@ -45,6 +45,8 @@ FIXED_UI_COORDS = {
         'flight_button':(470,310),
         'field_return_button': (499,311),
         'arena_entry_option1': (508, 186),  # 실제 좌표 측정 필요
+        'jump_start_point': (1, 20),  # ← 점프 시작점
+        'jump_start_point_up': (1, 10),  # ← 살짝 위 (방향 조정)
         'shop_button': (56, 43),
         'tower_click_1': (711, 66),  #
         'tower_click_2': (746, 190),  #

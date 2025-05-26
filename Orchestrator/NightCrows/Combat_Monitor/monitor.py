@@ -1069,44 +1069,37 @@ class CombatMonitor(BaseMonitor):
     def _move_to_party_shared_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:
         """파티 리더-팔로워 방식 웨이포인트(WP3, WP4)로 이동"""
         try:
-            if not image_utils.set_focus(screen.screen_id):
-                print(f"ERROR: [{self.monitor_id}] Failed to set focus for WP{wp_index} on screen {screen.screen_id}")
-                return False
-
             if wp_index == 3:
-                # WP3 - 점프 시작점으로 이동
+                # WP3 - 점프 시작점으로 이동 (고정 좌표 방식)
                 print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Moving to WP3 (Jump point)")
 
-                # 1. 메뉴 열기 (필요시)
-                if not self._click_relative(screen, 'main_menu_button', delay_after=0.5):
-                    print(f"WARN: [{self.monitor_id}] Failed to click main menu, continuing...")
-
-                # 2. 점프 시작점으로 이동하는 로직
-                party_ui_template_path = template_paths.get_template(screen.screen_id, 'PARTY_UI')
-                if party_ui_template_path and os.path.exists(party_ui_template_path):
-                    party_ui_pos = image_utils.return_ui_location(party_ui_template_path, screen.region,
-                                                                  self.confidence)
-                    if party_ui_pos:
-                        print(f"INFO: [{self.monitor_id}] Found Party UI, clicking")
-                        pyautogui.click(party_ui_pos)
-                        time.sleep(0.5)
-
-                        # 3. 확인 또는 추가 액션 (필요시)
-                        keyboard.press_and_release('y')
-                        time.sleep(0.3)
-
-                        # 4. 도착 대기
-                        arrive_wait_time = 10  # 10초 대기
-                        print(f"INFO: [{self.monitor_id}] Waiting {arrive_wait_time}s for arrival at jump point")
-                        time.sleep(arrive_wait_time)
-
-                        return True
-                    else:
-                        print(f"ERROR: [{self.monitor_id}] Party UI not found on screen")
-                        return False
-                else:
-                    print(f"ERROR: [{self.monitor_id}] Party UI template not configured or not found")
+                if not image_utils.set_focus(screen.screen_id):
                     return False
+
+                with self.io_lock:
+                    # 1. 맵 열기
+                    keyboard.press_and_release('m')
+                    time.sleep(1.0)
+
+                    # 2. 점프 시작점 클릭
+                    if not self._click_relative(screen, 'jump_start_point', delay_after=0.5):
+                        keyboard.press_and_release('esc')  # 맵 닫기
+                        return False
+
+                    # 3. 살짝 위로 클릭 (방향 조정용)
+                    if not self._click_relative(screen, 'jump_start_point_up', delay_after=0.5):
+                        keyboard.press_and_release('esc')
+                        return False
+
+                    # 4. 맵 닫기
+                    keyboard.press_and_release('esc')
+                    time.sleep(0.5)
+
+                    # 5. 방향 조정 (나중에 테스트 후 결정)
+                    # keyboard.press_and_release('d')  # 예시
+                    # time.sleep(1.0)
+
+                return True
 
             elif wp_index == 4:
                 # WP4 - 글라이더 비행 시퀀스

@@ -324,8 +324,15 @@ class CombatMonitor(BaseMonitor):
         if new_state == ScreenState.HOSTILE and screen.screen_id != 'S1':
             s1_screen = next((s for s in self.screens if s.screen_id == 'S1'), None)
             if s1_screen and s1_screen.current_state == ScreenState.NORMAL:
-                print(
-                    f"INFO: [{self.monitor_id}] Forcing S1 to BUYING_POTIONS due to {screen.screen_id} being attacked")
+                print(f"INFO: [{self.monitor_id}] S1 emergency town return due to {screen.screen_id} attack")
+
+                # 즉시 마을 귀환
+                image_utils.set_focus(s1_screen.screen_id, delay_after=0.2)
+                keyboard.press_and_release('esc')
+                time.sleep(0.3)
+                self._click_relative(s1_screen, 'flight_button', delay_after=1.0)
+
+                # BUYING_POTIONS로 상태 변경
                 s1_screen.current_state = ScreenState.BUYING_POTIONS
                 s1_screen.last_state_change_time = time.time()
                 s1_screen.retry_count = 0

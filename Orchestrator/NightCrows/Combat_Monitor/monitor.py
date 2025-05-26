@@ -321,10 +321,14 @@ class CombatMonitor(BaseMonitor):
             screen.retry_count = 0
 
         # ★ 새로 추가: 누군가 HOSTILE되면 S1을 BUYING_POTIONS로 강제 변경
-        if new_state == ScreenState.HOSTILE and screen.screen_id != 'S1':
+        if (new_state == ScreenState.HOSTILE and
+                screen.screen_id != 'S1' and
+                self.location_flag == Location.FIELD):  # ← 이 조건 추가!
+
             s1_screen = next((s for s in self.screens if s.screen_id == 'S1'), None)
             if s1_screen and s1_screen.current_state == ScreenState.NORMAL:
-                print(f"INFO: [{self.monitor_id}] S1 emergency town return due to {screen.screen_id} attack")
+                print(f"INFO: S1 emergency town return due to {screen.screen_id} attack (FIELD context)")
+                # ... 나머지 S1 도망 로직
 
                 # 즉시 마을 귀환
                 image_utils.set_focus(s1_screen.screen_id, delay_after=0.2)

@@ -71,6 +71,7 @@ class ScreenMonitorInfo:
     current_state: ScreenState = ScreenState.NORMAL
     retry_count: int = 0
     last_state_change_time: float = 0.0
+    s1_completed: bool = False  # ← 새로 추가!
 
 # ----------------------------------------------------------------------------
 # [주의] 아래 함수들은 플레이스홀더입니다. 실제 게임 상호작용 로직 구현 필요
@@ -207,6 +208,16 @@ class CombatMonitor(BaseMonitor):
             print(f"ERROR: [{self.monitor_id}] State check error (Screen: {screen.screen_id}): {e}")
             traceback.print_exc()
             return CharacterState.NORMAL
+
+    def _notify_s1_completion(self):
+        """S1 완료시 대기 중인 다른 화면들에게 알림"""
+        print(f"INFO: [{self.monitor_id}] S1 party gathering completed! Notifying waiting screens...")
+
+        for screen in self.screens:
+            if screen.screen_id != 'S1' and screen.current_state == ScreenState.RETURNING:
+                # 대기 중인 화면에 완료 플래그 설정
+                screen.s1_completed = True
+                print(f"INFO: [{self.monitor_id}] Notified {screen.screen_id} that S1 gathering is completed")
 
     def _is_character_in_arena(self, screen: ScreenMonitorInfo) -> bool:
         """지정된 화면을 사용하여 캐릭터가 아레나에 있는지 확인합니다."""
@@ -399,22 +410,52 @@ class CombatMonitor(BaseMonitor):
             elapsed = time.time() - screen.last_state_change_time
 
             if self.location_flag == Location.FIELD:
-                # 필드 복귀 확인
-                if self._check_returned_well(screen):
-                    print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Field return confirmed.")
-                    self._change_state(screen, ScreenState.NORMAL)
-                elif elapsed > 30.0:
-                    # 타임아웃 - 최종 포기
-                    print(f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Field return timeout after 30s.")
-                    self._change_state(screen, ScreenState.NORMAL)
-                else:
-                    # 파티 UI 안 보임 - 다시 귀환 버튼 클릭 시도
-                    print(
-                        f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Party UI not detected, retrying field return...")
-                    self._retry_field_return(screen, is_first_attempt=False)  # Y키 없이 버튼만 클릭
-                    time.sleep(2.0)  # 2초 대기 후 다음 루프에서 다시 확인
+                # === S1 우선 처리 로직 ===
+                if screen.screen_id == 'S1':
+                    # S1의 파티 집결 리더 임무
+                    if self._check_returned_well_s1(screen):  # S2~S5 중 아무나 매칭
+                        print(f"INFO: [{self.monitor_id}] S1: Party gathering completed (member found).")
+                        self._change_state(screen, ScreenState.NORMAL)
+                        self._notify_s1_completion()  # ← 헬퍼 함수 호출!
+                    elif screen.retry_count >= 5:
+                        print(f"WARN: [{self.monitor_id}] S1: Max retry attempts (5) reached. Giving up gathering.")
+                        self._change_state(screen, ScreenState.NORMAL)
+                        self._notify_s1_completion()  # ← 실패시에도 알림!
+                    elif elapsed > 40.0:  # 전체 타임아웃
+                        print(f"WARN: [{self.monitor_id}] S1: Total timeout (40s). Giving up gathering.")
+                        self._change_state(screen, ScreenState.NORMAL)
+                        self._notify_s1_completion()  # ← 타임아웃시에도 알림!
+                    else:
+                        # 2초마다 재시도
+                        if elapsed >= (screen.retry_count * 2.0):
+                            screen.retry_count += 1
+                            print(f"INFO: [{self.monitor_id}] S1: Retrying party gathering ({screen.retry_count}/5)...")
+                            self._retry_field_return(screen, is_first_attempt=(screen.retry_count == 1))
 
-            else:  # ARENA는 기존 로직 유지
+                else:  # S2~S5 중 RETURNING 상태인 화면들
+                    # === 폴링 → 이벤트 방식 변경 ===
+                    if not screen.s1_completed:
+                        # S1 완료 알림을 아직 받지 못함
+                        print(
+                            f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waiting for S1 completion notification...")
+                        return  # 알림 받을 때까지 대기
+                    else:
+                        # S1 완료 알림 받음 → 자신의 복귀 작업 시작
+                        print(
+                            f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: S1 completion notification received! Starting own return...")
+                        screen.s1_completed = False  # 플래그 리셋
+
+                        if self._check_returned_well_others(screen):  # S1 매칭 확인
+                            print(
+                                f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Successfully returned to party.")
+                            self._change_state(screen, ScreenState.NORMAL)
+                        elif elapsed > 20.0:  # 개별 타임아웃
+                            print(
+                                f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Return timeout, forcing NORMAL.")
+                            self._change_state(screen, ScreenState.NORMAL)
+                        # else: 다음 루프에서 다시 확인
+
+            else:  # ARENA - 기존 로직 유지
                 if elapsed > 5.0 and not stop_event.is_set():
                     self._waypoint_navigation(stop_event, screen)
                     self._change_state(screen, ScreenState.NORMAL)

@@ -527,18 +527,30 @@ class CombatMonitor(BaseMonitor):
             f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Starting potion purchase sequence (Context: {context.name})...")
 
         try:
-            # 1. 상점 버튼 찾기 (락 밖에서 - 병렬)
+            # 1. 상점 버튼 클릭 (템플릿 → 고정좌표 fallback)
+            shop_clicked = False
+
+            # 템플릿 시도
             shop_template_path = template_paths.get_template(screen.screen_id, 'SHOP_BUTTON')
-            if not shop_template_path or not os.path.exists(shop_template_path):
-                print(
-                    f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: SHOP_BUTTON template invalid or not found.")
-                return False
+            if shop_template_path and os.path.exists(shop_template_path):
+                shop_button_loc = image_utils.return_ui_location(shop_template_path, screen.region, self.confidence)
+                if shop_button_loc:
+                    with self.io_lock:
+                        pyautogui.click(shop_button_loc)
+                        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Shop clicked via template")
+                        shop_clicked = True
 
-            shop_button_loc = image_utils.return_ui_location(shop_template_path, screen.region, self.confidence)
-            if not shop_button_loc:
-                print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: SHOP_BUTTON not found.")
-                return False
+            # 템플릿 실패시 고정 좌표
+            if not shop_clicked:
+                print(f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Template failed, using fixed coords...")
+                with self.io_lock:
+                    if self._click_relative(screen, 'shop_button', delay_after=0.5):
+                        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Shop clicked via fixed coords")
+                        shop_clicked = True
 
+            if not shop_clicked:
+                print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Both shop click methods failed")
+                return False
             # 1-1. 상점 버튼 클릭 (락 안에서 - 순차)
             with self.io_lock:
                 pyautogui.click(shop_button_loc)

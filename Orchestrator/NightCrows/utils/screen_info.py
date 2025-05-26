@@ -45,6 +45,7 @@ FIXED_UI_COORDS = {
         'flight_button':(470,310),
         'field_return_button': (499,311),
         'arena_entry_option1': (508, 186),  # 실제 좌표 측정 필요
+        'shop_button': (56, 43),
         'tower_click_1': (711, 66),  #
         'tower_click_2': (746, 190),  #
           #
@@ -57,8 +58,8 @@ FIXED_UI_COORDS = {
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
         'field_schedule_button': (750, 224),  #
         'field_return_button':(554,349),
-        'flight_button':(515,350),  #
-        # 새로 추가된 좌표 (빈칸)
+        'flight_button':(515,349),  #
+        'shop_button':(51,45),
         'arena_entry_option1': (578, 210),  #
         'tower_click_1': (790, 77),  #
         'tower_click_2': (814, 270),  #
@@ -73,6 +74,7 @@ FIXED_UI_COORDS = {
         'field_schedule_button': (657, 203),  #
         'flight_button':(467,316),  #
         'field_return_button': (502,308),
+        'shop_button': (79, 42),
         # 새로 추가된 좌표 (빈칸)
         'arena_entry_option1': (511, 184),  #
         'tower_click_1': (683, 70),  #
@@ -86,6 +88,7 @@ FIXED_UI_COORDS = {
         'field_return_start': (732, 323),  #
         'graveyard_confirm': (1, 2),  #
         'field_schedule_button': (689, 197),  #
+        'shop_button': (56, 43),
         'flight_button':(469,311),  #
         'field_return_button': (507,316),
         'arena_entry_option1': (502, 184),  #
@@ -100,6 +103,7 @@ FIXED_UI_COORDS = {
         'field_return_start': (1057, 618),  #
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
         'field_schedule_button': (1033, 304),  #
+        'shop_button': (77, 67),
         'flight_button':(700,596),
         'field_return_button': (750,591),
         'arena_entry_option1': (754, 353),  #

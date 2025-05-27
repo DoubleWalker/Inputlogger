@@ -595,14 +595,14 @@ class CombatMonitor(BaseMonitor):
                     if confirm_button_loc:
                         print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Clicking CONFIRM_BUTTON.")
                         pyautogui.click(confirm_button_loc[0], confirm_button_loc[1])
-                        time.sleep(1.0)
+                        time.sleep(2.5)
 
                 # 4. 상점 닫기 ESC
                 print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Closing shop (ESC key 1/2).")
-                pyautogui.press('esc')
+                keyboard.press_and_release('esc')
                 time.sleep(1.0)
                 print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Closing shop (ESC key 2/2).")
-                pyautogui.press('esc')
+                keyboard.press_and_release('esc')
                 time.sleep(0.5)
 
             print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Potion purchase sequence finished.")
@@ -646,9 +646,9 @@ class CombatMonitor(BaseMonitor):
             traceback.print_exc()
             try:  # 에러 시 상점 닫기 시도
                 with self.io_lock:
-                    pyautogui.press('esc')
+                    keyboard.press_and_release('esc')
                     time.sleep(1.0)
-                    pyautogui.press('esc')
+                    keyboard.press_and_release('esc')
             except Exception as esc_e:
                 print(
                     f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Error pressing ESC during exception handling: {esc_e}")
@@ -713,7 +713,7 @@ class CombatMonitor(BaseMonitor):
                 return False
 
             # 6. ESC 키 누르기
-            pyautogui.press('esc')
+            keyboard.press_and_release('esc')
             print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Pressed ESC. Recovery process completed.")
 
             return True

@@ -598,9 +598,10 @@ class CombatMonitor(BaseMonitor):
                         time.sleep(1.0)
 
                 # 4. 상점 닫기 ESC
-                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Closing shop (ESC key).")
+                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Closing shop (ESC key 1/2).")
                 pyautogui.press('esc')
                 time.sleep(1.0)
+                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Closing shop (ESC key 2/2).")
                 pyautogui.press('esc')
                 time.sleep(0.5)
 

@@ -578,41 +578,26 @@ class CombatMonitor(BaseMonitor):
                     f"WARNING: [{self.monitor_id}] Screen {screen.screen_id}: PURCHASE_BUTTON not found after 3 attempts. Returning to NORMAL state.")
                 return False
 
-            # 2-1. 구매 버튼 클릭 (락 안에서 - 순차)
+            # ★ 구매버튼 ~ ESC까지 하나의 락으로 통합 ★
             with self.io_lock:
+                # 2-1. 구매 버튼 클릭
                 print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Clicking PURCHASE_BUTTON.")
                 pyautogui.click(purchase_button_loc[0], purchase_button_loc[1])
 
-            # 2-2. 구매 처리 대기 (락 밖에서 - 병렬)
-            time.sleep(1.5)  # 0.8초에서 1.5초로 증가
+                # 2-2. 구매 처리 대기
+                time.sleep(1.5)
 
-            # 3. 확인 버튼 클릭 (템플릿 매칭)
-            confirm_template_path = template_paths.get_template(screen.screen_id, 'CONFIRM_BUTTON')
-            if not confirm_template_path or not os.path.exists(confirm_template_path):
-                print(
-                    f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: CONFIRM_BUTTON template not found. Assuming purchase complete.")
-                pyautogui.press('esc')
-                pyautogui.press('esc')
-                return True
+                # 3. 확인 버튼 처리
+                confirm_template_path = template_paths.get_template(screen.screen_id, 'CONFIRM_BUTTON')
+                if confirm_template_path and os.path.exists(confirm_template_path):
+                    confirm_button_loc = image_utils.return_ui_location(confirm_template_path, screen.region,
+                                                                        self.confidence)
+                    if confirm_button_loc:
+                        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Clicking CONFIRM_BUTTON.")
+                        pyautogui.click(confirm_button_loc[0], confirm_button_loc[1])
+                        time.sleep(1.0)
 
-            confirm_button_loc = image_utils.return_ui_location(confirm_template_path, screen.region, self.confidence)
-            if not confirm_button_loc:
-                print(
-                    f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: CONFIRM_BUTTON not found. Assuming purchase complete.")
-                pyautogui.press('esc')
-                pyautogui.press('esc')
-                return True
-
-            # 3-1. 확인 버튼 클릭 (락 안에서 - 순차)
-            with self.io_lock:
-                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Clicking CONFIRM_BUTTON.")
-                pyautogui.click(confirm_button_loc[0], confirm_button_loc[1])
-
-            # 3-2. 확인 처리 대기 (락 밖에서 - 병렬)
-            time.sleep(1.0)
-
-            # 4. 상점 닫기 ESC (락 안에서 - 순차)
-            with self.io_lock:
+                # 4. 상점 닫기 ESC
                 print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Closing shop (ESC key).")
                 pyautogui.press('esc')
                 time.sleep(1.0)

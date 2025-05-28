@@ -9,6 +9,8 @@ import threading
 import yaml
 import os
 import keyboard
+import win32api
+import win32con
 import sys # if __name__ == "__main__" 에서 경로 설정 위해 추가
 import numpy as np
 import random
@@ -423,19 +425,28 @@ class CombatMonitor(BaseMonitor):
             if self.location_flag == Location.FIELD:
                 # === S1 우선 처리 로직 ===
                 if screen.screen_id == 'S1':
-                    # S1의 파티 집결 리더 임무
-                    if self._check_returned_well_s1(screen):  # S2~S5 중 아무나 매칭
+                    # === 초기 체크 (새로 추가) ===
+                    if screen.retry_count == 0:  # 첫 번째 체크 (field_return_start 직후)
+                        if self._check_returned_well_s1(screen):  # S2~S5 중 아무나 매칭
+                            print(f"INFO: [{self.monitor_id}] S1: Party found immediately after field_return_start!")
+                            self._change_state(screen, ScreenState.NORMAL)
+                            self._notify_s1_completion()
+                            return
+                        # 못 찾으면 아래 기존 재시도 로직으로 진행
+
+                    # === 기존 재시도 로직 ===
+                    if self._check_returned_well_s1(screen):  # 재시도 중에도 체크
                         print(f"INFO: [{self.monitor_id}] S1: Party gathering completed (member found).")
                         self._change_state(screen, ScreenState.NORMAL)
-                        self._notify_s1_completion()  # ← 헬퍼 함수 호출!
+                        self._notify_s1_completion()
                     elif screen.retry_count >= 5:
                         print(f"WARN: [{self.monitor_id}] S1: Max retry attempts (5) reached. Giving up gathering.")
                         self._change_state(screen, ScreenState.NORMAL)
-                        self._notify_s1_completion()  # ← 실패시에도 알림!
+                        self._notify_s1_completion()
                     elif elapsed > 40.0:  # 전체 타임아웃
                         print(f"WARN: [{self.monitor_id}] S1: Total timeout (40s). Giving up gathering.")
                         self._change_state(screen, ScreenState.NORMAL)
-                        self._notify_s1_completion()  # ← 타임아웃시에도 알림!
+                        self._notify_s1_completion()
                     else:
                         # 2초마다 재시도
                         if elapsed >= (screen.retry_count * 2.0):
@@ -522,6 +533,11 @@ class CombatMonitor(BaseMonitor):
             print(f"ERROR: [{self.monitor_id}] Flight 실패: 예외 발생: {e}")
             return False
 
+    def win32_click(self,x, y):
+        win32api.SetCursorPos((x, y))
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
+
     def _buy_potion_and_initiate_return(self, screen: ScreenMonitorInfo, context: Location) -> bool:
         print(
             f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Starting potion purchase sequence (Context: {context.name})...")
@@ -536,7 +552,7 @@ class CombatMonitor(BaseMonitor):
                 shop_button_loc = image_utils.return_ui_location(shop_template_path, screen.region, self.confidence)
                 if shop_button_loc:
                     with self.io_lock:
-                        pyautogui.click(shop_button_loc)
+                        self.win32_click(shop_button_loc[0], shop_button_loc[1])
                         print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Shop clicked via template")
                         shop_clicked = True
 
@@ -551,10 +567,6 @@ class CombatMonitor(BaseMonitor):
             if not shop_clicked:
                 print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Both shop click methods failed")
                 return False
-            # 1-1. 상점 버튼 클릭 (락 안에서 - 순차)
-            with self.io_lock:
-                pyautogui.click(shop_button_loc)
-                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Clicked SHOP_BUTTON.")
 
             # 1-2. 상점 로딩 대기 (락 밖에서 - 병렬)
             print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waiting 15s for shop UI to load...")
@@ -603,7 +615,7 @@ class CombatMonitor(BaseMonitor):
                 time.sleep(1.0)
                 print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Closing shop (ESC key 2/2).")
                 keyboard.press_and_release('esc')
-                time.sleep(0.5)
+                time.sleep(2.5)
 
             print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Potion purchase sequence finished.")
 
@@ -1591,11 +1603,16 @@ class CombatMonitor(BaseMonitor):
         # 메인 루프 시작
         while not stop_event.is_set():
             try:
-                # 모든 화면에 대해 현재 상태에 맞는 처리 수행
-                for screen in self.screens:
+                # 1. HOSTILE 상태 화면들 먼저 처리 (최우선)
+                hostile_screens = [s for s in self.screens if s.current_state == ScreenState.HOSTILE]
+                for screen in hostile_screens:
                     if stop_event.is_set(): break
+                    self._handle_screen_state(screen, stop_event)
 
-                    # 각 화면의 현재 상태에 맞는 처리 수행
+                # 2. 나머지 화면들 처리
+                other_screens = [s for s in self.screens if s.current_state != ScreenState.HOSTILE]
+                for screen in other_screens:
+                    if stop_event.is_set(): break
                     self._handle_screen_state(screen, stop_event)
 
                 # 루프 주기 조절
@@ -1673,7 +1690,7 @@ if __name__ == "__main__":
 
     # 4. 테스트 실행 및 종료 처리
     try:
-        test_duration = 120 # 테스트 실행 시간 (초)
+        test_duration = 240 # 테스트 실행 시간 (초)
         print(f"INFO: Monitor running for {test_duration} seconds... Press Ctrl+C to stop early.")
         start_time = time.time()
         # 메인 스레드는 모니터 스레드가 끝나거나 시간이 다 되거나 Ctrl+C 입력 전까지 대기

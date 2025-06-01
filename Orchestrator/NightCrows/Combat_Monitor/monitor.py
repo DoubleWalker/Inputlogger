@@ -418,24 +418,20 @@ class CombatMonitor(BaseMonitor):
                 if screen.retry_count > 3:
                     self._change_state(screen, ScreenState.NORMAL)
 
-        # 7. RETURNING 상태 - 복귀 완료 확인
         elif state == ScreenState.RETURNING:
             elapsed = time.time() - screen.last_state_change_time
 
             if self.location_flag == Location.FIELD:
-                # === S1 우선 처리 로직 ===
                 if screen.screen_id == 'S1':
-                    # === 초기 체크 (새로 추가) ===
-                    if screen.retry_count == 0:  # 첫 번째 체크 (field_return_start 직후)
-                        if self._check_returned_well_s1(screen):  # S2~S5 중 아무나 매칭
+                    # === S1 우선 처리 로직 ===
+                    if screen.retry_count == 0:
+                        if self._check_returned_well_s1(screen):
                             print(f"INFO: [{self.monitor_id}] S1: Party found immediately after field_return_start!")
                             self._change_state(screen, ScreenState.NORMAL)
                             self._notify_s1_completion()
                             return
-                        # 못 찾으면 아래 기존 재시도 로직으로 진행
 
-                    # === 기존 재시도 로직 ===
-                    if self._check_returned_well_s1(screen):  # 재시도 중에도 체크
+                    if self._check_returned_well_s1(screen):
                         print(f"INFO: [{self.monitor_id}] S1: Party gathering completed (member found).")
                         self._change_state(screen, ScreenState.NORMAL)
                         self._notify_s1_completion()
@@ -443,44 +439,56 @@ class CombatMonitor(BaseMonitor):
                         print(f"WARN: [{self.monitor_id}] S1: Max retry attempts (5) reached. Giving up gathering.")
                         self._change_state(screen, ScreenState.NORMAL)
                         self._notify_s1_completion()
-                    elif elapsed > 40.0:  # 전체 타임아웃
+                    elif elapsed > 40.0:
                         print(f"WARN: [{self.monitor_id}] S1: Total timeout (40s). Giving up gathering.")
                         self._change_state(screen, ScreenState.NORMAL)
                         self._notify_s1_completion()
                     else:
-                        # 2초마다 재시도
                         if elapsed >= (screen.retry_count * 2.0):
                             screen.retry_count += 1
                             print(f"INFO: [{self.monitor_id}] S1: Retrying party gathering ({screen.retry_count}/5)...")
                             self._retry_field_return(screen, is_first_attempt=(screen.retry_count == 1))
 
-                else:  # S2~S5 중 RETURNING 상태인 화면들
-                    # === 폴링 → 이벤트 방식 변경 ===
+                else:
+                    # S2~S5 처리
                     if not screen.s1_completed:
-                        # S1 완료 알림을 아직 받지 못함
-                        print(
-                            f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waiting for S1 completion notification...")
-                        return  # 알림 받을 때까지 대기
+                        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waiting for S1 completion notification...")
+                        return
                     else:
-                        # S1 완료 알림 받음 → 자신의 복귀 작업 시작
-                        print(
-                            f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: S1 completion notification received! Starting own return...")
-                        screen.s1_completed = False  # 플래그 리셋
+                        if screen.retry_count == 0:
+                            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: S1 completion notification received! Starting own return...")
+                            screen.s1_completed = False  # 알림 소모
 
-                        if self._check_returned_well_others(screen):  # S1 매칭 확인
-                            print(
-                                f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Successfully returned to party.")
-                            self._change_state(screen, ScreenState.NORMAL)
-                        elif elapsed > 20.0:  # 개별 타임아웃
-                            print(
-                                f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Return timeout, forcing NORMAL.")
-                            self._change_state(screen, ScreenState.NORMAL)
-                        # else: 다음 루프에서 다시 확인
+                            if self._check_returned_well_others(screen):
+                                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Successfully returned to party immediately!")
+                                self._change_state(screen, ScreenState.NORMAL)
+                                return
+                            else:
+                                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Starting field return retry...")
+                                self._retry_field_return(screen, is_first_attempt=True)
+                                screen.retry_count = 1
 
-            else:  # ARENA - 기존 로직 유지
+                        else:
+                            if self._check_returned_well_others(screen):
+                                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Successfully returned to party.")
+                                self._change_state(screen, ScreenState.NORMAL)
+                            elif screen.retry_count >= 10:
+                                print(f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Max retry attempts (10) reached. Forcing NORMAL.")
+                                self._change_state(screen, ScreenState.NORMAL)
+                            elif elapsed > 30.0:
+                                print(f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Total timeout (30s). Forcing NORMAL.")
+                                self._change_state(screen, ScreenState.NORMAL)
+                            else:
+                                if elapsed >= (screen.retry_count * 2.0):
+                                    screen.retry_count += 1
+                                    print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Retrying field return ({screen.retry_count}/10)...")
+                                    self._retry_field_return(screen, is_first_attempt=False)
+
+            elif self.location_flag == Location.ARENA:
                 if elapsed > 5.0 and not stop_event.is_set():
                     self._waypoint_navigation(stop_event, screen)
                     self._change_state(screen, ScreenState.NORMAL)
+
 
     # _check_recovery_complete 함수 (새로 추가 필요)
     def _check_recovery_complete(self, screen: ScreenMonitorInfo) -> bool:
@@ -778,15 +786,13 @@ class CombatMonitor(BaseMonitor):
             return False
 
     def _check_returned_well_s1(self, screen: ScreenMonitorInfo) -> bool:
-        """
-        S1용: S2~S5 파티 템플릿 중 하나라도 매칭되면 True
-        """
+        """S1용: S2~S5 중 하나라도 매칭되면 True"""
         print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: S1 searching for any party member (S2~S5)...")
 
-        for other_screen_id in ['S2', 'S3', 'S4', 'S5']:
-            template_path = template_paths.get_template(other_screen_id, 'PARTY_UI')
+        for member_id in ['S2', 'S3', 'S4', 'S5']:
+            template_path = template_paths.get_template('S1', member_id)  # 'S1', 'S2' 이런 식으로
             if template_path and self._check_single_party_template(screen, template_path):
-                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Found party member {other_screen_id}")
+                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Found party member {member_id}")
                 return True
 
         print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: No party members found (S2~S5)")

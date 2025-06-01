@@ -39,6 +39,10 @@ TEMPLATES = {
         # 새로 추가된 템플릿 (비어있음)
         'ARENA_MENU_ICON': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "arena_menu_icon.png"),
         'ARENA_ENTRY_UI': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "arena_entry_ui.png"),
+        'S2': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "s2.png"),  # 새로 추가: S1이 S2 찾을 때 사용
+        'S3': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "s3.png"),  # 새로 추가: S1이 S3 찾을 때 사용
+        'S4': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "s4.png"),  # 새로 추가: S1이 S4 찾을 때 사용
+        'S5': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "s5.png")  # 새로 추가: S1이 S5 찾을 때 사용
     },
     'S2': {
         'ARENA': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "arena_indicator.png"),

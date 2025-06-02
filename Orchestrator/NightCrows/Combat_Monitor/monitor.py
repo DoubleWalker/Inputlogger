@@ -551,7 +551,7 @@ class CombatMonitor(BaseMonitor):
             f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Starting potion purchase sequence (Context: {context.name})...")
 
         try:
-            # 1. 상점 버튼 클릭 (템플릿 → 고정좌표 fallback)
+            # 1. 첫 번째 상점 버튼 클릭 (템플릿 → 고정좌표 fallback)
             shop_clicked = False
 
             # 템플릿 시도
@@ -580,26 +580,60 @@ class CombatMonitor(BaseMonitor):
             print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waiting 15s for shop UI to load...")
             time.sleep(15.0)
 
-            # 2. 구매 버튼 찾기 (락 밖에서 - 병렬, 3회 시도)
+            # 2. 구매 버튼 찾기 (3회 시도 - 올바른 로직으로 수정)
             purchase_template_path = template_paths.get_template(screen.screen_id, 'PURCHASE_BUTTON')
             purchase_button_loc = None
 
             for attempt in range(3):
-                # 🔥 각 시도 전에 포커스 맞추기 (새로 추가)
+                print(
+                    f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Purchase button search attempt {attempt + 1}/3")
+
+                # 포커스 맞추기
                 image_utils.set_focus(screen.screen_id, delay_after=0.3)
 
-                # 🔍 템플릿 매칭으로 PURCHASE_BUTTON 찾기
+                # PURCHASE_BUTTON 찾기 시도
                 purchase_button_loc = image_utils.return_ui_location(purchase_template_path, screen.region,
                                                                      self.confidence)
                 if purchase_button_loc:
+                    print(
+                        f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: PURCHASE_BUTTON found on attempt {attempt + 1}")
                     break
-                print(
-                    f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: PURCHASE_BUTTON not found on attempt {attempt + 1}/3. Retrying...")
-                time.sleep(3.0)
+
+                # 찾지 못했고 마지막 시도가 아니라면 상점 버튼 다시 클릭
+                if attempt < 2:  # 0, 1번째 시도에서만 재클릭
+                    print(
+                        f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: PURCHASE_BUTTON not found, re-clicking shop button...")
+
+                    # 상점 버튼 다시 클릭 (템플릿 → 고정좌표)
+                    shop_reclicked = False
+                    if shop_template_path and os.path.exists(shop_template_path):
+                        shop_button_loc = image_utils.return_ui_location(shop_template_path, screen.region,
+                                                                         self.confidence)
+                        if shop_button_loc:
+                            with self.io_lock:
+                                self.win32_click(shop_button_loc[0], shop_button_loc[1])
+                                print(
+                                    f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Shop re-clicked via template")
+                                shop_reclicked = True
+
+                    if not shop_reclicked:
+                        with self.io_lock:
+                            if self._click_relative(screen, 'shop_button', delay_after=0.5):
+                                print(
+                                    f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Shop re-clicked via fixed coords")
+                                shop_reclicked = True
+
+                    if shop_reclicked:
+                        # 상점 로딩 대기 (재클릭 후)
+                        print(
+                            f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waiting 10s after shop re-click...")
+                        time.sleep(10.0)
+                    else:
+                        print(f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Failed to re-click shop button")
 
             if not purchase_button_loc:
                 print(
-                    f"WARNING: [{self.monitor_id}] Screen {screen.screen_id}: PURCHASE_BUTTON not found after 3 attempts. Returning to NORMAL state.")
+                    f"WARNING: [{self.monitor_id}] Screen {screen.screen_id}: PURCHASE_BUTTON not found after 3 attempts with re-clicks. Returning to NORMAL state.")
                 return False
 
             # ★ 구매버튼 ~ ESC까지 하나의 락으로 통합 ★
@@ -631,7 +665,7 @@ class CombatMonitor(BaseMonitor):
 
             print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Potion purchase sequence finished.")
 
-            # 5. 귀환/복귀 시작 (Context에 따라 분기)
+            # 5. 귀환/복귀 시작 (Context에 따라 분기) - 기존 코드와 동일
             if context == Location.FIELD:
                 print(
                     f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Context is FIELD. Initiating return action...")
@@ -677,6 +711,7 @@ class CombatMonitor(BaseMonitor):
                 print(
                     f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Error pressing ESC during exception handling: {esc_e}")
             return False
+
     def _process_recovery(self, screen: ScreenMonitorInfo) -> bool:
         """지정된 화면에서 부활 동작을 수행합니다."""
         print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Processing RECOVERY (Revive)...")

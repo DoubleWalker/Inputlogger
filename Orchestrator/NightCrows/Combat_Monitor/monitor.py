@@ -585,6 +585,10 @@ class CombatMonitor(BaseMonitor):
             purchase_button_loc = None
 
             for attempt in range(3):
+                # 🔥 각 시도 전에 포커스 맞추기 (새로 추가)
+                image_utils.set_focus(screen.screen_id, delay_after=0.3)
+
+                # 🔍 템플릿 매칭으로 PURCHASE_BUTTON 찾기
                 purchase_button_loc = image_utils.return_ui_location(purchase_template_path, screen.region,
                                                                      self.confidence)
                 if purchase_button_loc:
@@ -600,7 +604,7 @@ class CombatMonitor(BaseMonitor):
 
             # ★ 구매버튼 ~ ESC까지 하나의 락으로 통합 ★
             with self.io_lock:
-                # 2-1. 구매 버튼 클릭
+
                 print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Clicking PURCHASE_BUTTON.")
                 pyautogui.click(purchase_button_loc[0], purchase_button_loc[1])
 

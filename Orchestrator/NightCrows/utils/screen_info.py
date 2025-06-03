@@ -37,7 +37,7 @@ EVENT_UI_REGIONS: Dict[str, Dict[str, Tuple[int, int, int, int]]] = {
 FIXED_UI_COORDS = {
     'S1': {
         # 기존 좌표 유지
-        'main_menu_button': (748, 15),
+        'main_menu_button': (724, 19),
         'field_return_reset': (535, 327),  #
         'field_return_start': (716, 328),  #
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요

@@ -1046,7 +1046,7 @@ class CombatMonitor(BaseMonitor):
                         return False
 
                 # 8. 아레나 입장 완료 대기 (락 밖에서 - 병렬 처리 가능)
-                teleport_wait_time = 10.0  # 또는 적절한 시간
+                teleport_wait_time = 18.0  # 또는 적절한 시간
                 print(f"INFO: [{self.monitor_id}] Waiting {teleport_wait_time}s for arena entry to complete...")
                 time.sleep(teleport_wait_time)
 
@@ -1604,7 +1604,12 @@ class CombatMonitor(BaseMonitor):
 
         try:
             # 웨이포인트 인덱스에 따른 조정 동작 분기 (WP1, WP2 제거)
-            if wp_index == 3:  # 점프 시작점
+            if wp_index in [1, 2]:
+                # WP1, WP2는 UI 기반 이동이므로 추가 조정 불필요
+                print(f"INFO: WP{wp_index} - No adjustment needed (UI-based movement)")
+                return True
+
+            elif wp_index == 3:  # 점프 시작점
                 # 파티 리더 방향으로 시야 조정
                 keyboard.press_and_release('a')  # 왼쪽으로 회전
                 time.sleep(0.3)

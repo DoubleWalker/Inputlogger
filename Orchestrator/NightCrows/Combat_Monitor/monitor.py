@@ -74,6 +74,7 @@ class ScreenMonitorInfo:
     retry_count: int = 0
     last_state_change_time: float = 0.0
     s1_completed: bool = False  # ← 새로 추가!
+    wp_progress: int = 0  # ← 추가
 
 # ----------------------------------------------------------------------------
 # [주의] 아래 함수들은 플레이스홀더입니다. 실제 게임 상호작용 로직 구현 필요
@@ -485,8 +486,19 @@ class CombatMonitor(BaseMonitor):
                                     self._retry_field_return(screen, is_first_attempt=False)
 
             elif self.location_flag == Location.ARENA:
-                if elapsed > 5.0 and not stop_event.is_set():
-                    self._waypoint_navigation(stop_event, screen)
+                # WP 진행상황 초기화 (첫 진입시)
+                if not hasattr(screen, 'wp_progress') or screen.wp_progress == 0:
+                    screen.wp_progress = 1
+
+                if screen.wp_progress == 1:
+                    # WP1만 처리 (병렬)
+                    if elapsed > 5.0:
+                        self._waypoint_navigation(stop_event, screen, start_wp=1, end_wp=1)
+                        screen.wp_progress = 2
+                        screen.last_state_change_time = time.time()
+                else:
+                    # WP2부터 끝까지 처리 (순차)
+                    self._waypoint_navigation(stop_event, screen, start_wp=2)
                     self._change_state(screen, ScreenState.NORMAL)
 
 
@@ -1497,20 +1509,21 @@ class CombatMonitor(BaseMonitor):
             keyboard.release('space')
             return False
 
-    def _waypoint_navigation(self, stop_event: threading.Event, target_screen: ScreenMonitorInfo):
+    def _waypoint_navigation(self, stop_event: threading.Event, target_screen: ScreenMonitorInfo,
+                             start_wp: int = 1, end_wp: int = None):
         """특정 화면에 대한 웨이포인트 네비게이션 로직을 처리합니다."""
         print(f"INFO: [{self.monitor_id}] Starting Waypoint Navigation for screen {target_screen.screen_id}...")
 
         # 전달된 화면 사용
         screen = target_screen
 
-        # ... 나머지 코드는 동일하게 유지 ...
+        # 웨이포인트 범위 설정
+        if end_wp is None:
+            end_wp = 5  # 또는 self._get_max_wp_num()
 
-        # 웨이포인트 초기화
-        self.current_wp = 1
-        self.max_wp = 5  # 임시 값, 필요시 동적 계산 가능
+        self.current_wp = start_wp
 
-        while self.current_wp <= self.max_wp and not stop_event.is_set():
+        while self.current_wp <= end_wp and not stop_event.is_set():
             print(f"INFO: [{self.monitor_id}] --- Waypoint Loop: Target WP {self.current_wp}/{self.max_wp} ---")
 
             # 1. 웨이포인트로 이동 시도

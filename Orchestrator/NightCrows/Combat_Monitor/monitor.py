@@ -996,7 +996,35 @@ class CombatMonitor(BaseMonitor):
                     time.sleep(2.0)
 
                 if not entry_found:
-                    print(f"ERROR: [{self.monitor_id}] Arena entry UI not found after {max_entry_attempts} attempts")
+                    print(
+                        f"WARN: [{self.monitor_id}] Arena entry UI not found with threshold 0.85. Retrying with lowered threshold...")
+
+                    # 1차 재시도: 임계값 0.8로 5회
+                    for attempt in range(5):
+                        if image_utils.is_image_present(arena_entry_path, screen.region, threshold=0.8):
+                            entry_found = True
+                            print(
+                                f"INFO: [{self.monitor_id}] Arena entry UI found with threshold 0.8 on attempt {attempt + 1}")
+                            break
+                        time.sleep(1.0)
+
+                    if not entry_found:
+                        print(
+                            f"WARN: [{self.monitor_id}] Arena entry UI still not found with threshold 0.8. Waiting 5s and trying threshold 0.72...")
+                        time.sleep(5.0)
+
+                        # 2차 재시도: 임계값 0.72로 5회
+                        for attempt in range(5):
+                            if image_utils.is_image_present(arena_entry_path, screen.region, threshold=0.72):
+                                entry_found = True
+                                print(
+                                    f"INFO: [{self.monitor_id}] Arena entry UI found with threshold 0.72 on attempt {attempt + 1}")
+                                break
+                            time.sleep(1.0)
+
+                if not entry_found:
+                    print(
+                        f"ERROR: [{self.monitor_id}] Arena entry UI not found after all retry attempts. Aborting WP1.")
                     return False
 
                 # 7. 첫 번째 옵션 클릭 (IO_LOCK 필요)
@@ -1004,6 +1032,11 @@ class CombatMonitor(BaseMonitor):
                     if not self._click_relative(screen, 'arena_entry_option1', delay_after=1.0):
                         print(f"ERROR: [{self.monitor_id}] Failed to click arena entry option")
                         return False
+
+                # 8. 아레나 입장 완료 대기 (락 밖에서 - 병렬 처리 가능)
+                teleport_wait_time = 10.0  # 또는 적절한 시간
+                print(f"INFO: [{self.monitor_id}] Waiting {teleport_wait_time}s for arena entry to complete...")
+                time.sleep(teleport_wait_time)
 
                 print(f"INFO: [{self.monitor_id}] Successfully initiated arena entry")
                 return True
@@ -1064,22 +1097,56 @@ class CombatMonitor(BaseMonitor):
             return False
 
     def _check_reached_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:
-            """웨이포인트 도착 여부를 확인합니다 (공통 인터페이스)"""
-            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Checking if reached Waypoint #{wp_index}")
+        """웨이포인트 도착 여부를 확인합니다"""
+        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Checking if reached Waypoint #{wp_index}")
 
-            try:
-                # 현재는 모든 웨이포인트가 동작 완료 시 도착한 것으로 간주
-                if wp_index in [1, 2]:  # 현재 구현된 웨이포인트들
-                    print(
-                        f"INFO: [{self.monitor_id}] WP{wp_index} is considered reached after movement sequence completion")
+        try:
+            if wp_index == 1:
+                # WP1: 아레나 내부에 있는지 확인
+                if self._is_character_in_arena(screen):
+                    print(f"INFO: [{self.monitor_id}] WP1 reached - Character is in arena")
                     return True
                 else:
-                    print(f"ERROR: [{self.monitor_id}] Unknown waypoint index: {wp_index}")
+                    print(f"INFO: [{self.monitor_id}] WP1 not reached - Character not in arena")
                     return False
 
-            except Exception as e:
-                print(f"ERROR: [{self.monitor_id}] Exception during check waypoint {wp_index}: {e}")
+            elif wp_index == 2:
+                # WP2: 타워 근처 도착 확인 (템플릿 또는 위치 기반)
+                tower_template_path = template_paths.get_template(screen.screen_id, 'WAYPOINT_2')
+                if tower_template_path and os.path.exists(tower_template_path):
+                    if image_utils.is_image_present(tower_template_path, screen.region, threshold=0.8):
+                        print(f"INFO: [{self.monitor_id}] WP2 reached - Tower location confirmed")
+                        return True
+
+                # 템플릿 없으면 이동 완료로 간주 (기존 로직 유지)
+                print(f"INFO: [{self.monitor_id}] WP2 considered reached (no template check available)")
+                return True
+
+            elif wp_index == 3:
+                # WP3: 점프 지점 도착 확인 (파티 UI 체크)
+                if self._check_returned_well(screen):
+                    print(f"INFO: [{self.monitor_id}] WP3 reached - Party visible")
+                    return True
+                else:
+                    print(f"INFO: [{self.monitor_id}] WP3 not reached - Party not visible")
+                    return False
+
+            elif wp_index == 4:
+                # WP4: 글라이더 시퀀스 완료 확인 (시퀀스 실행 성공 여부로 판단)
+                print(f"INFO: [{self.monitor_id}] WP4 considered reached after glider sequence")
+                return True
+
+            elif wp_index == 5:
+                # WP5: 최종 전투 지점 확인
+                return self._is_at_combat_spot(screen)
+
+            else:
+                print(f"ERROR: [{self.monitor_id}] Unknown waypoint index: {wp_index}")
                 return False
+
+        except Exception as e:
+            print(f"ERROR: [{self.monitor_id}] Exception during check waypoint {wp_index}: {e}")
+            return False
 
     def _is_at_combat_spot(self, screen: ScreenMonitorInfo) -> bool:
         """최종 전투 지점 도착 여부를 최대 3번 확인합니다."""
@@ -1448,9 +1515,9 @@ class CombatMonitor(BaseMonitor):
 
             # 1. 웨이포인트로 이동 시도
             if not self._move_to_wp(screen, self.current_wp):
-                print(f"WARN: [{self.monitor_id}] Failed to initiate movement to WP {self.current_wp}.")
-                # 실패 시 다음 웨이포인트로 넘어갈지, 재시도할지 결정
-                # ...
+                print(
+                    f"CRITICAL: [{self.monitor_id}] Failed to move to WP {self.current_wp}. Aborting waypoint navigation.")
+                return  # 전체 네비게이션 종료
 
             # 2. 웨이포인트 도착 확인 (여러 번 시도)
             reached = False

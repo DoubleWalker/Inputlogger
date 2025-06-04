@@ -63,8 +63,8 @@ FIXED_UI_COORDS = {
         'flight_button':(515,349),  #
         'shop_button':(51,45),
         'arena_entry_option1': (578, 210),  #
-        'tower_click_1': (790, 77),  #
-        'tower_click_2': (814, 270),  #
+        'tower_click_1': (795, 76),  #
+        'tower_click_2': (818, 205),  #
           #
     },
     'S3': {
@@ -94,8 +94,8 @@ FIXED_UI_COORDS = {
         'flight_button':(469,311),  #
         'field_return_button': (507,316),
         'arena_entry_option1': (502, 184),  #
-        'tower_click_1': (713, 65),  #
-        'tower_click_2': (744, 180),  #
+        'tower_click_1': (700, 62),  #
+        'tower_click_2': (714, 186),  #
           #
     },
     'S5': {

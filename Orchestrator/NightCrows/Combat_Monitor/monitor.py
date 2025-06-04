@@ -400,9 +400,9 @@ class CombatMonitor(BaseMonitor):
 
         # 5. FLEEING 상태 - 도주 완료 체크 및 물약 구매
         elif state == ScreenState.FLEEING:
-            # 도주 완료 확인 (5초 정도 대기 후)
+            # 도주 완료 확인 (대기 후)
             elapsed = time.time() - screen.last_state_change_time
-            if elapsed < 9.0:
+            if elapsed < 12.0:
                 return  # 아직 대기 중
 
             # 물약 구매로 전환
@@ -486,20 +486,59 @@ class CombatMonitor(BaseMonitor):
                                     self._retry_field_return(screen, is_first_attempt=False)
 
             elif self.location_flag == Location.ARENA:
+                # === ARENA 컨텍스트: 단계별 병렬/순차 처리 ===
+
                 # WP 진행상황 초기화 (첫 진입시)
                 if not hasattr(screen, 'wp_progress') or screen.wp_progress == 0:
                     screen.wp_progress = 1
+                    screen.last_state_change_time = time.time()  # 타이머 리셋
 
                 if screen.wp_progress == 1:
-                    # WP1만 처리 (병렬)
-                    if elapsed > 5.0:
-                        self._waypoint_navigation(stop_event, screen, start_wp=1, end_wp=1)
-                        screen.wp_progress = 2
-                        screen.last_state_change_time = time.time()
-                else:
-                    # WP2부터 끝까지 처리 (순차)
-                    self._waypoint_navigation(stop_event, screen, start_wp=2)
-                    self._change_state(screen, ScreenState.NORMAL)
+                    # === WP1 단계: 병렬 처리 ===
+                    if elapsed > 5.0:  # 5초 후 WP1 시작
+                        print(
+                            f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Starting WP1 (parallel processing)")
+                        if self._move_to_wp(screen, 1):  # WP1 이동 시도
+                            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: WP1 movement initiated")
+                            screen.wp_progress = 2  # 다음 단계로
+                            screen.last_state_change_time = time.time()  # 타이머 리셋
+                        else:
+                            print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: WP1 movement failed")
+                            self._change_state(screen, ScreenState.NORMAL)  # 실패시 NORMAL로
+
+                elif screen.wp_progress == 2:
+                    # === WP1 완료 대기 (병렬) ===
+                    if elapsed > 60.0:  # WP1 완료 대기 (아레나 텔레포트 + 입장)
+                        if self._check_reached_wp(screen, 1):
+                            print(
+                                f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: WP1 completed, proceeding to WP2+")
+                            screen.wp_progress = 3  # WP2 이후 순차 처리 단계로
+                            screen.last_state_change_time = time.time()
+                        else:
+                            print(
+                                f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: WP1 not completed after 60s, retrying...")
+                            screen.wp_progress = 1  # WP1 재시도
+                            screen.last_state_change_time = time.time()
+
+                elif screen.wp_progress == 3:
+                    # === WP2 이후: 순차 처리 ===
+                    # 다른 화면이 WP2+ 처리 중인지 확인
+                    other_screens_in_wp2_plus = [s for s in self.screens
+                                                 if s.screen_id != screen.screen_id
+                                                 and s.current_state == ScreenState.RETURNING
+                                                 and hasattr(s, 'wp_progress')
+                                                 and s.wp_progress >= 3]
+
+                    if not other_screens_in_wp2_plus:
+                        # 다른 화면이 WP2+ 처리 중이 아니면 시작
+                        print(
+                            f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Starting WP2+ (sequential processing)")
+                        self._waypoint_navigation(stop_event, screen, start_wp=2)
+                        self._change_state(screen, ScreenState.NORMAL)
+                    else:
+                        # 다른 화면이 처리 중이면 대기
+                        print(
+                            f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waiting for other screen to complete WP2+...")
 
 
     # _check_recovery_complete 함수 (새로 추가 필요)
@@ -655,7 +694,7 @@ class CombatMonitor(BaseMonitor):
                 pyautogui.click(purchase_button_loc[0], purchase_button_loc[1])
 
                 # 2-2. 구매 처리 대기
-                time.sleep(1.5)
+                time.sleep(0.5)
 
                 # 3. 확인 버튼 처리
                 confirm_template_path = template_paths.get_template(screen.screen_id, 'CONFIRM_BUTTON')
@@ -665,15 +704,15 @@ class CombatMonitor(BaseMonitor):
                     if confirm_button_loc:
                         print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Clicking CONFIRM_BUTTON.")
                         pyautogui.click(confirm_button_loc[0], confirm_button_loc[1])
-                        time.sleep(2.5)
+                        time.sleep(0.5)
 
                 # 4. 상점 닫기 ESC
                 print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Closing shop (ESC key 1/2).")
                 keyboard.press_and_release('esc')
-                time.sleep(1.0)
+                time.sleep(0.3)
                 print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Closing shop (ESC key 2/2).")
                 keyboard.press_and_release('esc')
-                time.sleep(2.5)
+                time.sleep(0.7)
 
             print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Potion purchase sequence finished.")
 
@@ -1198,7 +1237,7 @@ class CombatMonitor(BaseMonitor):
                 with self.io_lock:
                     # 1단계: WASD 이동
                     keyboard.press('a')
-                    time.sleep(0.5)
+                    time.sleep(1)
                     keyboard.press('w')
                     time.sleep(6)
                     keyboard.release('a')

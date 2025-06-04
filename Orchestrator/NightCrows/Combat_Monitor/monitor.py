@@ -1195,19 +1195,16 @@ class CombatMonitor(BaseMonitor):
                 # WP3 - 점프 시작점으로 이동 (WASD 이동)
                 print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Moving to WP3 (Jump point)")
 
-                if not image_utils.set_focus(screen.screen_id):
-                    return False
-
                 with self.io_lock:
-                    # 1단계: A만 0.25초
+                    # 1단계: A만 0.45초
                     print(f"INFO: [{self.monitor_id}] Step 1: Pressing A for 0.25s...")
                     keyboard.press('a')
-                    time.sleep(0.25)
+                    time.sleep(0.45)
 
-                    # 2단계: A+W 동시에 3초
+                    # 2단계: A+W 동시에 3.6초
                     print(f"INFO: [{self.monitor_id}] Step 2: Pressing A+W for 3s...")
                     keyboard.press('w')  # A는 이미 눌려있음
-                    time.sleep(2.5)
+                    time.sleep(3.6)
 
                     # 모든 키 해제
                     keyboard.release('a')
@@ -1328,8 +1325,7 @@ class CombatMonitor(BaseMonitor):
 
 
             # 설정 폴더 경로 (프로젝트 루트 기준 상대 경로)
-            config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-                                      "config")
+            config_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
             yaml_path = os.path.join(config_dir, f"{sequence_name}.yaml")
 
             if not os.path.exists(yaml_path):

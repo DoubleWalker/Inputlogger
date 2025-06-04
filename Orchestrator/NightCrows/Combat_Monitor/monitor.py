@@ -1196,55 +1196,47 @@ class CombatMonitor(BaseMonitor):
                 print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Moving to WP3 (Jump point)")
 
                 with self.io_lock:
-                    # 1단계: A만 0.45초
-                    print(f"INFO: [{self.monitor_id}] Step 1: Pressing A for 0.25s...")
+                    # 1단계: WASD 이동
                     keyboard.press('a')
                     time.sleep(0.5)
-
-                    # 2단계: A+W 동시에 3.6초
-                    print(f"INFO: [{self.monitor_id}] Step 2: Pressing A+W for 3s...")
-                    keyboard.press('w')  # A는 이미 눌려있음
+                    keyboard.press('w')
                     time.sleep(6)
-
-                    # 모든 키 해제
                     keyboard.release('a')
                     keyboard.release('w')
+                    time.sleep(0.5)
 
-                    time.sleep(0.5)  # 이동 완료 후 안정화
-
-
-                # WP3 완료 후 WP4 준비: Zoom Out 최대화
-                print(f"INFO: [{self.monitor_id}] WP3 completed. Maximizing zoom out for WP4...")
-
-                with self.io_lock:
-                    # 기준값과 화면 너비 기반 비율 계산
-                    base_offset = 150  # S1 기준
-                    screen_ratios = {
-                        'S1': 1.0,  # 766 (기준)
-                        'S2': 1.1,  # ≈ 1.10
-                        'S3': 1.0,  # 767 ≈ 766 (동일 취급)
-                        'S4': 1.0,  # 767 ≈ 766 (동일 취급)
-                        'S5': 1.6  # ≈ 1.58
-                    }
-
-                    # 화면 중앙 좌표 계산
+                    # 2단계: 줌아웃을 위한 변수 정의
                     center_x = screen.region[0] + screen.region[2] // 2
                     center_y = screen.region[1] + screen.region[3] // 2
 
-                    # 화면별 offset 계산
-                    ratio = screen_ratios.get(screen.screen_id, 1.0)
-                    offset = int(base_offset * ratio)
-                    start_x = center_x + offset
-                    start_y = center_y
+                    if screen.screen_id == 'S5':
+                        # S5: 휠다운
+                        end_time = time.time() + 3.0
+                        while time.time() < end_time:
+                            pyautogui.scroll(-1)
+                            time.sleep(0.1)
+                    else:
+                        # S1~S4: 드래그 - 변수 정의 추가
+                        base_offset = 150  # S1 기준
+                        screen_ratios = {
+                            'S1': 1.0,
+                            'S2': 1.1,
+                            'S3': 1.0,
+                            'S4': 1.0,
+                        }
 
-                    # Ctrl + 마우스 드래그로 zoom out (외곽 → 중앙)
-                    keyboard.press('ctrl')
-                    pyautogui.mouseDown(start_x, start_y, button='left')
-                    pyautogui.dragTo(center_x, center_y, duration=0.5)
-                    pyautogui.mouseUp(button='left')
-                    keyboard.release('ctrl')
+                        ratio = screen_ratios.get(screen.screen_id, 1.0)
+                        offset = int(base_offset * ratio)
+                        start_x = center_x + offset
+                        start_y = center_y
 
-                    time.sleep(0.5)  # 줌 아웃 완료 대기
+                        keyboard.press('ctrl')
+                        pyautogui.mouseDown(start_x, start_y, button='left')
+                        pyautogui.dragTo(center_x, center_y, duration=0.5)
+                        pyautogui.mouseUp(button='left')
+                        keyboard.release('ctrl')
+
+                    time.sleep(0.5)
 
                 return True
 

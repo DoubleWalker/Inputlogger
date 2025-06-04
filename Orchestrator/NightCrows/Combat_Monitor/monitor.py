@@ -1091,7 +1091,11 @@ class CombatMonitor(BaseMonitor):
                     keyboard.press_and_release('y')
                     print(f"INFO: [{self.monitor_id}] Pressed Y to confirm teleport")
 
-                print(f"INFO: [{self.monitor_id}] Successfully initiated tower teleport")
+                tower_teleport_wait_time = 5.0  # 적절한 시간으로 조정
+                print(f"INFO: Waiting {tower_teleport_wait_time}s for tower teleport to complete...")
+                time.sleep(tower_teleport_wait_time)
+
+                print(f"INFO: Successfully initiated tower teleport")
                 return True
             else:
                 print(f"ERROR: [{self.monitor_id}] Unsupported arena waypoint index: {wp_index}")
@@ -1192,34 +1196,62 @@ class CombatMonitor(BaseMonitor):
         """파티 리더-팔로워 방식 웨이포인트(WP3, WP4)로 이동"""
         try:
             if wp_index == 3:
-                # WP3 - 점프 시작점으로 이동 (고정 좌표 방식)
+                # WP3 - 점프 시작점으로 이동 (WASD 이동)
                 print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Moving to WP3 (Jump point)")
 
                 if not image_utils.set_focus(screen.screen_id):
                     return False
 
                 with self.io_lock:
-                    # 1. 맵 열기
-                    keyboard.press_and_release('m')
-                    time.sleep(1.0)
+                    # 1단계: A만 0.25초
+                    print(f"INFO: [{self.monitor_id}] Step 1: Pressing A for 0.25s...")
+                    keyboard.press('a')
+                    time.sleep(0.25)
 
-                    # 2. 점프 시작점 클릭
-                    if not self._click_relative(screen, 'jump_start_point', delay_after=0.5):
-                        keyboard.press_and_release('esc')  # 맵 닫기
-                        return False
+                    # 2단계: A+W 동시에 3초
+                    print(f"INFO: [{self.monitor_id}] Step 2: Pressing A+W for 3s...")
+                    keyboard.press('w')  # A는 이미 눌려있음
+                    time.sleep(2.5)
 
-                    # 3. 살짝 위로 클릭 (방향 조정용)
-                    if not self._click_relative(screen, 'jump_start_point_up', delay_after=0.5):
-                        keyboard.press_and_release('esc')
-                        return False
+                    # 모든 키 해제
+                    keyboard.release('a')
+                    keyboard.release('w')
 
-                    # 4. 맵 닫기
-                    keyboard.press_and_release('esc')
-                    time.sleep(0.5)
+                    time.sleep(0.5)  # 이동 완료 후 안정화
 
-                    # 5. 방향 조정 (나중에 테스트 후 결정)
-                    # keyboard.press_and_release('d')  # 예시
-                    # time.sleep(1.0)
+
+                # WP3 완료 후 WP4 준비: Zoom Out 최대화
+                print(f"INFO: [{self.monitor_id}] WP3 completed. Maximizing zoom out for WP4...")
+
+                with self.io_lock:
+                    # 기준값과 화면 너비 기반 비율 계산
+                    base_offset = 150  # S1 기준
+                    screen_ratios = {
+                        'S1': 1.0,  # 766 (기준)
+                        'S2': 840 / 766,  # ≈ 1.10
+                        'S3': 1.0,  # 767 ≈ 766 (동일 취급)
+                        'S4': 1.0,  # 767 ≈ 766 (동일 취급)
+                        'S5': 1210 / 766  # ≈ 1.58
+                    }
+
+                    # 화면 중앙 좌표 계산
+                    center_x = screen.region[0] + screen.region[2] // 2
+                    center_y = screen.region[1] + screen.region[3] // 2
+
+                    # 화면별 offset 계산
+                    ratio = screen_ratios.get(screen.screen_id, 1.0)
+                    offset = int(base_offset * ratio)
+                    start_x = center_x + offset
+                    start_y = center_y
+
+                    # Ctrl + 마우스 드래그로 zoom out (외곽 → 중앙)
+                    keyboard.press('ctrl')
+                    pyautogui.mouseDown(start_x, start_y, button='left')
+                    pyautogui.dragTo(center_x, center_y, duration=0.5)
+                    pyautogui.mouseUp(button='left')
+                    keyboard.release('ctrl')
+
+                    time.sleep(0.5)  # 줌 아웃 완료 대기
 
                 return True
 

@@ -1139,13 +1139,9 @@ class CombatMonitor(BaseMonitor):
                 return True
 
             elif wp_index == 3:
-                # WP3: 점프 지점 도착 확인 (파티 UI 체크)
-                if self._check_returned_well(screen):
-                    print(f"INFO: [{self.monitor_id}] WP3 reached - Party visible")
-                    return True
-                else:
-                    print(f"INFO: [{self.monitor_id}] WP3 not reached - Party not visible")
-                    return False
+                # WP3: 이동 시퀀스 완료로 도착 간주
+                print(f"INFO: [{self.monitor_id}] WP3 considered reached (movement sequence completed)")
+                return True
 
             elif wp_index == 4:
                 # WP4: 글라이더 시퀀스 완료 확인 (시퀀스 실행 성공 여부로 판단)
@@ -1636,22 +1632,10 @@ class CombatMonitor(BaseMonitor):
 
         try:
             # 웨이포인트 인덱스에 따른 조정 동작 분기 (WP1, WP2 제거)
-            if wp_index in [1, 2]:
-                # WP1, WP2는 UI 기반 이동이므로 추가 조정 불필요
-                print(f"INFO: WP{wp_index} - No adjustment needed (UI-based movement)")
+            if wp_index in [1, 2, 3]:
+                # WP1,2,3: UI/시간 기반 이동이므로 추가 조정 불필요
+                print(f"INFO: [{self.monitor_id}] WP{wp_index} - No adjustment needed (sequence-based movement)")
                 return True
-
-            elif wp_index == 3:  # 점프 시작점
-                # 파티 리더 방향으로 시야 조정
-                keyboard.press_and_release('a')  # 왼쪽으로 회전
-                time.sleep(0.3)
-                keyboard.press_and_release('d')  # 원위치
-                # 파티 리더 방향 다시 확인
-                if not self._check_returned_well(screen):
-                    # 추가 회전 시도
-                    keyboard.press_and_release('d')  # 오른쪽으로 회전
-                    time.sleep(0.3)
-                    keyboard.press_and_release('a')  # 원위치
 
             elif wp_index == 4:  # 글라이더 이륙 지점
                 # 고도 및 방향 조정 (간단한 조정, 실제 글라이더 시퀀스는 _execute_sequence에서 처리)

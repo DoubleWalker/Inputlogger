@@ -631,6 +631,7 @@ class CombatMonitor(BaseMonitor):
                     purchase_template_path = template_paths.get_template(screen.screen_id, 'PURCHASE_BUTTON')
                     purchase_button_loc = image_utils.return_ui_location(purchase_template_path, screen.region,
                                                                          self.confidence)
+                    print(f"DEBUG: Purchase button location: {purchase_button_loc}")
 
                     if purchase_button_loc:
                         # 구매 버튼 찾음 → 다음 단계로

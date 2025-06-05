@@ -74,7 +74,11 @@ class ScreenMonitorInfo:
     retry_count: int = 0
     last_state_change_time: float = 0.0
     s1_completed: bool = False  # ← 새로 추가!
-    wp_progress: int = 0  # ← 추가
+    wp1_step: int = 0             # WP1 진행 단계 (0: 시작, 1: 35초대기, 2: 완료확인)
+    potion_step: int = 0          # 물약 구매 단계 (0: 시작, 1: 대기/재시도, 2: 완료)
+    step_start_time: float = 0.0  # 현재 단계 시작 시간
+    shop_retry_count: int = 0     # 상점 재클릭 횟수
+
 
 # ----------------------------------------------------------------------------
 # [주의] 아래 함수들은 플레이스홀더입니다. 실제 게임 상호작용 로직 구현 필요
@@ -105,7 +109,7 @@ class CombatMonitor(BaseMonitor):
         self.stop_event = None  # 추가: stop_event 초기화
 
         self.screens: List[ScreenMonitorInfo] = []
-        self.confidence = self.config.get('confidence', 0.8) # 신뢰도 설정
+        self.confidence = self.config.get('confidence', 0.75) # 신뢰도 설정
 
         # 필수 템플릿 경로 로드 (getattr으로 안전하게)
         self.arena_template_path = getattr(template_paths, 'ARENA_TEMPLATE', None)
@@ -271,7 +275,7 @@ class CombatMonitor(BaseMonitor):
             return False
 
         max_attempts = 5
-        check_interval = 0.5  # 0.5초 간격으로 확인
+        check_interval = 0.6  # 0.5초 간격으로 확인
         is_arena = False
 
         for attempt in range(max_attempts):
@@ -410,14 +414,12 @@ class CombatMonitor(BaseMonitor):
 
         # 6. BUYING_POTIONS 상태 - 물약 구매 및 귀환 시작
         elif state == ScreenState.BUYING_POTIONS:
-            context = self.location_flag  # 현재 컨텍스트 (ARENA/FIELD)
-            if self._buy_potion_and_initiate_return(screen, context):
+            context = self.location_flag
+            result = self._buy_potion_and_initiate_return(screen, context)
+            if result:
                 self._change_state(screen, ScreenState.RETURNING)
-            else:
-                # 실패 시 재시도 로직
-                screen.retry_count += 1
-                if screen.retry_count > 3:
-                    self._change_state(screen, ScreenState.NORMAL)
+            # else 블록 완전히 제거!
+            # 진행 중일 때는 retry_count 올리지 않음
 
         elif state == ScreenState.RETURNING:
             elapsed = time.time() - screen.last_state_change_time
@@ -486,59 +488,33 @@ class CombatMonitor(BaseMonitor):
                                     self._retry_field_return(screen, is_first_attempt=False)
 
             elif self.location_flag == Location.ARENA:
-                # === ARENA 컨텍스트: 단계별 병렬/순차 처리 ===
+                # === ARENA 컨텍스트: WP1 병렬 처리 후 WP2+ 순차 처리 ===
 
-                # WP 진행상황 초기화 (첫 진입시)
-                if not hasattr(screen, 'wp_progress') or screen.wp_progress == 0:
-                    screen.wp_progress = 1
-                    screen.last_state_change_time = time.time()  # 타이머 리셋
-
-                if screen.wp_progress == 1:
-                    # === WP1 단계: 병렬 처리 ===
-                    if elapsed > 5.0:  # 5초 후 WP1 시작
+                # WP1 처리 (논블로킹, 병렬)
+                if elapsed > 5.0:  # 5초 후 WP1 시작
+                    if self._move_to_wp(screen, 1):  # WP1 완료됨
                         print(
-                            f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Starting WP1 (parallel processing)")
-                        if self._move_to_wp(screen, 1):  # WP1 이동 시도
-                            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: WP1 movement initiated")
-                            screen.wp_progress = 2  # 다음 단계로
-                            screen.last_state_change_time = time.time()  # 타이머 리셋
-                        else:
-                            print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: WP1 movement failed")
-                            self._change_state(screen, ScreenState.NORMAL)  # 실패시 NORMAL로
+                            f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: WP1 completed, starting WP2+ navigation")
 
-                elif screen.wp_progress == 2:
-                    # === WP1 완료 대기 (병렬) ===
-                    if elapsed > 60.0:  # WP1 완료 대기 (아레나 텔레포트 + 입장)
-                        if self._check_reached_wp(screen, 1):
+                        # WP2+ 순차 처리 확인
+                        other_screens_in_navigation = [s for s in self.screens
+                                                       if s.screen_id != screen.screen_id
+                                                       and s.current_state == ScreenState.RETURNING
+                                                       and self.location_flag == Location.ARENA]
+
+                        if not other_screens_in_navigation:
+                            # 다른 화면이 웨이포인트 처리 중이 아니면 바로 시작
                             print(
-                                f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: WP1 completed, proceeding to WP2+")
-                            screen.wp_progress = 3  # WP2 이후 순차 처리 단계로
-                            screen.last_state_change_time = time.time()
+                                f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Starting WP2+ (sequential processing)")
+                            self._waypoint_navigation(stop_event, screen, start_wp=2)
+                            self._change_state(screen, ScreenState.NORMAL)
                         else:
+                            # 다른 화면이 처리 중이면 잠시 후 재시도
                             print(
-                                f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: WP1 not completed after 60s, retrying...")
-                            screen.wp_progress = 1  # WP1 재시도
-                            screen.last_state_change_time = time.time()
-
-                elif screen.wp_progress == 3:
-                    # === WP2 이후: 순차 처리 ===
-                    # 다른 화면이 WP2+ 처리 중인지 확인
-                    other_screens_in_wp2_plus = [s for s in self.screens
-                                                 if s.screen_id != screen.screen_id
-                                                 and s.current_state == ScreenState.RETURNING
-                                                 and hasattr(s, 'wp_progress')
-                                                 and s.wp_progress >= 3]
-
-                    if not other_screens_in_wp2_plus:
-                        # 다른 화면이 WP2+ 처리 중이 아니면 시작
-                        print(
-                            f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Starting WP2+ (sequential processing)")
-                        self._waypoint_navigation(stop_event, screen, start_wp=2)
-                        self._change_state(screen, ScreenState.NORMAL)
-                    else:
-                        # 다른 화면이 처리 중이면 대기
-                        print(
-                            f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waiting for other screen to complete WP2+...")
+                                f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Another screen is processing waypoints, waiting...")
+                            # 3초 후 재시도하도록 타이머 조정
+                            screen.last_state_change_time = time.time() - (elapsed - 3.0)
+                    # WP1이 아직 진행 중이면 다음 루프에서 다시 체크
 
 
     # _check_recovery_complete 함수 (새로 추가 필요)
@@ -598,169 +574,153 @@ class CombatMonitor(BaseMonitor):
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
 
     def _buy_potion_and_initiate_return(self, screen: ScreenMonitorInfo, context: Location) -> bool:
-        print(
-            f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Starting potion purchase sequence (Context: {context.name})...")
-
         try:
-            # 1. 첫 번째 상점 버튼 클릭 (템플릿 → 고정좌표 fallback)
-            shop_clicked = False
+            print(f"DEBUG: [{self.monitor_id}] Screen {screen.screen_id}: potion_step = {screen.potion_step}")
 
-            # 템플릿 시도
-            shop_template_path = template_paths.get_template(screen.screen_id, 'SHOP_BUTTON')
-            if shop_template_path and os.path.exists(shop_template_path):
-                shop_button_loc = image_utils.return_ui_location(shop_template_path, screen.region, self.confidence)
-                if shop_button_loc:
-                    with self.io_lock:
-                        self.win32_click(shop_button_loc[0], shop_button_loc[1])
-                        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Shop clicked via template")
-                        shop_clicked = True
-
-            # 템플릿 실패시 고정 좌표
-            if not shop_clicked:
-                print(f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Template failed, using fixed coords...")
-                with self.io_lock:
-                    if self._click_relative(screen, 'shop_button', delay_after=0.5):
-                        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Shop clicked via fixed coords")
-                        shop_clicked = True
-
-            if not shop_clicked:
-                print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Both shop click methods failed")
-                return False
-
-            # 1-2. 상점 로딩 대기 (락 밖에서 - 병렬)
-            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waiting 15s for shop UI to load...")
-            time.sleep(15.0)
-
-            # 2. 구매 버튼 찾기 (3회 시도 - 올바른 로직으로 수정)
-            purchase_template_path = template_paths.get_template(screen.screen_id, 'PURCHASE_BUTTON')
-            purchase_button_loc = None
-
-            for attempt in range(3):
+            if screen.potion_step == 0:
+                shop_clicked = False
+                # 템플릿 시도
+                shop_template_path = template_paths.get_template(screen.screen_id, 'SHOP_BUTTON')
+                print(f"DEBUG: [{self.monitor_id}] Shop template path: {shop_template_path}")
                 print(
-                    f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Purchase button search attempt {attempt + 1}/3")
+                    f"DEBUG: [{self.monitor_id}] Template exists: {os.path.exists(shop_template_path) if shop_template_path else False}")
+                if shop_template_path and os.path.exists(shop_template_path):
+                    shop_button_loc = image_utils.return_ui_location(shop_template_path, screen.region,
+                                                                         self.confidence)
+                    print(f"DEBUG: [{self.monitor_id}] Shop button location: {shop_button_loc}")
 
-                # 포커스 맞추기
-                image_utils.set_focus(screen.screen_id, delay_after=0.3)
+                    if shop_button_loc:
+                        with self.io_lock:
+                            self.win32_click(shop_button_loc[0], shop_button_loc[1])
+                            shop_clicked = True
+                        print(f"DEBUG: [{self.monitor_id}] Shop clicked via template")
+                    else:
+                        print(f"DEBUG: [{self.monitor_id}] Template matching failed")
+                else:
+                    print(f"DEBUG: [{self.monitor_id}] Template path invalid or file not found")
 
-                # PURCHASE_BUTTON 찾기 시도
+               # 템플릿 실패시 고정 좌표
+                if not shop_clicked:
+                    print(f"DEBUG: [{self.monitor_id}] Trying fixed coordinates...")
+                    with self.io_lock:
+                        if self._click_relative(screen, 'shop_button', delay_after=0.5):
+                            shop_clicked = True
+                            print(f"DEBUG: [{self.monitor_id}] Shop clicked via fixed coords")
+                        else:
+                            print(f"DEBUG: [{self.monitor_id}] Fixed coords also failed")
+
+                if not shop_clicked:
+                    print(f"ERROR: [{self.monitor_id}] Both shop click methods failed!")
+                    return False
+                # 15초 대기 시작
+                print(f"DEBUG: [{self.monitor_id}] Shop clicked successfully, starting 15s wait...")
+                screen.step_start_time = time.time()
+                screen.shop_retry_count = 0
+                screen.potion_step = 1
+                print(f"DEBUG: [{self.monitor_id}] potion_step changed to 1")
+                return False  # 아직 완료 안됨
+
+            elif screen.potion_step == 1:
+                # 대기 및 구매 버튼 찾기 단계
+                elapsed = time.time() - screen.step_start_time
+                required_wait = 15.0 if screen.shop_retry_count == 0 else 10.0
+
+                if elapsed >= required_wait:
+                    # 구매 버튼 찾기 시도
+                    image_utils.set_focus(screen.screen_id, delay_after=0.3)
+                    purchase_template_path = template_paths.get_template(screen.screen_id, 'PURCHASE_BUTTON')
+                    purchase_button_loc = image_utils.return_ui_location(purchase_template_path, screen.region,
+                                                                         self.confidence)
+
+                    if purchase_button_loc:
+                        # 구매 버튼 찾음 → 다음 단계로
+                        screen.potion_step = 2
+                        return False
+                    else:
+                        # 구매 버튼 못찾음 → 재클릭 시도 (최대 2회)
+                        if screen.shop_retry_count < 2:
+                            # 상점 재클릭
+                            shop_reclicked = False
+                            shop_template_path = template_paths.get_template(screen.screen_id, 'SHOP_BUTTON')
+                            if shop_template_path and os.path.exists(shop_template_path):
+                                shop_button_loc = image_utils.return_ui_location(shop_template_path, screen.region,
+                                                                                 self.confidence)
+                                if shop_button_loc:
+                                    with self.io_lock:
+                                        self.win32_click(shop_button_loc[0], shop_button_loc[1])
+                                        shop_reclicked = True
+
+                            if not shop_reclicked:
+                                with self.io_lock:
+                                    if self._click_relative(screen, 'shop_button', delay_after=0.5):
+                                        shop_reclicked = True
+
+                            if shop_reclicked:
+                                # 재클릭 성공 → 10초 대기 시작
+                                screen.step_start_time = time.time()
+                                screen.shop_retry_count += 1
+                                return False
+                            else:
+                                # 재클릭 실패 → 포기
+                                screen.potion_step = 0  # 리셋
+                                return False
+                        else:
+                            # 최대 재시도 도달 → 포기
+                            screen.potion_step = 0  # 리셋
+                            return False
+                else:
+                    # 아직 대기 시간 안됨
+                    return False
+
+            elif screen.potion_step == 2:
+                # 구매 완료 및 나머지 처리
+                purchase_template_path = template_paths.get_template(screen.screen_id, 'PURCHASE_BUTTON')
                 purchase_button_loc = image_utils.return_ui_location(purchase_template_path, screen.region,
                                                                      self.confidence)
-                if purchase_button_loc:
-                    print(
-                        f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: PURCHASE_BUTTON found on attempt {attempt + 1}")
-                    break
 
-                # 찾지 못했고 마지막 시도가 아니라면 상점 버튼 다시 클릭
-                if attempt < 2:  # 0, 1번째 시도에서만 재클릭
-                    print(
-                        f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: PURCHASE_BUTTON not found, re-clicking shop button...")
+                if not purchase_button_loc:
+                    screen.potion_step = 0  # 리셋
+                    return False
 
-                    # 상점 버튼 다시 클릭 (템플릿 → 고정좌표)
-                    shop_reclicked = False
-                    if shop_template_path and os.path.exists(shop_template_path):
-                        shop_button_loc = image_utils.return_ui_location(shop_template_path, screen.region,
-                                                                         self.confidence)
-                        if shop_button_loc:
-                            with self.io_lock:
-                                self.win32_click(shop_button_loc[0], shop_button_loc[1])
-                                print(
-                                    f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Shop re-clicked via template")
-                                shop_reclicked = True
-
-                    if not shop_reclicked:
-                        with self.io_lock:
-                            if self._click_relative(screen, 'shop_button', delay_after=0.5):
-                                print(
-                                    f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Shop re-clicked via fixed coords")
-                                shop_reclicked = True
-
-                    if shop_reclicked:
-                        # 상점 로딩 대기 (재클릭 후)
-                        print(
-                            f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waiting 10s after shop re-click...")
-                        time.sleep(10.0)
-                    else:
-                        print(f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: Failed to re-click shop button")
-
-            if not purchase_button_loc:
-                print(
-                    f"WARNING: [{self.monitor_id}] Screen {screen.screen_id}: PURCHASE_BUTTON not found after 3 attempts with re-clicks. Returning to NORMAL state.")
-                return False
-
-            # ★ 구매버튼 ~ ESC까지 하나의 락으로 통합 ★
-            with self.io_lock:
-
-                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Clicking PURCHASE_BUTTON.")
-                pyautogui.click(purchase_button_loc[0], purchase_button_loc[1])
-
-                # 2-2. 구매 처리 대기
-                time.sleep(0.5)
-
-                # 3. 확인 버튼 처리
-                confirm_template_path = template_paths.get_template(screen.screen_id, 'CONFIRM_BUTTON')
-                if confirm_template_path and os.path.exists(confirm_template_path):
-                    confirm_button_loc = image_utils.return_ui_location(confirm_template_path, screen.region,
-                                                                        self.confidence)
-                    if confirm_button_loc:
-                        print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Clicking CONFIRM_BUTTON.")
-                        pyautogui.click(confirm_button_loc[0], confirm_button_loc[1])
-                        time.sleep(0.5)
-
-                # 4. 상점 닫기 ESC
-                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Closing shop (ESC key 1/2).")
-                keyboard.press_and_release('esc')
-                time.sleep(0.3)
-                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Closing shop (ESC key 2/2).")
-                keyboard.press_and_release('esc')
-                time.sleep(0.7)
-
-            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Potion purchase sequence finished.")
-
-            # 5. 귀환/복귀 시작 (Context에 따라 분기) - 기존 코드와 동일
-            if context == Location.FIELD:
-                print(
-                    f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Context is FIELD. Initiating return action...")
-
-                # 필드 귀환은 전체를 락으로 보호 (복잡한 시퀀스)
+                # 구매 버튼부터 ESC까지 하나의 락으로 처리
                 with self.io_lock:
-                    # 1. 메뉴 클릭 (고정 위치)
-                    if not self._click_relative(screen, 'main_menu_button', delay_after=1.0):
-                        return False
+                    pyautogui.click(purchase_button_loc[0], purchase_button_loc[1])
+                    time.sleep(1)
 
-                    # 2. 귀환 목적지 클릭 (템플릿 대신 고정 위치 사용)
-                    if not self._click_relative(screen, 'field_schedule_button', delay_after=1.0):
-                        return False
+                    # 확인 버튼 처리
+                    confirm_template_path = template_paths.get_template(screen.screen_id, 'CONFIRM_BUTTON')
+                    if confirm_template_path and os.path.exists(confirm_template_path):
+                        confirm_button_loc = image_utils.return_ui_location(confirm_template_path, screen.region,
+                                                                            self.confidence)
+                        if confirm_button_loc:
+                            pyautogui.click(confirm_button_loc[0], confirm_button_loc[1])
+                            time.sleep(0.5)
 
-                    # 3. 확인 클릭 (고정 위치)
-                    if not self._click_relative(screen, 'field_return_reset', delay_after=1.0):
-                        return False
+                    # 상점 닫기
+                    keyboard.press_and_release('esc')
+                    time.sleep(0.5)
+                    keyboard.press_and_release('esc')
+                    time.sleep(1)
 
-                    # 4. 닫기 클릭 (고정 위치)
-                    self._click_relative(screen, 'field_return_start', delay_after=1.0)
+                # Context별 후속 처리 (기존 로직 유지)
+                if context == Location.FIELD:
+                    with self.io_lock:
+                        if not self._click_relative(screen, 'main_menu_button', delay_after=1.0):
+                            screen.potion_step = 0  # 리셋
+                            return False
+                        if not self._click_relative(screen, 'field_schedule_button', delay_after=1.0):
+                            screen.potion_step = 0  # 리셋
+                            return False
+                        if not self._click_relative(screen, 'field_return_reset', delay_after=1.0):
+                            screen.potion_step = 0  # 리셋
+                            return False
+                        self._click_relative(screen, 'field_return_start', delay_after=1.0)
 
-                return True
-
-            elif context == Location.ARENA:
-                print(
-                    f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Context is ARENA. Return initiation not needed here.")
-                return True  # 아레나에서는 후속 웨이포인트 네비게이션이 처리
-
-            else:  # UNKNOWN 등
-                print(
-                    f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Unknown context '{context.name}'. Cannot initiate return.")
-                return False
+                screen.potion_step = 0  # 리셋
+                return True  # 완료
 
         except Exception as e:
-            print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Exception during potion purchase/return: {e}")
-            traceback.print_exc()
-            try:  # 에러 시 상점 닫기 시도
-                with self.io_lock:
-                    keyboard.press_and_release('esc')
-                    time.sleep(1.0)
-                    keyboard.press_and_release('esc')
-            except Exception as esc_e:
-                print(
-                    f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Error pressing ESC during exception handling: {esc_e}")
+            screen.potion_step = 0  # 오류 시 리셋
             return False
 
     def _process_recovery(self, screen: ScreenMonitorInfo) -> bool:
@@ -992,105 +952,68 @@ class CombatMonitor(BaseMonitor):
         """격전지 내 웨이포인트(WP1, WP2)로 UI 클릭을 통해 이동"""
         try:
             if wp_index == 1:
-                # WP1 (아레나) 이동 로직
-                # 1. 메뉴 버튼 클릭 (IO_LOCK 필요)
-                with self.io_lock:
-                    if not self._click_relative(screen, 'main_menu_button', delay_after=1.0):
-                        print(f"ERROR: [{self.monitor_id}] Failed to click main menu button")
+                # WP1 - 단계별 논블로킹 처리
+                if screen.wp1_step == 0:
+                    # 초기 단계: 메뉴 클릭부터 Y키까지
+                    with self.io_lock:
+                        if not self._click_relative(screen, 'main_menu_button', delay_after=1.0):
+                            return False
+
+                        # 아이콘 찾기 및 클릭
+                        arena_icon_template = template_paths.get_template(screen.screen_id, 'ARENA_MENU_ICON')
+                        if not arena_icon_template or not os.path.exists(arena_icon_template):
+                            keyboard.press_and_release('esc')
+                            return False
+
+                        icon_pos = image_utils.return_ui_location(arena_icon_template, screen.region, self.confidence)
+                        if not icon_pos:
+                            keyboard.press_and_release('esc')
+                            return False
+
+                        pyautogui.click(icon_pos)
+                        time.sleep(1.0)
+                        keyboard.press_and_release('y')
+
+                    # 35초 대기 시작
+                    screen.step_start_time = time.time()
+                    screen.wp1_step = 1
+                    return False  # 아직 완료 안됨
+
+                elif screen.wp1_step == 1:
+                    # 35초 대기 중
+                    elapsed = time.time() - screen.step_start_time
+                    if elapsed >= 35.0:
+                        screen.wp1_step = 2
+                    return False  # 아직 대기 중
+
+                elif screen.wp1_step == 2:
+                    # 아레나 입장 UI 확인 및 완료 처리
+                    arena_entry_path = template_paths.get_template(screen.screen_id, 'ARENA_ENTRY_UI')
+                    if not arena_entry_path:
+                        screen.wp1_step = 0  # 리셋
                         return False
 
-                # 2. 격전지 아이콘 템플릿 경로 확인 (락 밖에서)
-                arena_icon_template = template_paths.get_template(screen.screen_id, 'ARENA_MENU_ICON')
-                if not arena_icon_template or not os.path.exists(arena_icon_template):
-                    print(f"ERROR: [{self.monitor_id}] Arena menu icon template not found")
-                    with self.io_lock:
-                        keyboard.press_and_release('esc')  # 메뉴창 닫기
-                    return False
-
-                # 3. 아이콘 위치 찾기 (락 밖에서)
-                icon_pos = image_utils.return_ui_location(arena_icon_template, screen.region, self.confidence)
-                if not icon_pos:
-                    print(f"ERROR: [{self.monitor_id}] Arena menu icon not found")
-                    with self.io_lock:
-                        keyboard.press_and_release('esc')  # 메뉴창 닫기
-                    return False
-
-                # 4. 아이콘 클릭 및 확인 (IO_LOCK 필요)
-                with self.io_lock:
-                    pyautogui.click(icon_pos)
-                    time.sleep(1.0)
-                    # Y 키 입력으로 확인
-                    keyboard.press_and_release('y')
-                    print(f"INFO: [{self.monitor_id}] Pressed Y to confirm arena teleport")
-
-                # 5. 이동 대기 (락 밖에서 - 병렬 처리 가능)
-                loading_wait_time = 35
-                print(
-                    f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waiting for arena loading ({loading_wait_time}s)...")
-                time.sleep(loading_wait_time)
-
-                # 6. 격전지 입장 UI 확인 (락 밖에서 - 병렬 처리 가능)
-                arena_entry_path = template_paths.get_template(screen.screen_id, 'ARENA_ENTRY_UI')
-                if not arena_entry_path:
-                    print(f"ERROR: [{self.monitor_id}] Arena entry UI template not found")
-                    return False
-
-                # UI 존재 확인 (여러 번 시도)
-                entry_found = False
-                max_entry_attempts = 5
-                for attempt in range(max_entry_attempts):
-                    if image_utils.is_image_present(arena_entry_path, screen.region, self.confidence):
-                        entry_found = True
-                        break
-                    print(
-                        f"INFO: [{self.monitor_id}] Arena entry UI not found yet (attempt {attempt + 1}/{max_entry_attempts})")
-                    time.sleep(2.0)
-
-                if not entry_found:
-                    print(
-                        f"WARN: [{self.monitor_id}] Arena entry UI not found with threshold 0.85. Retrying with lowered threshold...")
-
-                    # 1차 재시도: 임계값 0.8로 5회
-                    for attempt in range(5):
-                        if image_utils.is_image_present(arena_entry_path, screen.region, threshold=0.8):
+                    # UI 확인 (임계값 단계적 시도)
+                    entry_found = False
+                    for threshold in [self.confidence, 0.8, 0.72]:
+                        if image_utils.is_image_present(arena_entry_path, screen.region, threshold=threshold):
                             entry_found = True
-                            print(
-                                f"INFO: [{self.monitor_id}] Arena entry UI found with threshold 0.8 on attempt {attempt + 1}")
                             break
                         time.sleep(1.0)
 
                     if not entry_found:
-                        print(
-                            f"WARN: [{self.monitor_id}] Arena entry UI still not found with threshold 0.8. Waiting 5s and trying threshold 0.72...")
-                        time.sleep(5.0)
-
-                        # 2차 재시도: 임계값 0.72로 5회
-                        for attempt in range(5):
-                            if image_utils.is_image_present(arena_entry_path, screen.region, threshold=0.72):
-                                entry_found = True
-                                print(
-                                    f"INFO: [{self.monitor_id}] Arena entry UI found with threshold 0.72 on attempt {attempt + 1}")
-                                break
-                            time.sleep(1.0)
-
-                if not entry_found:
-                    print(
-                        f"ERROR: [{self.monitor_id}] Arena entry UI not found after all retry attempts. Aborting WP1.")
-                    return False
-
-                # 7. 첫 번째 옵션 클릭 (IO_LOCK 필요)
-                with self.io_lock:
-                    if not self._click_relative(screen, 'arena_entry_option1', delay_after=1.0):
-                        print(f"ERROR: [{self.monitor_id}] Failed to click arena entry option")
+                        screen.wp1_step = 0  # 리셋
                         return False
 
-                # 8. 아레나 입장 완료 대기 (락 밖에서 - 병렬 처리 가능)
-                teleport_wait_time = 18.0  # 또는 적절한 시간
-                print(f"INFO: [{self.monitor_id}] Waiting {teleport_wait_time}s for arena entry to complete...")
-                time.sleep(teleport_wait_time)
+                    # 최종 클릭 및 완료
+                    with self.io_lock:
+                        if not self._click_relative(screen, 'arena_entry_option1', delay_after=1.0):
+                            screen.wp1_step = 0  # 리셋
+                            return False
 
-                print(f"INFO: [{self.monitor_id}] Successfully initiated arena entry")
-                return True
+                    time.sleep(10.0)  # 이 부분도 나중에 논블로킹으로 변경 가능
+                    screen.wp1_step = 0  # 리셋
+                    return True  # 완료
 
             elif wp_index == 2:
                 # WP2 (격전지 내 특정 위치/탑) 이동 로직
@@ -1149,6 +1072,8 @@ class CombatMonitor(BaseMonitor):
                     keyboard.press_and_release('m')
             except:
                 pass
+        except Exception as e:
+            screen.wp1_step = 0  # 오류 시 리셋
             return False
 
     def _check_reached_wp(self, screen: ScreenMonitorInfo, wp_index: int) -> bool:

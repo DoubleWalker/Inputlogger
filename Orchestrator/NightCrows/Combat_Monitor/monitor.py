@@ -491,30 +491,61 @@ class CombatMonitor(BaseMonitor):
                 # === ARENA 컨텍스트: WP1 병렬 처리 후 WP2+ 순차 처리 ===
 
                 # WP1 처리 (논블로킹, 병렬)
+                # ARENA 컨텍스트에서 WP1 처리 부분만 수정
                 if elapsed > 5.0:  # 5초 후 WP1 시작
-                    if self._move_to_wp(screen, 1):  # WP1 완료됨
+                    if not hasattr(screen, 'wp1_completed'):
+                        screen.wp1_completed = False
+
+                    if not screen.wp1_completed and self._move_to_wp(screen, 1):  # WP1 완료됨
+                        screen.wp1_completed = True
                         print(
                             f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: WP1 completed, starting WP2+ navigation")
 
-                        # WP2+ 순차 처리 확인
+                    if screen.wp1_completed:  # WP1이 완료된 상태에서만 WP2+ 체크
                         other_screens_in_navigation = [s for s in self.screens
                                                        if s.screen_id != screen.screen_id
                                                        and s.current_state == ScreenState.RETURNING
                                                        and self.location_flag == Location.ARENA]
 
-                        if not other_screens_in_navigation:
-                            # 다른 화면이 웨이포인트 처리 중이 아니면 바로 시작
-                            print(
-                                f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Starting WP2+ (sequential processing)")
+                        # ↓ 여기서부터 기존 코드를 완전히 대체! ↓
+                    if screen.wp1_completed:
+                        # === 개선된 분기 구조가 여기에 들어갑니다! ===
+                        # 1. 대기 큐 관리
+                        if not hasattr(self, 'wp2_queue'):
+                            self.wp2_queue = []
+
+                        if screen not in self.wp2_queue:
+                            screen.wp1_completion_time = time.time()
+                            self.wp2_queue.append(screen)
+                            self.wp2_queue.sort(key=lambda s: s.wp1_completion_time)
+                            print(f"INFO: Screen {screen.screen_id} added to WP2+ queue")
+
+                        # 2. 우선권 체크
+                        has_priority = (self.wp2_queue and self.wp2_queue[0] == screen)
+
+                        if has_priority:
+                            # 우선권 있음 → 바로 실행
+                            print(f"INFO: Screen {screen.screen_id} has priority! Starting WP2+...")
                             self._waypoint_navigation(stop_event, screen, start_wp=2)
                             self._change_state(screen, ScreenState.NORMAL)
+                            self.wp2_queue.pop(0)
                         else:
-                            # 다른 화면이 처리 중이면 잠시 후 재시도
-                            print(
-                                f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Another screen is processing waypoints, waiting...")
-                            # 3초 후 재시도하도록 타이머 조정
-                            screen.last_state_change_time = time.time() - (elapsed - 3.0)
-                    # WP1이 아직 진행 중이면 다음 루프에서 다시 체크
+                            # 우선권 없음 → 기존 로직으로 체크
+                            other_screens_in_navigation = [s for s in self.screens
+                                                           if s.screen_id != screen.screen_id
+                                                           and s.current_state == ScreenState.RETURNING
+                                                           and self.location_flag == Location.ARENA]
+
+                            if not other_screens_in_navigation:
+                                print(f"INFO: Screen {screen.screen_id}: No other screens, executing WP2+...")
+                                self._waypoint_navigation(stop_event, screen, start_wp=2)
+                                self._change_state(screen, ScreenState.NORMAL)
+                            else:
+                                queue_position = self.wp2_queue.index(
+                                    screen) + 1 if screen in self.wp2_queue else "?"
+                                print(
+                                    f"INFO: Screen {screen.screen_id} waiting in queue (position: {queue_position})")
+                        # === 기존 코드 대체 끝 ===
 
 
     # _check_recovery_complete 함수 (새로 추가 필요)
@@ -1030,7 +1061,7 @@ class CombatMonitor(BaseMonitor):
                     # 맵 열기
                     keyboard.press_and_release('m')
                     print(f"INFO: [{self.monitor_id}] Opened map interface")
-                    time.sleep(1.0)  # 맵 로딩 대기
+                    time.sleep(2.0)  # 맵 로딩 대기
 
                     # 첫 번째 고정 좌표 클릭
                     if not self._click_relative(screen, 'tower_click_1', delay_after=0.5):
@@ -1054,7 +1085,7 @@ class CombatMonitor(BaseMonitor):
                     keyboard.press_and_release('y')
                     print(f"INFO: [{self.monitor_id}] Pressed Y to confirm teleport")
 
-                tower_teleport_wait_time = 5.0  # 적절한 시간으로 조정
+                tower_teleport_wait_time = 2.5  # 적절한 시간으로 조정
                 print(f"INFO: Waiting {tower_teleport_wait_time}s for tower teleport to complete...")
                 time.sleep(tower_teleport_wait_time)
 
@@ -1163,7 +1194,7 @@ class CombatMonitor(BaseMonitor):
                 with self.io_lock:
                     # 1단계: WASD 이동
                     keyboard.press('a')
-                    time.sleep(1)
+                    time.sleep(1.6)
                     keyboard.press('w')
                     time.sleep(6)
                     keyboard.release('a')

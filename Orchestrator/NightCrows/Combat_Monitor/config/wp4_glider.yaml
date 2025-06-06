@@ -1,25 +1,28 @@
 wp4_glider_sequence:
   - phase: "jump_start"
-    description: "점프 후 즉시 글라이더에 탑승하고 초기 상승"
     actions:
-      # 점프
-      - { type: "key_press", key: "space", duration: 0.2 }
-      # 글라이더 탑승
-      - { type: "key_press", key: "shift", duration: 0.3 }
-      # 초기 상승 (S키 누른 상태에서 스페이스)
-      - { type: "key_hold", key: "s", duration: 0.1 }
-      - { type: "key_press", key: "space", duration: 0.1 }
-      - { type: "key_release", key: "s", duration: 0.5 }
+      # 점프 2회
+      - { type: "key_press", key: "space", duration: 0.3 }
+      - { type: "key_press", key: "space", duration: 0.3 }
+
+      # 글라이더 탑승 (즉시)
+      - { type: "key_press", key: "shift", duration: 0.2 }  # duration 0으로!
+
+      # 바로 S+Space 상승 (wait 없이!)
+      - { type: "key_hold", key: "s", duration: 0.2 }      # S키 즉시 누름
+      - { type: "key_press", key: "space", duration: 0.3 } # Space 바로 입력
+      - { type: "key_release", key: "s", duration: 0.3 }   # S키 해제
+      - {type: "key_press", key: "shift", duration: 2.0}
 
   - phase: "maintain_flight"
-    description: "자연스럽게 비행하며 정기적으로 고도 유지"
-    repeat: 5  # 총 5회 반복 (필요에 따라 조정)
-    interval: 3.0  # 3초 간격으로 고도 유지 동작 수행
+    repeat: 5
+    interval: 2.0  # 1.8 → 2.0
     actions:
-      # 고도 유지 (S키 + 스페이스)
-      - { type: "key_hold", key: "s", duration: 0.2 }
-      - { type: "key_press", key: "space", duration: 0.1 }
-      - { type: "key_release", key: "s", duration: 0.3 }
+      - { type: "key_press", key: "shift", duration: 0.6 }     # 0.5 → 0.6
+      - { type: "key_hold", key: "s", duration: 0.3 }         # 0.2 → 0.3
+      - { type: "key_press", key: "space", duration: 0.4 }    # 0.3 → 0.4
+      - { type: "key_release", key: "s", duration: 0.7 }      # 0.6 → 0.7
+      - { type: "key_press", key: "shift", duration: 0.2 }    # 0.1 → 0.2
 
   - phase: "landing"
     description: "목적지 도착 후 착륙"
@@ -27,6 +30,6 @@ wp4_glider_sequence:
       # 착륙 준비 (잠시 대기)
       - { type: "wait", duration: 1.0 }
       # 착륙 (스페이스)
-      - { type: "key_press", key: "space", duration: 0.3 }
+      - { type: "key_press", key: "Q", duration: 0.3 }
       # 안정화 대기
       - { type: "wait", duration: 0.5 }

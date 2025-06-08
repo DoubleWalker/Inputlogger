@@ -49,7 +49,7 @@ FIXED_UI_COORDS = {
         'jump_start_point_up': (1, 10),  # ← 살짝 위 (방향 조정)
         'shop_button': (56, 43),
         'tower_click_1': (711, 66),  #
-        'tower_click_2': (721, 185),  #
+        'tower_click_2': (724, 185),  #
           #
     },
     'S2': {

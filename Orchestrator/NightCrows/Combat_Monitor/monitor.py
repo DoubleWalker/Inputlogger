@@ -1043,9 +1043,18 @@ class CombatMonitor(BaseMonitor):
                             screen.wp1_step = 0  # 리셋
                             return False
 
-                    time.sleep(10.0)  # 이 부분도 나중에 논블로킹으로 변경 가능
-                    screen.wp1_step = 0  # 리셋
-                    return True  # 완료
+                    # 15초 대기를 논블로킹으로 변경
+                    screen.step_start_time = time.time()  # 대기 시작 시간 기록
+                    screen.wp1_step = 3  # 새로운 단계 추가
+                    return False  # 아직 완료 안됨
+
+                elif screen.wp1_step == 3:
+                    # 15초 대기 중
+                    elapsed = time.time() - screen.step_start_time
+                    if elapsed >= 15.0:
+                        screen.wp1_step = 0  # 리셋
+                        return True  # 완료
+                    return False  # 아직 대기 중
 
             elif wp_index == 2:
                 # WP2 (격전지 내 특정 위치/탑) 이동 로직

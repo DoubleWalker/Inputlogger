@@ -21,7 +21,7 @@ wp4_glider_sequence:
       - { type: "key_press", key: "shift", duration: 0.6 }     # 0.5 → 0.6
       - { type: "key_hold", key: "s", duration: 0.3 }         # 0.2 → 0.3
       - { type: "key_press", key: "space", duration: 0.4 }    # 0.3 → 0.4
-      - { type: "key_release", key: "s", duration: 0.7 }      # 0.6 → 0.7
+      - { type: "key_release", key: "s", duration: 0.5 }      # 0.6 → 0.7
       - { type: "key_press", key: "shift", duration: 0.2 }    # 0.1 → 0.2
 
   - phase: "landing"

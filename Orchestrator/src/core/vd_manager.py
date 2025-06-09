@@ -1,10 +1,12 @@
 import cv2
 import numpy as np
 import pyautogui
-import keyboard
 import time
+import win32api
+import win32con
 from enum import Enum
 from ..utils.config import TASKBAR_CONFIG
+
 
 class VirtualDesktop(Enum):
     VD1 = "VD1"  # 게임1
@@ -44,8 +46,33 @@ class VDManager:
             print(f"VD 체크 중 에러 발생: {e}")
             return VirtualDesktop.OTHER
 
+    def send_key_combination(self, ctrl=False, win=False, key_code=None):
+        """저수준 키 조합 전송"""
+        try:
+            # 키 누르기
+            if ctrl:
+                win32api.keybd_event(win32con.VK_CONTROL, 0, 0, 0)
+            if win:
+                win32api.keybd_event(win32con.VK_LWIN, 0, 0, 0)
+            if key_code:
+                win32api.keybd_event(key_code, 0, 0, 0)
+
+            time.sleep(0.1)
+
+            # 키 떼기 (역순)
+            if key_code:
+                win32api.keybd_event(key_code, 0, win32con.KEYEVENTF_KEYUP, 0)
+            if win:
+                win32api.keybd_event(win32con.VK_LWIN, 0, win32con.KEYEVENTF_KEYUP, 0)
+            if ctrl:
+                win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_KEYUP, 0)
+
+        except Exception as e:
+            print(f"키 입력 오류: {e}")
+
     def switch_to(self, target_vd: VirtualDesktop):
-        """지정된 VD로 전환"""
+        print(f"DEBUG: switch_to called - target: {target_vd.name}")
+
         if target_vd == VirtualDesktop.OTHER:
             return
 
@@ -53,28 +80,22 @@ class VDManager:
         if current_vd == target_vd:
             return
 
-        if current_vd == VirtualDesktop.OTHER:
-            # OTHER에서 VD1으로 = 오른쪽 한 번
-            if target_vd == VirtualDesktop.VD1:
-                keyboard.press('ctrl+win+right')
-                time.sleep(0.1)
-                keyboard.release('ctrl+win+right')
-            # OTHER에서 VD2로 = 오른쪽 두 번
-            elif target_vd == VirtualDesktop.VD2:
-                for _ in range(2):
-                    keyboard.press('ctrl+win+right')
-                    time.sleep(0.1)
-                    keyboard.release('ctrl+win+right')
-                    time.sleep(0.2)  # 두 번째 이동 전 약간의 대기
+        print(f"DEBUG: Switching from {current_vd.name} to {target_vd.name}")
 
-        # VD1에서 VD2로 = 오른쪽 한 번
-        elif current_vd == VirtualDesktop.VD1 and target_vd == VirtualDesktop.VD2:
-            keyboard.press('ctrl+win+right')
-            time.sleep(0.1)
-            keyboard.release('ctrl+win+right')
+        # 1단계: 작업보기 버튼 클릭 (고정 위치)
+        task_view_x = 351  # 실제 좌표로 수정 필요
+        task_view_y = 1064  # 실제 좌표로 수정 필요
+        pyautogui.click(task_view_x, task_view_y)
+        time.sleep(1.0)  # 작업보기 UI 로딩 대기
 
-        # VD2에서 VD1로 = 왼쪽 한 번
-        elif current_vd == VirtualDesktop.VD2 and target_vd == VirtualDesktop.VD1:
-            keyboard.press('ctrl+win+left')
-            time.sleep(0.1)
-            keyboard.release('ctrl+win+left')
+        # 2단계: 목표 VD 클릭 (고정 위치)
+        vd_positions = {
+            VirtualDesktop.VD1: (282, 63),  # 실제 좌표로 수정 필요
+            VirtualDesktop.VD2: (463, 63)  # 실제 좌표로 수정 필요
+        }
+
+        target_pos = vd_positions.get(target_vd)
+        if target_pos:
+            pyautogui.click(target_pos[0], target_pos[1])
+            time.sleep(1.5)  # VD 전환 완료 대기
+            print(f"DEBUG: VD switch completed to {target_vd.name}")

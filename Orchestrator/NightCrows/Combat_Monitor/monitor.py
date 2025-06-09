@@ -1201,14 +1201,25 @@ class CombatMonitor(BaseMonitor):
                 print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Moving to WP3 (Jump point)")
 
                 with self.io_lock:
-                    # 1단계: WASD 이동
-                    keyboard.press('a')
-                    time.sleep(1.6)
-                    keyboard.press('w')
-                    time.sleep(6)
-                    keyboard.release('a')
-                    keyboard.release('w')
-                    time.sleep(0.5)
+                    # 1단계: WASD 이동 (S5는 다른 타이밍)
+                    if screen.screen_id == 'S5':
+                        # S5 전용 타이밍
+                        keyboard.press('a')
+                        time.sleep(1.0)  #
+                        keyboard.press('w')
+                        time.sleep(5.0)  #
+                        keyboard.release('a')
+                        keyboard.release('w')
+                        time.sleep(0.5)  #
+                    else:
+                        # S1~S4 기본 타이밍
+                        keyboard.press('a')
+                        time.sleep(1.3)
+                        keyboard.press('w')
+                        time.sleep(5.5)
+                        keyboard.release('a')
+                        keyboard.release('w')
+                        time.sleep(0.5)
 
                     # 2단계: 줌아웃을 위한 변수 정의
                     center_x = screen.region[0] + screen.region[2] // 2

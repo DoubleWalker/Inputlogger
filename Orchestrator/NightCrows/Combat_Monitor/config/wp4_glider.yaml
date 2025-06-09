@@ -15,7 +15,7 @@ wp4_glider_sequence:
       - {type: "key_press", key: "shift", duration: 2.0}
 
   - phase: "maintain_flight"
-    repeat: 5
+    repeat: 4
     interval: 2.0  # 1.8 → 2.0
     actions:
       - { type: "key_press", key: "shift", duration: 0.6 }     # 0.5 → 0.6
@@ -29,7 +29,8 @@ wp4_glider_sequence:
     actions:
       # 착륙 준비 (잠시 대기)
       - { type: "wait", duration: 1.0 }
-      # 착륙 (스페이스)
+      # 착륙
+      - { type: "key_press", key: "F", duration: 0.3 }
       - { type: "key_press", key: "Q", duration: 0.3 }
       # 안정화 대기
       - { type: "wait", duration: 0.5 }

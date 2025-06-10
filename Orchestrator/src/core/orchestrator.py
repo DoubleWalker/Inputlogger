@@ -69,14 +69,14 @@ class BaseMonitor:
 
 # 각 컴포넌트의 main.py 경로
 COMPONENT_PATHS = {
-    "DP1": Path("NightCrows/Daily_Present/main.py"),
-    "MO1": Path("NightCrows/Mail_Opener/main.py"),
-    "SRM1": Path("NightCrows/Status_Recovery_Monitor/main.py"),
-    "SM1": Path("NightCrows/System_Monitor/main.py"),
-    "DP2": Path("Raven2/Daily_Present/main.py"),
-    "MO2": Path("Raven2/Mail_Opener/main.py"),
-    "SRM2": Path("Raven2/Combat_Monitor/monitor.py"),
-    "SM2": Path("Raven2/System_Monitor/main.py"),
+    "DP1": Path("Orchestrator/NightCrows/Daily_Present/main.py"),
+    "MO1": Path("Orchestrator/NightCrows/Mail_Opener/main.py"),
+    "SRM1": Path("Orchestrator/NightCrows/Status_Recovery_Monitor/main.py"),
+    "SM1": Path("Orchestrator/NightCrows/System_Monitor/main.py"),
+    "DP2": Path("Orchestrator/Raven2/Daily_Present/main.py"),
+    "MO2": Path("Orchestrator/Raven2/Mail_Opener/main.py"),
+    "SRM2": Path("Orchestrator/Raven2/Combat_Monitor/monitor.py"),
+    "SM2": Path("Orchestrator/Raven2/System_Monitor/main.py"),
 }
 
 

@@ -203,7 +203,7 @@ class CombatMonitor:
     def replenish_potions(self, screen_info: CombatScreenInfo) -> bool:
         try:
             print(f"[{screen_info.window_id}] 물약 보충 시작")
-            time.sleep(1.0) # 대기 시간 줄임
+            time.sleep(2.5) # 대기 시간 줄임
 
             # 상점 UI 찾기 (최대 3번 시도)
             shop_ui_path = TEMPLATE_PATHS['potion']['shop_ui'].get(screen_info.window_id)

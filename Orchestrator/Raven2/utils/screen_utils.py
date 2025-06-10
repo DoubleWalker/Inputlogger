@@ -1,4 +1,4 @@
-# Orchestrator/NightCrows/utils/screen_utils.py
+# Orchestrator/Raven2/utils/screen_utils.py
 from typing import Dict
 import cv2
 import numpy as np
@@ -6,34 +6,34 @@ import pyautogui
 import keyboard
 import time
 import random
-from .screen_info import SCREEN_REGIONS
+from .screen_info import SCREEN_REGIONS, FIXED_UI_COORDS
 from .image_utils import set_focus, is_image_present
 
 
 class TaskScreenPreparer:
-    """NightCrows DP/MO 작업 실행 전 화면 준비 및 정리"""
+    """Raven2 DP/MO 작업 실행 전 화면 준비 및 정리"""
 
     def __init__(self, confidence_threshold: float = 0.85):
         self.confidence_threshold = confidence_threshold
         # 화면별 X 버튼 템플릿
         self.close_x_templates = {
-            'S1': r"C:\Users\yjy16\template\NightCrows\close_x_s1.png",
-            'S2': r"C:\Users\yjy16\template\NightCrows\close_x_s2.png",
-            'S3': r"C:\Users\yjy16\template\NightCrows\close_x_s3.png",
-            'S4': r"C:\Users\yjy16\template\NightCrows\close_x_s4.png",
-            'S5': r"C:\Users\yjy16\template\NightCrows\close_x_s5.png",
+            'S1': r"C:\Users\yjy16\template\RAVEN2\close_x_s1.png",
+            'S2': r"C:\Users\yjy16\template\RAVEN2\close_x_s2.png",
+            'S3': r"C:\Users\yjy16\template\RAVEN2\close_x_s3.png",
+            'S4': r"C:\Users\yjy16\template\RAVEN2\close_x_s4.png",
+            'S5': r"C:\Users\yjy16\template\RAVEN2\close_x_s5.png",
         }
 
     def prepare_all_screens(self):
         """모든 화면(S1~S5) 정리 및 준비"""
-        print("TaskScreenPreparer: Preparing NightCrows screens for task execution...")
+        print("TaskScreenPreparer: Preparing Raven2 screens for task execution...")
 
         for screen_id in ['S1', 'S2', 'S3', 'S4', 'S5']:
             print(f"  Preparing screen {screen_id}...")
             self._prepare_single_screen(screen_id)
             time.sleep(0.3)  # 화면 간 딜레이
 
-        print("TaskScreenPreparer: All NightCrows screens prepared successfully")
+        print("TaskScreenPreparer: All Raven2 screens prepared successfully")
 
     def _prepare_single_screen(self, screen_id: str):
         """개별 화면 정리"""
@@ -43,16 +43,41 @@ class TaskScreenPreparer:
                 print(f"    Warning: Failed to set focus on {screen_id}")
                 return
 
-            # 2. ESC 키 입력 (기본 UI 정리)
+            # 2. ESC 키 입력 (잠금화면 해제)
             keyboard.press_and_release('esc')
             time.sleep(0.3)
 
-            # 3. X 버튼이 있는 경우에만 팝업 정리
+            # 3. 확인버튼 클릭 (무조건 실행)
+            self._click_confirm_button(screen_id)
+
+            # 4. X 버튼이 있는 경우에만 클릭 (조건부 실행)
             if self._has_close_button(screen_id):
-                self._clean_popups_nightcrows(screen_id)
+                self._click_close_button(screen_id)
 
         except Exception as e:
             print(f"    Error preparing screen {screen_id}: {e}")
+
+    def _click_confirm_button(self, screen_id: str):
+        """잠금화면 해제 후 나타나는 확인버튼 클릭 (무조건 실행)"""
+        try:
+            # FIXED_UI_COORDS에서 확인버튼 좌표 가져오기
+            if screen_id in FIXED_UI_COORDS and 'confirm_button' in FIXED_UI_COORDS[screen_id]:
+                screen_region = SCREEN_REGIONS[screen_id]
+                relative_coords = FIXED_UI_COORDS[screen_id]['confirm_button']
+
+                # 절대 좌표 계산
+                click_x = screen_region[0] + relative_coords[0]
+                click_y = screen_region[1] + relative_coords[1]
+
+                # 확인버튼 클릭
+                pyautogui.click(click_x, click_y)
+                time.sleep(0.2)
+                print(f"    Clicked confirm button on {screen_id}")
+            else:
+                print(f"    Warning: Confirm button coordinates not found for {screen_id}")
+
+        except Exception as e:
+            print(f"    Error clicking confirm button on {screen_id}: {e}")
 
     def _has_close_button(self, screen_id: str) -> bool:
         """X 버튼이 있는지 확인"""
@@ -66,8 +91,8 @@ class TaskScreenPreparer:
         screen_region = SCREEN_REGIONS[screen_id]
         return is_image_present(template_path, screen_region, self.confidence_threshold)
 
-    def _clean_popups_nightcrows(self, screen_id: str):
-        """NightCrows 팝업 정리 - X 템플릿 찾아서 클릭"""
+    def _click_close_button(self, screen_id: str):
+        """X 버튼 템플릿 찾아서 클릭"""
         screen_region = SCREEN_REGIONS[screen_id]
         template_path = self.close_x_templates.get(screen_id)
 
@@ -109,4 +134,4 @@ class TaskScreenPreparer:
                     print(f"    Closed popup on {screen_id} at ({click_x}, {click_y})")
 
         except Exception as e:
-            print(f"    Error cleaning popups on {screen_id}: {e}")
+            print(f"    Error cleaning close button on {screen_id}: {e}")

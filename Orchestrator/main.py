@@ -14,8 +14,8 @@ if __name__ == "__main__":
     print(f"Project Root (estimated): {current_dir}")
 
     # 타임 슬라이스 시간 설정 (분 단위)
-    vd1_minutes = 1
-    vd2_minutes = 1
+    vd1_minutes = 3
+    vd2_minutes = 3
 
     orchestrator = None
     try:

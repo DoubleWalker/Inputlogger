@@ -90,8 +90,8 @@ class VDManager:
 
         # 2단계: 목표 VD 클릭 (고정 위치)
         vd_positions = {
-            VirtualDesktop.VD1: (282, 63),  # 실제 좌표로 수정 필요
-            VirtualDesktop.VD2: (463, 63)  # 실제 좌표로 수정 필요
+            VirtualDesktop.VD1: (282, 63),  #
+            VirtualDesktop.VD2: (463, 63)  #
         }
 
         target_pos = vd_positions.get(target_vd)

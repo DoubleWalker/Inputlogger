@@ -36,32 +36,32 @@ EVENT_UI_REGIONS: Dict[str, Dict[str, Tuple[int, int, int, int]]] = {
 # 각 화면별 고정 UI 요소의 상대 좌표 (화면 영역의 좌상단 기준)
 FIXED_UI_COORDS = {
     'S1': {
-        'main_menu_button': (657, 24),
+        'main_menu_button': (681, 23),
         'retreat_confirm_button': (350, 283),
         'leader_hp_pixel': (132, 124),
-        'unlock_button':(1,1)# S1 리더 HP 바 확인 픽셀 상대 좌표
+        'unlock_button':(65,306)# S1 리더 HP 바 확인 픽셀 상대 좌표
     },
     'S2': {
-        'main_menu_button': (720, 28),
+        'main_menu_button': (698, 23),
         'retreat_confirm_button': (375, 298),
         'leader_hp_pixel': (125, 130),
-        'unlock_button':(1,1) # S2 리더 HP 바 확인 픽셀 상대 좌표
+        'unlock_button':(51,321) # S2 리더 HP 바 확인 픽셀 상대 좌표
     },
     'S3': {
         'main_menu_button': (680, 20),
         'retreat_confirm_button': (350, 285),
         'leader_hp_pixel': (117, 126),
-        'unlock_button':(1,1) # S3 리더 HP 바 확인 픽셀 상대 좌표
+        'unlock_button':(67,306) # S3 리더 HP 바 확인 픽셀 상대 좌표
     },
     'S4': {
         'main_menu_button': (680, 20),
         'retreat_confirm_button': (350, 283),
         'leader_hp_pixel': (113, 121),
-        'unlock_button':(1,1) # S4 리더 HP 바 확인 픽셀 상대 좌표
+        'unlock_button':(54,309) # S4 리더 HP 바 확인 픽셀 상대 좌표
     },
     'S5': {
         'main_menu_button': (1172, 27),
         'retreat_confirm_button': (607, 520),
-        'unlock_button':(1,1) # 정확한 좌표 측정 필요
+        'unlock_button':(35,625) # 정확한 좌표 측정 필요
     },
 }

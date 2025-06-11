@@ -90,7 +90,7 @@ class ActiveState(enum.Enum):
 
 
 class Orchestrator:
-    def __init__(self, vd1_slice_min=5, vd2_slice_min=5):
+    def __init__(self, vd1_slice_min=3, vd2_slice_min=3):
         print("Initializing Orchestrator...")
         self.start_time = time.time()  # 전체 실행 시간 추적
 
@@ -170,9 +170,9 @@ class Orchestrator:
 
         # Mail Opener (12:00 PM / 09:00 PM)
         schedule.every().day.at("12:00").do(self.request_scheduled_task, task_key="MO1", target_vd=VirtualDesktop.VD1)
-        schedule.every().day.at("12:05").do(self.request_scheduled_task, task_key="MO2", target_vd=VirtualDesktop.VD2)
+        schedule.every().day.at("12:02").do(self.request_scheduled_task, task_key="MO2", target_vd=VirtualDesktop.VD2)
         schedule.every().day.at("21:00").do(self.request_scheduled_task, task_key="MO1", target_vd=VirtualDesktop.VD1)
-        schedule.every().day.at("21:05").do(self.request_scheduled_task, task_key="MO2", target_vd=VirtualDesktop.VD2)
+        schedule.every().day.at("21:02").do(self.request_scheduled_task, task_key="MO2", target_vd=VirtualDesktop.VD2)
 
         print("Schedule setup complete.")
         print(f"Current scheduled jobs: {len(schedule.get_jobs())}")
@@ -318,8 +318,22 @@ class Orchestrator:
         finally:
             end_time = time.time()
             print(f"Task '{task_key}' finished in {end_time - start_time:.2f} seconds.")
-            new_monitoring_state = ActiveState.MONITORING_VD1 if target_vd == VirtualDesktop.VD1 else ActiveState.MONITORING_VD2
-            self.set_focus(target_vd, new_monitoring_state)
+
+            # next_task가 있는지 확인
+            if hasattr(self, 'next_task') and self.next_task:
+                print(f"Executing next task: {self.next_task['key']}")
+                next_task_info = self.next_task
+                self.next_task = None  # 중복 실행 방지
+
+                # 즉시 다음 작업 실행
+                next_task_state = ActiveState.EXECUTING_TASK_VD1 if next_task_info[
+                                                                        'vd'] == VirtualDesktop.VD1 else ActiveState.EXECUTING_TASK_VD2
+                self.set_focus(next_task_info['vd'], next_task_state)
+                self._execute_task(next_task_info)
+            else:
+                # 기존 로직: 모니터링으로 복귀
+                new_monitoring_state = ActiveState.MONITORING_VD1 if target_vd == VirtualDesktop.VD1 else ActiveState.MONITORING_VD2
+                self.set_focus(target_vd, new_monitoring_state)
 
     def _check_vd_switch_safety(self) -> bool:
         """현재 활성 SRM의 상태를 체크해서 VD 전환 가능 여부 판단"""

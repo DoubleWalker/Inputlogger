@@ -35,7 +35,7 @@ class MailOpener:
         self.screens.append(Screen(screen_id, mail_icon, collect_all, notice_tab, envelope, confirm))
 
     def find_and_click(self, screen: Screen, template_path: str) -> bool:
-        """템플릿 매칭으로 요소를 찾아 클릭"""
+        """템플릿 매칭으로 요소를 찾아 클릭 (고정 좌표 대안 포함)"""
         try:
             screenshot = pyautogui.screenshot(region=screen.region)
             template = cv2.imread(template_path)
@@ -65,6 +65,106 @@ class MailOpener:
         except Exception as e:
             print(f"Error in find_and_click: {e}")
             return False
+
+    def find_and_click_with_fallback(self, screen: Screen, template_path: str, coord_key: str = None) -> bool:
+        """템플릿 매칭 → 실패시 고정 좌표 클릭"""
+        # 1차: 템플릿 매칭 시도
+        if self.find_and_click(screen, template_path):
+            return True
+
+        # 2차: 고정 좌표 시도 (coord_key가 있을 경우)
+        if coord_key and self.click_fixed_coord(screen, coord_key):
+            print(f"Template failed, used fixed coords for {coord_key} on {screen.screen_id}")
+            return True
+
+        print(f"Both template and fixed coords failed for {coord_key or 'unknown'} on {screen.screen_id}")
+        return False
+
+    def find_envelope_with_retry(self, screen: Screen, max_attempts: int = 8) -> bool:
+        """봉투 찾기 (재시도 로직)"""
+        for attempt in range(max_attempts):
+            if self.find_and_click(screen, screen.envelope):
+                print(f"Envelope found on attempt {attempt + 1}")
+                return True
+
+            if attempt < max_attempts - 1:  # 마지막 시도가 아니면
+                print(f"Envelope attempt {attempt + 1}/{max_attempts} failed, retrying...")
+                time.sleep(0.5)
+
+        print(f"No envelope found after {max_attempts} attempts on {screen.screen_id}")
+        return False
+
+    def process_screen(self, screen: Screen):
+        """한 화면의 메일 수집 처리 (수정된 버전)"""
+        print(f"Processing screen: {screen.screen_id} for Raven2 Mail")
+
+        # 1. 메인 메뉴 버튼 클릭 (고정 좌표만 사용)
+        print("Clicking main menu button...")
+        if not self.click_fixed_coord(screen, 'main_menu_button'):
+            print(f"Failed to click main menu on {screen.screen_id}. Aborting.")
+            return
+        time.sleep(1.0)
+
+        # 2. 메일 아이콘 클릭 (템플릿 + 고정 좌표 대안)
+        if not self.find_and_click_with_fallback(screen, screen.mail_icon, 'mail_icon'):
+            print(f"Mail icon not found on {screen.screen_id}. Aborting.")
+            return
+        time.sleep(1.0)
+
+        # 3. "공지" 탭 클릭 (템플릿 + 고정 좌표 대안)
+        if not self.find_and_click_with_fallback(screen, screen.notice_tab, 'notice_tab'):
+            print(f"'Notice' tab not found on {screen.screen_id}. Aborting.")
+            keyboard.press_and_release('esc')
+            return
+        time.sleep(0.5)
+        print("Entered Mailbox and selected 'Notice' tab.")
+
+        # 4. 반복 구간: 봉투 처리 (재시도 로직)
+        mail_processed_count = 0
+        max_attempts = 15
+        print("Starting envelope processing loop...")
+
+        for attempt in range(max_attempts):
+            print(f"Loop {attempt + 1}/{max_attempts}: Searching for envelope...")
+
+            # 4-1. 편지 봉투 찾기 (재시도 포함)
+            if self.find_envelope_with_retry(screen, max_attempts=3):
+                print("  Envelope found and clicked.")
+                time.sleep(0.7)
+
+                # 4-2. 모두 받기 버튼 클릭
+                if self.find_and_click(screen, screen.collect_all):
+                    print("    Collect All button clicked.")
+                    time.sleep(0.7)
+
+                    # 4-3. 확인 버튼 클릭
+                    if self.find_and_click(screen, screen.confirm):
+                        print("      Confirm button clicked.")
+                        mail_processed_count += 1
+                        print("        Waiting 0.7s and pressing ESC...")
+                        time.sleep(0.8)
+                        keyboard.press_and_release('esc')
+                        time.sleep(0.8)
+                        continue
+                    else:
+                        print(
+                            f"      Error: Confirm button not found after Collect All on {screen.screen_id}. Stopping.")
+                        break
+                else:
+                    print(
+                        f"    Error: Collect All button not found after clicking envelope on {screen.screen_id}. Stopping.")
+                    break
+            else:
+                # 더 이상 편지 봉투가 없으면 루프 종료
+                print(f"  No more envelopes found on attempt {attempt + 1}.")
+                break
+        else:
+            print(f"Warning: Reached max attempts ({max_attempts}). Ending loop.")
+
+        # 5. 최종 나가기
+        print(f"Finishing mail processing for {screen.screen_id}. Processed {mail_processed_count} items. Exiting...")
+        keyboard.press_and_release('esc')
+        print("Exited mail screen.")
 
     def click_fixed_coord(self, screen: Screen, coord_key: str) -> bool:
         """screen_info에 정의된 고정 좌표를 클릭"""
@@ -101,88 +201,6 @@ class MailOpener:
 
     # Screen 데이터클래스 (MO2용으로 필요한 템플릿 경로 추가 가정)
     # 예: screen.notice_tab, screen.envelope, screen.collect_all, screen.confirm 등
-
-    def process_screen(self, screen: Screen):  # Screen 타입은 MO2에 맞게 수정된 것으로 가정
-        print(f"Processing screen: {screen.screen_id} for Raven2 Mail")
-
-        # 1. 초기 진입 ========================================
-        # 1-1. (필요시) 메인 메뉴 클릭
-        if not self.click_fixed_coord(screen, 'main_menu_button'):
-            print(f"Failed to click main menu on {screen.screen_id}. Aborting.")
-            return
-        time.sleep(1.0)
-
-        # 1-2. 메일 아이콘 클릭
-        if not self.find_and_click(screen, screen.mail_icon):  # screen 객체에 mail_icon 경로 필요
-            print(f"Mail icon not found on {screen.screen_id}. Aborting.")
-            return
-        time.sleep(1.0)  # 메일함 로딩 대기
-
-        # 1-3. "공지" 탭 클릭
-        if not self.find_and_click(screen, screen.notice_tab):  # screen 객체에 notice_tab 경로 필요
-            print(f"'Notice' tab not found on {screen.screen_id}. Aborting.")
-            keyboard.press_and_release('esc')  # 일단 나가기
-            return
-        time.sleep(0.5)  # 탭 전환 대기
-        print("Entered Mailbox and selected 'Notice' tab.")
-
-        # 2. 반복 구간 ========================================
-        mail_processed_count = 0
-        max_attempts = 15  # 최대 시도 횟수 (값 조절)
-        print("Starting envelope processing loop...")
-        for attempt in range(max_attempts):
-            print(f"Loop {attempt + 1}/{max_attempts}: Searching for envelope...")
-
-            # 2-1. 편지 봉투 찾기
-            if self.find_and_click(screen, screen.envelope):  # screen 객체에 envelope 경로 필요
-                print("  Envelope found and clicked.")
-                time.sleep(0.7)  # 메일 내용 로딩
-
-                # 2-2. 모두 받기 찾기 및 클릭
-                if self.find_and_click(screen, screen.collect_all):  # screen 객체에 collect_all 경로 필요
-                    print("    Collect All button clicked.")
-                    time.sleep(0.7)  # 확인 버튼 로딩
-
-                    # 2-3. 확인 찾기 및 클릭
-                    if self.find_and_click(screen, screen.confirm):  # screen 객체에 confirm 경로 필요
-                        print("      Confirm button clicked.")
-                        mail_processed_count += 1
-                        print("        Waiting 0.7s and pressing ESC...")
-                        time.sleep(0.8)
-                        keyboard.press_and_release('esc')
-                        # ESC 후 다음 검색까지 약간의 간격 주기 (선택 사항)
-                        time.sleep(0.8)
-                        # 다음 봉투 찾으러 루프 계속
-                        continue  # 다음 for 루프 반복 실행
-                    else:
-                        print(
-                            f"      Error: Confirm button not found after Collect All on {screen.screen_id}. Stopping.")
-                        break  # 확인 못찾으면 루프 중단
-                else:
-                    print(
-                        f"    Error: Collect All button not found after clicking envelope on {screen.screen_id}. Stopping.")
-                    # 메일 종류에 따라 모두 받기가 없을 수도 있음. 이 경우 다른 처리가 필요할 수 있지만, 일단 루프 중단.
-                    break  # 모두 받기 못찾으면 루프 중단
-            else:
-                # 더 이상 편지 봉투가 없으면 루프 종료
-                print(f"  No more envelopes found on attempt {attempt + 1}.")
-                break  # 봉투 못찾으면 루프 중단
-        else:  # for 루프가 break 없이 정상 종료된 경우 (max_attempts 도달 시)
-            print(f"Warning: Reached max attempts ({max_attempts}). Ending loop.")
-
-        # 3. 최종 나가기 =======================================
-        print(
-            f"Finishing mail processing for {screen.screen_id}. Processed {mail_processed_count} items. Exiting...")
-        # time.sleep(0.7) # ESC 전에 0.7초 대기? -> 사용자 설명에는 없었음. 필요시 추가.
-        keyboard.press_and_release('esc')  # 최종적으로 ESC 한 번
-        print("Exited mail screen.")
-
-        # ... run 메소드는 기존과 동일하게 사용 가능 ...
-    def run(self):
-        """모든 화면 처리"""
-        for screen in self.screens:
-            self.process_screen(screen)
-            time.sleep(0.5)  # 화면 간 딜레이
 
 
 if __name__ == "__main__":

@@ -38,25 +38,30 @@ FIXED_UI_COORDS = {
     'S1': {
         'main_menu_button': (657, 24),
         'retreat_confirm_button': (350, 283),
-        'leader_hp_pixel': (132, 124) # S1 리더 HP 바 확인 픽셀 상대 좌표
+        'leader_hp_pixel': (132, 124),
+        'unlock_button':(1,1)# S1 리더 HP 바 확인 픽셀 상대 좌표
     },
     'S2': {
         'main_menu_button': (720, 28),
         'retreat_confirm_button': (375, 298),
-        'leader_hp_pixel': (125, 130) # S2 리더 HP 바 확인 픽셀 상대 좌표
+        'leader_hp_pixel': (125, 130),
+        'unlock_button':(1,1) # S2 리더 HP 바 확인 픽셀 상대 좌표
     },
     'S3': {
         'main_menu_button': (680, 20),
         'retreat_confirm_button': (350, 285),
-        'leader_hp_pixel': (117, 126) # S3 리더 HP 바 확인 픽셀 상대 좌표
+        'leader_hp_pixel': (117, 126),
+        'unlock_button':(1,1) # S3 리더 HP 바 확인 픽셀 상대 좌표
     },
     'S4': {
         'main_menu_button': (680, 20),
         'retreat_confirm_button': (350, 283),
-        'leader_hp_pixel': (113, 121) # S4 리더 HP 바 확인 픽셀 상대 좌표
+        'leader_hp_pixel': (113, 121),
+        'unlock_button':(1,1) # S4 리더 HP 바 확인 픽셀 상대 좌표
     },
     'S5': {
         'main_menu_button': (1172, 27),
-        'retreat_confirm_button': (607, 520) # 정확한 좌표 측정 필요
+        'retreat_confirm_button': (607, 520),
+        'unlock_button':(1,1) # 정확한 좌표 측정 필요
     },
 }

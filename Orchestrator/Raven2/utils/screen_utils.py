@@ -36,48 +36,39 @@ class TaskScreenPreparer:
         print("TaskScreenPreparer: All Raven2 screens prepared successfully")
 
     def _prepare_single_screen(self, screen_id: str):
-        """개별 화면 정리"""
         try:
-            # 1. 포커스 설정
-            if not set_focus(screen_id, delay_after=0.2):
-                print(f"    Warning: Failed to set focus on {screen_id}")
-                return
-
-            # 2. ESC 키 입력 (잠금화면 해제)
-            keyboard.press_and_release('esc')
+            # 1. 잠금 해제 버튼 클릭
+            self._click_fixed_coord(screen_id, 'unlock_button')
             time.sleep(0.3)
 
-            # 3. 확인버튼 클릭 (무조건 실행)
-            self._click_confirm_button(screen_id)
-
-            # 4. X 버튼이 있는 경우에만 클릭 (조건부 실행)
-            if self._has_close_button(screen_id):
-                self._click_close_button(screen_id)
+            # 2. 확인버튼 클릭 (기존 retreat_confirm_button 사용)
+            self._click_fixed_coord(screen_id, 'retreat_confirm_button')
+            time.sleep(0.3)
 
         except Exception as e:
             print(f"    Error preparing screen {screen_id}: {e}")
 
-    def _click_confirm_button(self, screen_id: str):
-        """잠금화면 해제 후 나타나는 확인버튼 클릭 (무조건 실행)"""
+    def _click_fixed_coord(self, screen_id: str, coord_key: str):
+        """FIXED_UI_COORDS에서 지정된 좌표를 클릭"""
         try:
-            # FIXED_UI_COORDS에서 확인버튼 좌표 가져오기
-            if screen_id in FIXED_UI_COORDS and 'confirm_button' in FIXED_UI_COORDS[screen_id]:
+            # FIXED_UI_COORDS에서 좌표 가져오기
+            if screen_id in FIXED_UI_COORDS and coord_key in FIXED_UI_COORDS[screen_id]:
                 screen_region = SCREEN_REGIONS[screen_id]
-                relative_coords = FIXED_UI_COORDS[screen_id]['confirm_button']
+                relative_coords = FIXED_UI_COORDS[screen_id][coord_key]  # ← coord_key 사용
 
                 # 절대 좌표 계산
                 click_x = screen_region[0] + relative_coords[0]
                 click_y = screen_region[1] + relative_coords[1]
 
-                # 확인버튼 클릭
+                # 클릭
                 pyautogui.click(click_x, click_y)
                 time.sleep(0.2)
-                print(f"    Clicked confirm button on {screen_id}")
+                print(f"    Clicked {coord_key} on {screen_id}")  # ← coord_key 출력
             else:
-                print(f"    Warning: Confirm button coordinates not found for {screen_id}")
+                print(f"    Warning: {coord_key} coordinates not found for {screen_id}")  # ← coord_key 출력
 
         except Exception as e:
-            print(f"    Error clicking confirm button on {screen_id}: {e}")
+            print(f"    Error clicking {coord_key} on {screen_id}: {e}")  # ← coord_key 출력
 
     def _has_close_button(self, screen_id: str) -> bool:
         """X 버튼이 있는지 확인"""

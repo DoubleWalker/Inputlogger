@@ -2,6 +2,7 @@ import sys
 import os
 from pathlib import Path
 import time
+from Orchestrator.Raven2.utils.screen_utils import TaskScreenPreparer
 
 # --- 경로 설정 시작 ---
 main_py_path = Path(__file__).resolve()
@@ -19,6 +20,8 @@ except ImportError as e:
 
 if __name__ == "__main__":
     print("Starting MO2 (Raven2 Mail Opener)...")
+    preparer = TaskScreenPreparer()
+    preparer.prepare_all_screens()
 
     mo = MailOpener()
 

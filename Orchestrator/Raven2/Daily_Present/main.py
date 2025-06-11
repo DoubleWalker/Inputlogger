@@ -1,5 +1,6 @@
 import sys
 import os
+from Orchestrator.Raven2.utils.screen_utils import TaskScreenPreparer      # Raven2용
 import time
 
 # 상대 경로 임포트를 위한 경로 설정 - 단순화
@@ -14,6 +15,9 @@ from src.core.daily_present import DailyPresent
 def main():
     """Daily Present 모듈의 진입점"""
     print("Daily Present 모듈 시작...")
+
+    preparer = TaskScreenPreparer()
+    preparer.prepare_all_screens()
 
     # 인스턴스 생성
     dp = DailyPresent()

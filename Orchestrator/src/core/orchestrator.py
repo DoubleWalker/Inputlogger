@@ -279,6 +279,12 @@ class Orchestrator:
         target_vd = task_info['vd']
         task_main_py = COMPONENT_PATHS.get(task_key)
 
+        # 디버그 로그 추가
+        print(f"DEBUG: task_key = {task_key}")
+        print(f"DEBUG: task_main_py = {task_main_py}")
+        print(f"DEBUG: task_main_py.parent = {task_main_py.parent}")
+        print(f"DEBUG: task_main_py.exists() = {task_main_py.exists()}")
+
         if not task_main_py or not task_main_py.exists():
             print(f"Error: main.py path not found or invalid for task '{task_key}': {task_main_py}")
             new_monitoring_state = ActiveState.MONITORING_VD1 if target_vd == VirtualDesktop.VD1 else ActiveState.MONITORING_VD2
@@ -296,8 +302,8 @@ class Orchestrator:
                                      check=True,
                                      capture_output=True,
                                      text=True,
-                                     encoding='utf-8',
-                                     cwd=task_main_py.parent)
+                                     encoding='utf-8'
+                                     )
             print(f"Task '{task_key}' completed successfully.")
             print(f"Output:\n{process.stdout}")
         except FileNotFoundError:

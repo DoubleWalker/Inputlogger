@@ -1,6 +1,7 @@
 import sys
 import os
 import time
+from Orchestrator.NightCrows.utils.screen_utils import TaskScreenPreparer  # NightCrows용
 
 # 상대 경로 임포트를 위한 경로 설정 - 단순화
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -14,6 +15,10 @@ from src.core.daily_present import DailyPresent
 def main():
     """Daily Present 모듈의 진입점"""
     print("Daily Present 모듈 시작...")
+
+    # 화면 준비
+    preparer = TaskScreenPreparer()
+    preparer.prepare_all_screens()
 
     # 인스턴스 생성
     dp = DailyPresent()

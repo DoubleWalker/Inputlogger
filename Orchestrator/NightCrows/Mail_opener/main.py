@@ -1,4 +1,5 @@
 import sys
+from Orchestrator.NightCrows.utils.screen_utils import TaskScreenPreparer
 import os
 from pathlib import Path
 import time
@@ -38,6 +39,10 @@ except ImportError as e:
 
 if __name__ == "__main__":
     print("Starting MO1 (NightCrows Mail Opener)...")
+
+    # 화면 준비 과정 추가
+    preparer = TaskScreenPreparer()
+    preparer.prepare_all_screens()
 
     # MailOpener 객체 생성
     mo = MailOpener()

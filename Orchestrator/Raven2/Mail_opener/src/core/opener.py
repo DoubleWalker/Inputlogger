@@ -197,6 +197,12 @@ class MailOpener:
             print(f"Error in click_fixed_coord: {e}")
             return False
 
+    def run(self):
+        """모든 화면 처리"""
+        for screen in self.screens:
+            self.process_screen(screen)
+            time.sleep(0.5)  # 화면 간 딜레이
+
     # opener.py (MO2 용, process_screen 수정)
 
     # Screen 데이터클래스 (MO2용으로 필요한 템플릿 경로 추가 가정)
@@ -204,6 +210,7 @@ class MailOpener:
 
 
 if __name__ == "__main__":
+
     mo = MailOpener()
 
     # S1 화면

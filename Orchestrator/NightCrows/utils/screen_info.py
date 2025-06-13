@@ -20,8 +20,8 @@ EVENT_UI_REGIONS: Dict[str, Dict[str, Tuple[int, int, int, int]]] = {
         'right_content': (1040, 64, 426, 266)
     },
     'S3': {
-        'left_menu': (127, 393, 107, 261),
-        'right_content': (245, 409, 389, 243)
+        'left_menu': (127, 390, 115, 265),
+        'right_content': (250, 408, 388, 243)
     },
     'S4': {
         'left_menu': (127, 739, 112, 262),

@@ -97,63 +97,168 @@ class DailyPresent:
     def find_ui_location(self, screen: Screen, template_path: str) -> Optional[Tuple[int, int]]:
         return self.find_ui_location_in_region(screen.region, template_path)
 
-    # --- find_all_red_dots_with_blob_detector (변경 없음 - 핵심 로직 유지) ---
-    def find_all_red_dots_with_blob_detector(self, region: Tuple[int, int, int, int], screen_id: str) -> List[Tuple[int, int]]:
-        # ... (기존의 긴 코드 내용 그대로 유지) ...
-        # 이 함수는 주어진 영역(region)에서 빨간 점들의 좌표 리스트를 반환
-        # 내부 로직 및 파라미터는 그대로 사용
+    def find_all_red_dots_with_blob_detector(self, region: Tuple[int, int, int, int], screen_id: str) -> List[
+        Tuple[int, int]]:
+        """
+        지정된 영역에서 빨간색 점들을 탐지하고 중심 좌표 리스트를 반환합니다.
+        개선된 2단계 필터링 알고리즘을 적용하여 더 정확한 탐지를 수행합니다.
+        """
+        x_region, y_region, w_region, h_region = region
+        valid_centers = []
+
         try:
-            full_screenshot = pyautogui.screenshot(); full_img_np = np.array(full_screenshot)
-            full_hsv = cv2.cvtColor(full_img_np, cv2.COLOR_RGB2HSV)
-            lower_red1 = np.array([0, 100, 100]); upper_red1 = np.array([6, 255, 255])
-            lower_red2 = np.array([172, 100, 100]); upper_red2 = np.array([180, 255, 255])
-            full_mask1 = cv2.inRange(full_hsv, lower_red1, upper_red1); full_mask2 = cv2.inRange(full_hsv, lower_red2, upper_red2)
-            full_red_mask = cv2.bitwise_or(full_mask1, full_mask2)
-            kernel = np.ones((3, 3), np.uint8); full_red_mask = cv2.morphologyEx(full_red_mask, cv2.MORPH_OPEN, kernel)
-            full_contours, _ = cv2.findContours(full_red_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            x, y, w, h = region; screen_img = full_img_np[y:y + h, x:x + w]
-            screen_hsv = cv2.cvtColor(screen_img, cv2.COLOR_RGB2HSV)
-            screen_mask1 = cv2.inRange(screen_hsv, lower_red1, upper_red1); screen_mask2 = cv2.inRange(screen_hsv, lower_red2, upper_red2)
-            screen_red_mask = cv2.bitwise_or(screen_mask1, screen_mask2); screen_red_mask = cv2.morphologyEx(screen_red_mask, cv2.MORPH_OPEN, kernel)
-            screen_params = cv2.SimpleBlobDetector_Params(); screen_params.filterByArea = True
-            if screen_id == 'S5': screen_params.minArea = 36.0; screen_params.maxArea = 120.0
-            else: screen_params.minArea = 11.0; screen_params.maxArea = 64.0
-            screen_params.filterByCircularity = False; screen_params.filterByConvexity = False
-            screen_params.filterByInertia = False; screen_params.filterByColor = False
-            screen_detector = cv2.SimpleBlobDetector_create(screen_params)
-            screen_inverted_mask = cv2.bitwise_not(screen_red_mask)
-            screen_keypoints = screen_detector.detect(screen_inverted_mask)
-            valid_keypoints = []
-            for kp in screen_keypoints:
-                orig_x, orig_y = kp.pt; global_x, global_y = orig_x + x, orig_y + y
-                kp_contour = None; kp_contour_idx = -1
-                for i, contour in enumerate(full_contours):
-                    if cv2.pointPolygonTest(contour, (global_x, global_y), False) >= 0: kp_contour = contour; kp_contour_idx = i; break
-                if kp_contour is not None:
-                    area = cv2.contourArea(kp_contour); perimeter = cv2.arcLength(kp_contour, True)
-                    circularity = 4 * np.pi * area / (perimeter * perimeter) if perimeter > 0 else 0
-                    hull = cv2.convexHull(kp_contour); hull_area = cv2.contourArea(hull); convexity = area / hull_area if hull_area > 0 else 0
-                    _, (width, height), _ = cv2.minAreaRect(kp_contour); inertia_ratio = min(width, height) / max(width, height) if max(width, height) > 0 else 0
-                    x_rect, y_rect, w, h = cv2.boundingRect(kp_contour); aspect_ratio = float(w) / h if h > 0 else 0
-                    size_pass = (screen_params.minArea <= area <= screen_params.maxArea)
-                    if size_pass:
-                        circularity_pass = circularity > 0.7; convexity_pass = convexity > 0.7
-                        inertia_ratio_pass = inertia_ratio > 0.65; aspect_ratio_pass = 0.8 < aspect_ratio < 1.2
-                        remaining_pass_count = circularity_pass + convexity_pass + inertia_ratio_pass + aspect_ratio_pass
-                        remaining_criteria_pass = remaining_pass_count >= 2
-                        has_nearby_contours = False
-                        for i, contour in enumerate(full_contours):
-                            if i == kp_contour_idx: continue
-                            for point in contour:
-                                px, py = point[0][0], point[0][1]; distance = np.sqrt((global_x - px) ** 2 + (global_y - py) ** 2)
-                                if distance <= 20: has_nearby_contours = True; break
-                            if has_nearby_contours: break
-                        if remaining_criteria_pass and not has_nearby_contours:
-                            final_x = int(global_x) + random.randint(-2, 2); final_y = int(global_y) + random.randint(-2, 2)
-                            valid_keypoints.append((final_x, final_y))
-            # print(f"{screen_id} 영역에서 검출된 빨간점: {len(screen_keypoints)}개, 유효한 빨간점: {len(valid_keypoints)}개") # 로그 간소화 위해 주석 처리 가능
-            return valid_keypoints
-        except Exception as e: print(f"빨간점 감지 중 오류 발생: {e}"); traceback.print_exc(); return []
+            # 1. 전체 화면 스크린샷 및 ROI 추출
+            full_screenshot = pyautogui.screenshot()
+            full_img_np = np.array(full_screenshot)
+
+            # ROI 영역 추출 (경계 체크 포함)
+            img_h, img_w = full_img_np.shape[:2]
+            actual_w = min(w_region, img_w - x_region)
+            actual_h = min(h_region, img_h - y_region)
+
+            if actual_w <= 0 or actual_h <= 0:
+                print(f"Warning: {screen_id} 영역이 이미지 경계를 벗어남")
+                return []
+
+            roi_image = full_img_np[y_region:y_region + actual_h, x_region:x_region + actual_w]
+
+            # 2. HSV 변환 및 빨간색 마스크 생성
+            hsv = cv2.cvtColor(roi_image, cv2.COLOR_RGB2HSV)
+            lower_red1 = np.array([0, 100, 100])
+            upper_red1 = np.array([6, 255, 255])
+            lower_red2 = np.array([172, 100, 100])
+            upper_red2 = np.array([180, 255, 255])
+
+            mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
+            mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
+            red_mask = cv2.bitwise_or(mask1, mask2)
+
+            # 3. 모폴로지 연산으로 노이즈 제거
+            kernel = np.ones((3, 3), np.uint8)
+            red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_OPEN, kernel)
+
+            # 4. Contour 찾기
+            contours, _ = cv2.findContours(red_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            # 5. SimpleBlobDetector 파라미터 설정
+            params = cv2.SimpleBlobDetector_Params()
+            params.filterByArea = True
+            if screen_id == 'S5':
+                params.minArea = 36.0
+                params.maxArea = 120.0
+            else:
+                params.minArea = 11.0
+                params.maxArea = 78.0
+
+            params.filterByCircularity = False
+            params.filterByConvexity = False
+            params.filterByInertia = False
+            params.filterByColor = False
+
+            # 6. BlobDetector 실행
+            detector = cv2.SimpleBlobDetector_create(params)
+            inverted_mask = cv2.bitwise_not(red_mask)
+            keypoints = detector.detect(inverted_mask)
+
+            # 7. 통계 변수 초기화
+            stats = {
+                'total_keypoints': len(keypoints),
+                'no_contour_match': 0,
+                'final_valid': 0
+            }
+
+            # 8. 각 keypoint에 대해 개선된 2단계 필터링 적용
+            for kp in keypoints:
+                kp_x, kp_y = int(kp.pt[0]), int(kp.pt[1])
+
+                # Contour 매칭 및 형태 검증
+                point_valid = False
+                contour_matched = False
+
+                for contour in contours:
+                    if cv2.pointPolygonTest(contour, (kp_x, kp_y), False) >= 0:
+                        contour_matched = True
+                        area = cv2.contourArea(contour)
+                        perimeter = cv2.arcLength(contour, True)
+
+                        if perimeter > 0:
+                            # 형태 지표 계산
+                            circularity = 4 * np.pi * area / (perimeter * perimeter)
+                            hull = cv2.convexHull(contour)
+                            hull_area = cv2.contourArea(hull)
+                            convexity = area / hull_area if hull_area > 0 else 0
+
+                            _, (width, height), _ = cv2.minAreaRect(contour)
+                            inertia_ratio = min(width, height) / max(width, height) if max(width, height) > 0 else 0
+
+                            x_rect, y_rect, w, h = cv2.boundingRect(contour)
+                            aspect_ratio = float(w) / h if h > 0 else 0
+
+                            # 개별 조건 체크
+                            circularity_ok = circularity > 0.7
+                            convexity_ok = convexity > 0.7
+                            inertia_ok = inertia_ratio > 0.65
+                            aspect_ok = 0.8 < aspect_ratio < 1.2
+
+                            # 2단계 필터링 로직
+                            # 1단계: Aspect + Inertia + Circularity (3개 중 2개)
+                            stage1_conditions = [aspect_ok, inertia_ok, circularity_ok]
+                            stage1_passed = sum(stage1_conditions)
+
+                            final_pass = False
+
+                            if stage1_passed >= 3:
+                                # 1단계에서 3개 모두 통과 → 즉시 승인
+                                final_pass = True
+                            elif stage1_passed >= 2:
+                                # 1단계에서 2개 통과 → 2단계 검증 (Convexity)
+                                if convexity_ok:
+                                    final_pass = True
+
+                            # 추가 검증: 길쭉한 형태(aspect >= 1.2)는 더 엄격한 조건 적용
+                            if final_pass and aspect_ratio >= 1.23:
+                                stricter_circularity = circularity > 0.84
+                                if not stricter_circularity:
+                                    final_pass = False
+
+                            if final_pass:
+                                # 근처 contour 체크 (노이즈 제거)
+                                has_nearby_contours = False
+                                for other_contour in contours:
+                                    if np.array_equal(contour, other_contour):
+                                        continue
+                                    for point in other_contour:
+                                        px, py = point[0][0], point[0][1]
+                                        distance = np.sqrt((kp_x - px) ** 2 + (kp_y - py) ** 2)
+                                        if distance <= 20:  # nearby_distance_threshold
+                                            has_nearby_contours = True
+                                            break
+                                    if has_nearby_contours:
+                                        break
+
+                                if not has_nearby_contours:
+                                    point_valid = True
+                                    stats['final_valid'] += 1
+                                    break  # 첫 번째 통과하는 contour에서 중단
+
+                if not contour_matched:
+                    stats['no_contour_match'] += 1
+
+                # 9. 유효한 점이면 절대 좌표로 변환하여 추가
+                if point_valid:
+                    # 절대 좌표 계산
+                    final_x = x_region + kp_x + random.randint(-2, 2)
+                    final_y = y_region + kp_y + random.randint(-2, 2)
+                    valid_centers.append((final_x, final_y))
+
+            print(f"{screen_id} 영역에서 감지된 빨간색 요소 (개선된 2단계 필터링): {len(valid_centers)}개")
+            print(f"  └ Keypoint: {stats['total_keypoints']}, 최종통과: {stats['final_valid']}")
+            return valid_centers
+
+        except Exception as e:
+            print(f"빨간점 감지 중 오류 발생 ({screen_id}): {e}")
+            traceback.print_exc()
+            return []
 
     # --- find_red_dot_in_left_menu, find_red_dot_in_right_content (변경 없음) ---
     def find_red_dot_in_left_menu(self, screen: Screen) -> List[Tuple[int, int]]:
@@ -413,7 +518,7 @@ class DailyPresent:
                     # ================================================
                     print(f"  -> 다음 화면({self.current_screen_index})을 위해 상태 변수 초기화") # 로그 추가
                     self.left_scroll_attempts = 0 # <<< 왼쪽 스크롤 횟수 초기화
-                    self.last_clicked_left_dot_info = None # 마지막 클릭 정보 초기화
+                    self.last_clicked_left_dot_pos = None # 마지막 클릭 정보 초기화
                     self.right_scroll_needed = False # 오른쪽 스크롤 필요 플래그 초기화
                     self.current_item_right_scroll_attempts = 0 # 오른쪽 스크롤 횟수 초기화
                     # self.is_first_entry_to_event_menu = True # 이 플래그도 필요 시 초기화
@@ -436,7 +541,7 @@ if __name__ == "__main__":
     # 샘플 실행 코드
     dp = DailyPresent()
     # 화면 추가 (실제 경로 및 screen_info.py 설정 필요)
-    dp.add_screen(screen_id='S1', main_event_icon=r"C:\Users\yjy16\template\NightCrows\DP\event_icon_s1.png")
-    dp.add_screen(screen_id='S2', main_event_icon=r"C:\Users\yjy16\template\NightCrows\DP\event_icon_s2.png")
+    dp.add_screen(screen_id='S3', main_event_icon=r"C:\Users\yjy16\template\NightCrows\DP\event_icon_s3.png")
+    dp.add_screen(screen_id='S4', main_event_icon=r"C:\Users\yjy16\template\NightCrows\DP\event_icon_s4.png")
     # ... S3, S4, S5 추가 ...
     dp.run()

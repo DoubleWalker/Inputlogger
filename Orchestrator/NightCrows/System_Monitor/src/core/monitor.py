@@ -358,3 +358,44 @@ class SystemMonitor:
 def create_system_monitor(monitor_id: str, config: Dict, vd_name: str) -> SystemMonitor:
     """Orchestrator에서 호출하는 팩토리 함수"""
     return SystemMonitor(monitor_id, config, vd_name)
+
+
+# =============================================================================
+# 🧪 테스트 실행 블록
+# =============================================================================
+
+if __name__ == "__main__":
+    import threading
+    import time
+
+    print("🌉 SystemMonitor Bridge Test Starting...")
+
+    # 테스트용 SystemMonitor 생성
+    sm = SystemMonitor("SM_TEST", {}, "VD1")
+    stop_event = threading.Event()
+
+    try:
+        print(f"INFO: Starting test with target screens: {sm.target_screens}")
+        print(f"INFO: Current state: {sm.current_state}")
+        print("INFO: Press Ctrl+C to stop...")
+
+        # 메인 루프 실행 (별도 스레드)
+        monitor_thread = threading.Thread(target=sm.run_loop, args=(stop_event,))
+        monitor_thread.daemon = True
+        monitor_thread.start()
+
+        # 메인 스레드는 키보드 입력 대기
+        while not stop_event.is_set():
+            time.sleep(1)
+
+    except KeyboardInterrupt:
+        print("\n🛑 Test interrupted by user")
+        stop_event.set()
+
+    except Exception as e:
+        print(f"❌ Test error: {e}")
+        stop_event.set()
+
+    finally:
+        print("🏁 SystemMonitor Bridge Test Completed")
+        time.sleep(1)  # 정리 시간

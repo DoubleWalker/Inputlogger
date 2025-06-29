@@ -170,63 +170,22 @@ SM_EXCEPTION_POLICIES = {
 
 from .template_paths import get_template
 from Orchestrator.NightCrows.utils import image_utils
-
+from Orchestrator.NightCrows.utils.screen_utils import detect_designated_template_image, click_designated_template_image
 
 def detect_connection_error(screen_id: str, screen_region: tuple) -> bool:
-    """연결 에러 감지 - SM1만의 고유한 감지 방식"""
-    template_path = get_template(screen_id, 'CONNECTION_CONFIRM_BUTTON')
-    if not template_path:
-        return False
-    return image_utils.is_image_present(template_path, screen_region)
-
-
-def detect_app_crash(screen_id: str, screen_region: tuple) -> bool:
-    """앱 크래시 감지 - 앱 아이콘이 보이는지 체크"""
-    template_path = get_template(screen_id, 'APP_ICON')
-    if not template_path:
-        return False
-    return image_utils.is_image_present(template_path, screen_region)
-
-
-def detect_loading_screen(screen_id: str, screen_region: tuple) -> bool:
-    """로딩 화면 감지"""
-    template_path = get_template(screen_id, 'LOADING_SCREEN')
-    if not template_path:
-        return False
-    return image_utils.is_image_present(template_path, screen_region)
-
+    return detect_designated_template_image(screen_id, screen_region, 'CONNECTION_CONFIRM_BUTTON')
 
 def detect_login_screen(screen_id: str, screen_region: tuple) -> bool:
-    """로그인 화면 감지"""
-    template_path = get_template(screen_id, 'LOGIN_SCREEN')
-    if not template_path:
-        return False
-    return image_utils.is_image_present(template_path, screen_region)
-
+    return detect_designated_template_image(screen_id, screen_region, 'LOGIN_SCREEN')
 
 def detect_game_ready(screen_id: str, screen_region: tuple) -> bool:
-    """게임 정상 상태 감지"""
-    template_path = get_template(screen_id, 'GAME_WORLD_LOADED')
-    if not template_path:
-        return False
-    return image_utils.is_image_present(template_path, screen_region)
-
+    return detect_designated_template_image(screen_id, screen_region, 'GAME_WORLD_LOADED')
 
 def click_confirm_button(screen_id: str, screen_region: tuple) -> bool:
-    """연결 에러 확인 버튼 클릭"""
-    template_path = get_template(screen_id, 'CONNECTION_CONFIRM_BUTTON')
-    if not template_path:
-        return False
-    return image_utils.click_image(template_path, screen_region)
-
+    return click_designated_template_image(screen_id, screen_region, 'CONNECTION_CONFIRM_BUTTON')
 
 def click_app_icon(screen_id: str, screen_region: tuple) -> bool:
-    """앱 아이콘 클릭하여 재시작"""
-    template_path = get_template(screen_id, 'APP_ICON')
-    if not template_path:
-        return False
-    return image_utils.click_image(template_path, screen_region)
-
+    return click_designated_template_image(screen_id, screen_region, 'APP_ICON')
 
 def perform_simple_login(screen_id: str) -> bool:
     """단순화된 로그인 수행 - 가운데 2번 클릭"""

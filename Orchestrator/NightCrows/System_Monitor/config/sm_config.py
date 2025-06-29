@@ -163,37 +163,3 @@ SM_EXCEPTION_POLICIES = {
         'fallback_confidence': 0.7
     }
 }
-
-# =============================================================================
-# 🎯 로컬룰 5: SM1 전용 감지 함수들 (로컬룰의 핵심 지식)
-# =============================================================================
-
-from .template_paths import get_template
-from Orchestrator.NightCrows.utils import image_utils
-from Orchestrator.NightCrows.utils.screen_utils import detect_designated_template_image, click_designated_template_image
-
-def detect_connection_error(screen_id: str, screen_region: tuple) -> bool:
-    return detect_designated_template_image(screen_id, screen_region, 'CONNECTION_CONFIRM_BUTTON')
-
-def detect_login_screen(screen_id: str, screen_region: tuple) -> bool:
-    return detect_designated_template_image(screen_id, screen_region, 'LOGIN_SCREEN')
-
-def detect_game_ready(screen_id: str, screen_region: tuple) -> bool:
-    return detect_designated_template_image(screen_id, screen_region, 'GAME_WORLD_LOADED')
-
-def click_confirm_button(screen_id: str, screen_region: tuple) -> bool:
-    return click_designated_template_image(screen_id, screen_region, 'CONNECTION_CONFIRM_BUTTON')
-
-def click_app_icon(screen_id: str, screen_region: tuple) -> bool:
-    return click_designated_template_image(screen_id, screen_region, 'APP_ICON')
-
-def perform_simple_login(screen_id: str) -> bool:
-    """단순화된 로그인 수행 - 가운데 2번 클릭"""
-    try:
-        image_utils.set_focus(screen_id)  # 화면 전체 중앙 클릭
-        time.sleep(2.0)
-        image_utils.set_focus(screen_id)  # 다시 화면 전체 중앙 클릭
-        return True
-    except Exception as e:
-        print(f"ERROR: Simple login failed for {screen_id}: {e}")
-        return False

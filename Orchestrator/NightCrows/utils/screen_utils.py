@@ -112,19 +112,15 @@ class TaskScreenPreparer:
             print(f"    Error cleaning popups on {screen_id}: {e}")
 # Orchestrator/NightCrows/utils/screen_utils.py (기존 파일에 추가)
 
-def detect_designated_template_image(screen_id: str, screen_region: tuple, template_key: str) -> bool:
-    """지정된 템플릿 이미지 감지 - 조합된 액션"""
-    from ..System_Monitor.config.template_paths import get_template
-    template_path = get_template(screen_id, template_key)
+def detect_designated_template_image(screen_id: str, screen_region: tuple, template_path: str) -> bool:
+    """지정된 템플릿 이미지 감지 - 진짜 글로벌 조합된 액션"""
     if not template_path:
         return False
     return is_image_present(template_path, screen_region)
 
-def click_designated_template_image(screen_id: str, screen_region: tuple, template_key: str) -> bool:
-    """지정된 템플릿 이미지 클릭 - 조합된 액션"""
-    from ..System_Monitor.config.template_paths import get_template
-    from .image_utils import click_image
-    template_path = get_template(screen_id, template_key)
+def click_designated_template_image(screen_id: str, screen_region: tuple, template_path: str) -> bool:
+    """지정된 템플릿 이미지 클릭 - 진짜 글로벌 조합된 액션"""
     if not template_path:
         return False
+    from .image_utils import click_image
     return click_image(template_path, screen_region)

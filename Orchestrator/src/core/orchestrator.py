@@ -45,38 +45,33 @@ except ImportError as e:
     print(f"ERROR: Failed to import Raven2 CombatMonitor: {e}")
     Raven2CombatMonitor = None
 
+# SystemMonitor 컴포넌트 임포트 추가
+try:
+    from Orchestrator.NightCrows.System_Monitor.src.core.monitor import create_system_monitor
 
-# --- 플레이스홀더: SM용 ---
-class BaseMonitor:
-    """모니터 클래스의 기본 구조 (예시)"""
+    print("INFO: Successfully imported NightCrows SystemMonitor (SM1)")
+except ImportError as e:
+    print(f"ERROR: Failed to import NightCrows SystemMonitor: {e}")
+    create_system_monitor = None
 
-    def __init__(self, monitor_name, event_queue):
-        self.monitor_name = monitor_name
-        self.event_queue = event_queue
-        print(f"Initialized placeholder for {monitor_name}")
+try:
+    from Orchestrator.Raven2.System_Monitor.src.core.monitor import \
+        create_system_monitor as create_system_monitor_raven2
 
-    def run_loop(self, stop_event):
-        print(f"{self.monitor_name}: Monitoring loop started.")
-        while not stop_event.is_set():
-            print(f"{self.monitor_name}: Checking status...")
-            stop_event.wait(30)  # 10초 → 30초로 변경 (로그 스팸 방지)
-        print(f"{self.monitor_name}: Monitoring loop stopped.")
+    print("INFO: Successfully imported Raven2 SystemMonitor (SM2)")
+except ImportError as e:
+    print(f"ERROR: Failed to import Raven2 SystemMonitor: {e}")
+    create_system_monitor_raven2 = None
 
-    def stop(self):
-        print(f"{self.monitor_name}: Stop signal received, cleaning up...")
-        pass
+# BaseMonitor 제거 - None 체크로 대체
 
 
 # 각 컴포넌트의 main.py 경로
 COMPONENT_PATHS = {
     "DP1": Path("Orchestrator/NightCrows/Daily_Present/main.py"),
     "MO1": Path("Orchestrator/NightCrows/Mail_opener/main.py"),
-    "SRM1": Path("Orchestrator/NightCrows/Status_Recovery_Monitor/main.py"),
-    "SM1": Path("Orchestrator/NightCrows/System_Monitor/main.py"),
     "DP2": Path("Orchestrator/Raven2/Daily_Present/main.py"),
     "MO2": Path("Orchestrator/Raven2/Mail_opener/main.py"),
-    "SRM2": Path("Orchestrator/Raven2/Combat_Monitor/monitor.py"),
-    "SM2": Path("Orchestrator/Raven2/System_Monitor/main.py"),
 }
 
 
@@ -114,9 +109,9 @@ class Orchestrator:
         # --- Initialize Real SRM Components ---
         self._initialize_srm_components()
 
-        # --- Keep SM as placeholders ---
-        self.sm1 = BaseMonitor("SM1", self.monitor_event_queue)
-        self.sm2 = BaseMonitor("SM2", self.monitor_event_queue)
+        # --- Initialize SM Components ---
+        self._initialize_sm_components()
+
         print("Component initialization complete.")
 
         self.setup_schedule()
@@ -138,9 +133,9 @@ class Orchestrator:
                 print(f"INFO: SRM1 initialized with {len(self.srm1.screens)} screens")
             except Exception as e:
                 print(f"ERROR: Failed to initialize SRM1: {e}")
-                self.srm1 = BaseMonitor("SRM1", self.monitor_event_queue)
+                self.srm1 = None
         else:
-            self.srm1 = BaseMonitor("SRM1", self.monitor_event_queue)
+            self.srm1 = None
 
         # SRM2 (Raven2) 초기화
         if Raven2CombatMonitor:
@@ -158,9 +153,35 @@ class Orchestrator:
                 print(f"INFO: SRM2 initialized with {len(self.srm2.screens)} screens")
             except Exception as e:
                 print(f"ERROR: Failed to initialize SRM2: {e}")
-                self.srm2 = BaseMonitor("SRM2", self.monitor_event_queue)
+                self.srm2 = None
         else:
-            self.srm2 = BaseMonitor("SRM2", self.monitor_event_queue)
+            self.srm2 = None
+
+    def _initialize_sm_components(self):
+        """실제 SM 컴포넌트 초기화"""
+        # SM1 (NightCrows) 초기화
+        if create_system_monitor:
+            try:
+                sm1_config = {}  # SystemMonitor 설정
+                self.sm1 = create_system_monitor("SM1", sm1_config, "VD1")
+                print("INFO: SM1 initialized successfully")
+            except Exception as e:
+                print(f"ERROR: Failed to initialize SM1: {e}")
+                self.sm1 = None
+        else:
+            self.sm1 = None
+
+        # SM2 (Raven2) 초기화
+        if create_system_monitor_raven2:
+            try:
+                sm2_config = {}  # SystemMonitor 설정
+                self.sm2 = create_system_monitor_raven2("SM2", sm2_config, "VD2")
+                print("INFO: SM2 initialized successfully")
+            except Exception as e:
+                print(f"ERROR: Failed to initialize SM2: {e}")
+                self.sm2 = None
+        else:
+            self.sm2 = None
 
     def setup_schedule(self):
         print("Setting up schedule...")
@@ -188,6 +209,11 @@ class Orchestrator:
 
     def _start_monitor_thread(self, monitor_key, monitor_instance):
         """모니터 스레드 시작 (중복 실행 방지 포함)"""
+        # None 체크 추가
+        if monitor_instance is None:
+            print(f"Skipping monitor thread start for {monitor_key}: instance is None")
+            return
+
         if monitor_key in self.active_monitors and self.active_monitors[monitor_key]['thread'].is_alive():
             return
 
@@ -340,8 +366,8 @@ class Orchestrator:
         try:
             current_srm = self.srm1 if self.current_focus == VirtualDesktop.VD1 else self.srm2
 
-            # BaseMonitor(플레이스홀더)인 경우 항상 전환 허용
-            if not hasattr(current_srm, 'screens'):
+            # None이거나 screens 속성이 없는 경우 항상 전환 허용
+            if current_srm is None or not hasattr(current_srm, 'screens'):
                 return True
 
             # 위험한 상태들 정의

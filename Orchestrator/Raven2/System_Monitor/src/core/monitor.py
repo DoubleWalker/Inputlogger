@@ -10,9 +10,9 @@ import time
 import threading
 from typing import Dict, List, Optional
 
-# 로컬룰 import (상대경로 수정)
-from Orchestrator.NightCrows.System_Monitor.config.template_paths import get_template, verify_template_paths
-from Orchestrator.NightCrows.System_Monitor.config.sm_config import (
+# SM2 monitor.py
+from Orchestrator.Raven2.System_Monitor.config.template_paths import get_template, verify_template_paths
+from Orchestrator.Raven2.System_Monitor.config.sm_config import (
     SystemState,
     SM_CONFIG,
     SM_EXCEPTION_POLICIES,
@@ -20,12 +20,13 @@ from Orchestrator.NightCrows.System_Monitor.config.sm_config import (
     validate_state_policies
 )
 
-# 글로벌룰 import
-from Orchestrator.NightCrows.utils.screen_utils import (
-    detect_designated_template_image,
-    click_designated_template_image
+# 직접 image_utils에서 import! (기존 함수명 그대로 사용)
+from Orchestrator.Raven2.utils.image_utils import (
+    return_ui_location,
+    click_image,
+    is_image_present
 )
-from Orchestrator.NightCrows.utils.screen_info import SCREEN_REGIONS
+from Orchestrator.Raven2.utils.screen_info import SCREEN_REGIONS
 
 
 class SystemMonitor:
@@ -156,18 +157,76 @@ class SystemMonitor:
 
         return results
 
+    # SM2 monitor.py 수정 부분들
+
+    # =============================================================================
+    # 🔧 함수 호출 수정 (Raven2 image_utils 함수 시그니처에 맞춤)
+    # =============================================================================
+
     def _detect_template(self, screen_id: str, region: tuple, template_path: str) -> bool:
         """실제 템플릿 감지 (글로벌룰 활용)"""
         try:
             with self.io_lock:
-                return detect_designated_template_image(
-                    screen_id=screen_id,
-                    screen_region=region,
-                    template_path=template_path
+                # 수정: Raven2 image_utils 함수 시그니처에 맞춤
+                position = return_ui_location(
+                    template_path=template_path,
+                    region=region,
+                    threshold=0.85  # SM config에서 가져와도 됨
                 )
+                return position is not None
         except Exception as e:
             print(f"WARN: [{self.monitor_id}] Template detection error: {e}")
             return False
+
+    def _execute_click_action(self, result_key: str):
+        """클릭 액션 실행 (글로벌룰 활용)"""
+        print(f"INFO: [{self.monitor_id}] Executing click action for {result_key}")
+
+        # 예시: CONNECTION_CONFIRM_BUTTON 클릭
+        if 'connection' in result_key.lower():
+            for screen_id in self.target_screens:
+                region = self.screen_regions[screen_id]
+                template_path = get_template(screen_id, 'CONNECTION_CONFIRM_BUTTON')
+                if template_path:
+                    # 수정: Raven2 image_utils 함수 시그니처에 맞춤
+                    success = click_image(
+                        template_path=template_path,
+                        region=region,
+                        threshold=0.85
+                    )
+                    if success:
+                        print(f"INFO: [{self.monitor_id}] Successfully clicked connection confirm on {screen_id}")
+                        break
+
+        # 앱 아이콘 클릭 (CLIENT_CRASHED 상태용)
+        elif 'client_crashed' in result_key.lower() or 'app' in result_key.lower():
+            for screen_id in self.target_screens:
+                region = self.screen_regions[screen_id]
+                template_path = get_template(screen_id, 'APP_ICON')
+                if template_path:
+                    success = click_image(
+                        template_path=template_path,
+                        region=region,
+                        threshold=0.85
+                    )
+                    if success:
+                        print(f"INFO: [{self.monitor_id}] Successfully clicked app icon on {screen_id}")
+                        break
+
+        # 로그인 버튼 클릭 (LOGIN_REQUIRED 상태용)
+        elif 'login' in result_key.lower() or 'connect' in result_key.lower():
+            for screen_id in self.target_screens:
+                region = self.screen_regions[screen_id]
+                template_path = get_template(screen_id, 'CONNECT_BUTTON')
+                if template_path:
+                    success = click_image(
+                        template_path=template_path,
+                        region=region,
+                        threshold=0.85
+                    )
+                    if success:
+                        print(f"INFO: [{self.monitor_id}] Successfully clicked connect button on {screen_id}")
+                        break
 
     def _get_target_screens(self, screen_policy: str) -> list:
         """스크린 정책에 따른 대상 화면 반환"""
@@ -229,24 +288,6 @@ class SystemMonitor:
         # 조건 미만족 시 None 반환 (계속 대기)
         return None
 
-    def _execute_click_action(self, result_key: str):
-        """클릭 액션 실행 (글로벌룰 활용)"""
-        print(f"INFO: [{self.monitor_id}] Executing click action for {result_key}")
-
-        # 예시: CONNECTION_CONFIRM_BUTTON 클릭
-        if 'connection' in result_key.lower():
-            for screen_id in self.target_screens:
-                region = self.screen_regions[screen_id]
-                template_path = get_template(screen_id, 'CONNECTION_CONFIRM_BUTTON')
-                if template_path:
-                    success = click_designated_template_image(
-                        screen_id=screen_id,
-                        screen_region=region,
-                        template_path=template_path
-                    )
-                    if success:
-                        print(f"INFO: [{self.monitor_id}] Successfully clicked connection confirm on {screen_id}")
-                        break
 
     def _handle_state_transition(self, policy: dict, result: str):
         """상태 전이 처리"""

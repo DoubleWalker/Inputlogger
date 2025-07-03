@@ -1,11 +1,11 @@
-# Orchestrator/NightCrows/System_Monitor/config/sm_config.py
-# SM1 통합 설정 (config + policies)
+# Orchestrator/Raven2/System_Monitor/config/sm_config.py
+# SM2 통합 설정 (config + policies)
 
 from enum import Enum, auto
 
 
 # =============================================================================
-# 🎯 로컬룰 1: 상태 정의 (SM1의 고유한 생활 패턴)
+# 🎯 로컬룰 1: 상태 정의 (SM2의 고유한 생활 패턴)
 # =============================================================================
 
 class SystemState(Enum):
@@ -45,134 +45,155 @@ SM_STATE_POLICIES = {
         # 4. 어떤 방식으로 처리할지
         'conditional_flow': 'trigger',
 
-        # 5. 어느 화면에서 처리할지
-        'screen_policy': 'all_screens'
+        # 5. 화면별 처리 방식
+        'screen_policy': 'independent_per_screen'
     },
 
     SystemState.CONNECTION_ERROR: {
         'targets': [
-            {'template': 'CONNECTION_CONFIRM_BUTTON', 'result': 'confirm_clicked'}
+            {'template': 'CONNECTION_CONFIRM_BUTTON', 'result': 'confirm_button_found'}
         ],
-        'action_type': 'detect_and_click',
+
+        'action_type': 'click_and_wait',
+
         'transitions': {
-            'confirm_clicked': SystemState.NORMAL,
-            'confirm_click_failed': SystemState.CONNECTION_ERROR
+            'confirm_clicked': SystemState.LOADING,
+            'confirm_failed': SystemState.CONNECTION_ERROR,
+            'no_confirm_button': SystemState.NORMAL
         },
+
         'conditional_flow': 'retry',
-        'screen_policy': 'any_screen',
-        'retry_config': {
-            'max_attempts': 3,
-            'failure_result': 'confirm_click_failed'
-        }
+        'screen_policy': 'independent_per_screen',
+        'timeout': 30.0
     },
 
     SystemState.CLIENT_CRASHED: {
         'targets': [
-            {'template': 'APP_ICON', 'result': 'app_started'},
-            {'template': 'APP_LOADING_SCREEN', 'result': 'loading_detected'}
+            {'template': 'APP_ICON', 'result': 'app_icon_found'}
         ],
-        'action_type': 'detect_and_click',
+
+        'action_type': 'restart_app',
+
         'transitions': {
-            'app_started': SystemState.LOADING,
-            'loading_detected': SystemState.LOADING,
-            'restart_failed': SystemState.CLIENT_CRASHED
+            'app_clicked': SystemState.RESTARTING_APP,
+            'app_click_failed': SystemState.CLIENT_CRASHED,
+            'no_app_icon': SystemState.NORMAL
         },
-        'conditional_flow': 'trigger_retry_hold',
-        'screen_policy': 'any_screen',
-        'retry_config': {
-            'max_attempts': 3,
-            'failure_result': 'restart_failed'
-        }
+
+        'conditional_flow': 'retry',
+        'screen_policy': 'independent_per_screen',
+        'timeout': 60.0
     },
 
     SystemState.RESTARTING_APP: {
         'targets': [
             {'template': 'APP_LOADING_SCREEN', 'result': 'loading_detected'},
-            {'template': 'LOGIN_SCREEN', 'result': 'login_screen_detected'}
+            {'template': 'LOGIN_SCREEN', 'result': 'login_required'}
         ],
-        'action_type': 'detect_only',
+
+        'action_type': 'wait_for_loading',
+
         'transitions': {
             'loading_detected': SystemState.LOADING,
-            'login_screen_detected': SystemState.LOGIN_REQUIRED,
-            'restart_timeout': SystemState.CLIENT_CRASHED
+            'login_required': SystemState.LOGIN_REQUIRED,
+            'loading_timeout': SystemState.NORMAL,
+            'still_restarting': SystemState.RESTARTING_APP
         },
+
         'conditional_flow': 'hold',
-        'screen_policy': 'any_screen',
-        'timeout': 60.0
+        'screen_policy': 'independent_per_screen',
+        'timeout': 90.0
     },
 
     SystemState.LOADING: {
         'targets': [
-            {'template': 'LOGIN_SCREEN', 'condition': 'without_loading_screen', 'result': 'loading_completed'}
+            {'template': 'GAME_WORLD_LOADED', 'result': 'game_loaded'},
+            {'template': 'LOGIN_SCREEN', 'result': 'login_required'}
         ],
-        'action_type': 'detect_only',
+
+        'action_type': 'wait_for_completion',
+
         'transitions': {
-            'loading_completed': SystemState.LOGIN_REQUIRED,
-            'loading_timeout': SystemState.CLIENT_CRASHED
+            'game_loaded': SystemState.RETURNING_TO_GAME,
+            'login_required': SystemState.LOGIN_REQUIRED,
+            'loading_timeout': SystemState.NORMAL,
+            'still_loading': SystemState.LOADING
         },
-        'conditional_flow': 'wait_until_condition',
-        'screen_policy': 'any_screen',
+
+        'conditional_flow': 'hold',
+        'screen_policy': 'independent_per_screen',
         'timeout': 120.0
     },
 
     SystemState.LOGIN_REQUIRED: {
         'targets': [
-            {'template': 'CONNECT_BUTTON', 'result': 'connect_clicked'}
+            {'template': 'CONNECT_BUTTON', 'result': 'connect_button_found'}
         ],
-        'action_type': 'detect_and_click',
+
+        'action_type': 'login_sequence',
+
         'transitions': {
-            'connect_clicked': SystemState.LOGGING_IN,
-            'login_failed': SystemState.LOGIN_REQUIRED
+            'login_initiated': SystemState.LOGGING_IN,
+            'login_failed': SystemState.LOGIN_REQUIRED,
+            'no_login_ui': SystemState.NORMAL
         },
-        'conditional_flow': 'trigger_retry_hold',
-        'screen_policy': 'any_screen',
-        'retry_config': {
-            'max_attempts': 3,
-            'failure_result': 'login_failed'
-        }
+
+        'conditional_flow': 'retry',
+        'screen_policy': 'independent_per_screen',
+        'timeout': 60.0
     },
 
     SystemState.LOGGING_IN: {
         'targets': [
-            {'template': 'GAME_WORLD_LOADED', 'result': 'login_completed'}
+            {'template': 'GAME_WORLD_LOADED', 'result': 'login_successful'},
+            {'template': 'LOGIN_SCREEN', 'result': 'login_failed'}
         ],
-        'action_type': 'detect_only',
+
+        'action_type': 'wait_for_login_result',
+
         'transitions': {
-            'login_completed': SystemState.RETURNING_TO_GAME,
-            'login_timeout': SystemState.LOGIN_REQUIRED
+            'login_successful': SystemState.RETURNING_TO_GAME,
+            'login_failed': SystemState.LOGIN_REQUIRED,
+            'login_timeout': SystemState.NORMAL,
+            'still_logging_in': SystemState.LOGGING_IN
         },
-        'conditional_flow': 'wait_until_condition',
-        'screen_policy': 'any_screen',
-        'timeout': 60.0
+
+        'conditional_flow': 'hold',
+        'screen_policy': 'independent_per_screen',
+        'timeout': 90.0
     },
 
     SystemState.RETURNING_TO_GAME: {
         'targets': [
-            {'template': 'GAME_WORLD_LOADED', 'result': 'returned_to_game'}
+            {'template': 'GAME_WORLD_LOADED', 'result': 'game_ready'}
         ],
-        'action_type': 'detect_only',
+
+        'action_type': 'finalize_return',
+
         'transitions': {
-            'returned_to_game': SystemState.NORMAL,
-            'return_timeout': SystemState.LOGIN_REQUIRED
+            'return_completed': SystemState.NORMAL,
+            'return_timeout': SystemState.NORMAL,
+            'still_returning': SystemState.RETURNING_TO_GAME
         },
-        'conditional_flow': 'wait_until_condition',
-        'screen_policy': 'any_screen',
-        'timeout': 15.0
+
+        'conditional_flow': 'hold',
+        'screen_policy': 'independent_per_screen',
+        'timeout': 60.0
     }
 }
 
 # =============================================================================
-# 🎯 로컬룰 3: 개성적 설정 (SM1만의 고유한 특성)
+# 🎯 로컬룰 3: SM2 기본 운영 설정 (SM2만의 고유한 특성)
 # =============================================================================
 
 SM_CONFIG = {
-    # 타이밍 설정 - "SM1은 5초마다 적당히 체크하는 성격"
+    # 타이밍 설정 - "SM2는 5초마다 적당히 체크하는 성격"
     'timing': {
         'check_interval': 5.0,  # 5초 간격 (SRM의 0.5초보다는 느긋함)
         'default_timeout': 60.0,  # 기본 타임아웃
     },
 
-    # 대상 화면 설정 - "SM1은 스마트폰 화면만 관리하는 정책"
+    # 대상 화면 설정 - "SM2는 스마트폰 화면만 관리하는 정책"
     'target_screens': {
         'included': ['S1', 'S2', 'S3', 'S4'],  # 스마트폰 화면만
         'excluded': ['S5'],  # PC 네이티브 제외
@@ -199,13 +220,13 @@ SM_CONFIG = {
 
     # 게임 설정
     'game_settings': {
-        'game_type': 'nightcrows',  # 글로벌 설정 키
-        'vd_name': 'VD1'  # 가상 데스크톱
+        'game_type': 'raven2',  # SM1과 다른 부분 1: nightcrows → raven2
+        'vd_name': 'VD2'  # SM1과 다른 부분 2: VD1 → VD2
     }
 }
 
 # =============================================================================
-# 🎯 로컬룰 4: 예외 처리 정책 (SM1만의 예외 대응 방식)
+# 🎯 로컬룰 4: 예외 처리 정책 (SM2만의 예외 대응 방식)
 # =============================================================================
 
 SM_EXCEPTION_POLICIES = {
@@ -242,7 +263,7 @@ def get_state_policy(state: SystemState) -> dict:
 
 
 def get_all_states() -> list:
-    """SM1이 지원하는 모든 상태 목록을 반환합니다."""
+    """SM2가 지원하는 모든 상태 목록을 반환합니다."""
     return list(SM_STATE_POLICIES.keys())
 
 
@@ -267,65 +288,21 @@ def validate_state_policies() -> bool:
     return True
 
 
-def validate_config() -> bool:
-    """설정 유효성 검증"""
-    try:
-        # 필수 섹션 존재 확인
-        required_sections = ['timing', 'target_screens', 'io_policy', 'retry_policy', 'independence', 'game_settings']
-
-        for section in required_sections:
-            if section not in SM_CONFIG:
-                print(f"오류: 필수 설정 섹션 '{section}'이 없습니다.")
-                return False
-
-        # 타이밍 값 검증
-        timing = SM_CONFIG['timing']
-        if timing['check_interval'] <= 0:
-            print("오류: check_interval은 0보다 커야 합니다.")
-            return False
-
-        if timing['default_timeout'] <= timing['check_interval']:
-            print("오류: default_timeout은 check_interval보다 커야 합니다.")
-            return False
-
-        # 재시도 정책 검증
-        retry = SM_CONFIG['retry_policy']
-        if retry['max_attempts'] < 1:
-            print("오류: max_attempts는 1 이상이어야 합니다.")
-            return False
-
-        print("✅ SM_CONFIG 유효성 검증 완료")
-        return True
-
-    except Exception as e:
-        print(f"오류: 설정 검증 중 예외 발생 - {e}")
-        return False
-
-
 # =============================================================================
-# 🧪 테스트 및 디버깅
+# 🧪 설정 테스트 함수
 # =============================================================================
 
-if __name__ == "__main__":
-    print("🎯 SystemMonitor 통합 설정 테스트")
+def test_config():
+    """SM2 설정 및 정책 검증 테스트"""
+    print("=" * 60)
+    print("SM2 (Raven2 SystemMonitor) 통합 설정 테스트")
     print("=" * 60)
 
-    # 정책 유효성 검증
-    print("📊 정책 검증 중...")
-    policies_valid = validate_state_policies()
-
-    print("\n📊 설정 검증 중...")
-    config_valid = validate_config()
-
-    if policies_valid and config_valid:
-        print(f"\n📊 정의된 상태 수: {len(SM_STATE_POLICIES)}")
-        print(f"📋 지원 상태들:")
-
-        for i, state in enumerate(get_all_states(), 1):
-            policy = get_state_policy(state)
+    if validate_state_policies() and SM_CONFIG:
+        print("\n🎯 상태머신 정책 요약:")
+        for state, policy in SM_STATE_POLICIES.items():
             transitions = policy.get('transitions', {})
-
-            print(f"  {i}. {state.name}")
+            print(f"  • {state.name}")
             print(f"     • 액션: {policy.get('action_type', 'N/A')}")
             print(f"     • 흐름: {policy.get('conditional_flow', 'N/A')}")
             print(f"     • 전이: {len(transitions)}개 가능")
@@ -354,4 +331,8 @@ if __name__ == "__main__":
         print("❌ 상태 정책 또는 설정 검증 실패!")
 
     print("\n" + "=" * 60)
-    print("SystemMonitor 통합 설정 테스트 완료")
+    print("SM2 통합 설정 테스트 완료")
+
+
+if __name__ == "__main__":
+    test_config()

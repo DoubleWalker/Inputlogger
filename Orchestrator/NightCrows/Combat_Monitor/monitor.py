@@ -26,7 +26,10 @@ from .config import template_paths
 # (Placeholder - BaseMonitor 클래스는 Orchestrator에서 제공될 것으로 가정)
 class BaseMonitor:
     """오케스트레이터와 호환되는 모니터의 기본 클래스"""
-    def __init__(self, monitor_id: str, config: Optional[Dict], vd_name: str):
+
+    def __init__(self, monitor_id: str, config: Optional[Dict], vd_name: str, orchestrator=None):
+        # ... 기존 코드 ...
+        self.orchestrator = orchestrator  # ← 이 줄 추가
         self.monitor_id = monitor_id
         self.config = config if isinstance(config, dict) else {}
         self.vd_name = vd_name
@@ -159,7 +162,7 @@ class CombatMonitor(BaseMonitor):
             return CharacterState.NORMAL
 
         try:
-            screenshot = pyautogui.screenshot(region=screen.region)
+            screenshot = self.orchestrator.capture_screen_safely(screen.screen_id)
             if screenshot is None:
                 print(f"ERROR: [{self.monitor_id}] Failed screenshot (Screen: {screen.screen_id}).")
                 return CharacterState.NORMAL
@@ -190,7 +193,7 @@ class CombatMonitor(BaseMonitor):
                     for sample_idx in range(max_samples):
                         # 새 스크린샷 캡처
                         try:
-                            current_screenshot = pyautogui.screenshot(region=screen.region)
+                            current_screenshot = self.orchestrator.capture_screen_safely(screen.screen_id)
                             if current_screenshot is None:
                                 continue
 
@@ -238,7 +241,7 @@ class CombatMonitor(BaseMonitor):
             return False # 템플릿 없으면 필드로 간주
 
         try:
-            screen_capture = pyautogui.screenshot(region=screen.region)
+            screen_capture = self.orchestrator.capture_screen_safely(screen.screen_id)
             if screen_capture is None:
                 print(f"ERROR: [{self.monitor_id}] Failed screenshot for arena check (Screen: {screen.screen_id}).")
                 return False
@@ -284,7 +287,7 @@ class CombatMonitor(BaseMonitor):
 
             try:
                 # 화면 캡처 및 템플릿 매칭
-                screen_capture = pyautogui.screenshot(region=first_screen.region)
+                screen_capture = self.orchestrator.capture_screen_safely(first_screen.screen_id)
                 if screen_capture:
                     # arena 인디케이터 체크
                     if image_utils.compare_images(
@@ -560,7 +563,9 @@ class CombatMonitor(BaseMonitor):
             return False
 
         # 묘지 UI 확인
-        graveyard_visible = image_utils.is_image_present(graveyard_template_path, screen.region, self.confidence)
+        screenshot = self.orchestrator.capture_screen_safely(screen.screen_id)
+        graveyard_visible = image_utils.is_image_present(graveyard_template_path, screen.region, self.confidence,
+                                                         screenshot)
         return graveyard_visible
 
     def _attempt_flight(self, screen: ScreenMonitorInfo) -> bool:
@@ -574,11 +579,15 @@ class CombatMonitor(BaseMonitor):
             return False
 
         try:
+            # Orchestrator에서 중앙집중식 캡쳐
+            screenshot = self.orchestrator.capture_screen_safely(screen.screen_id)
+
             # 1. 먼저 템플릿 매칭 시도
             center_coords = image_utils.return_ui_location(
                 template_path=flight_template_path,
                 region=screen.region,
-                threshold=self.confidence
+                threshold=self.confidence,
+                screenshot_img=screenshot
             )
             if center_coords:
                 pyautogui.click(center_coords)
@@ -616,8 +625,9 @@ class CombatMonitor(BaseMonitor):
                 print(
                     f"DEBUG: [{self.monitor_id}] Template exists: {os.path.exists(shop_template_path) if shop_template_path else False}")
                 if shop_template_path and os.path.exists(shop_template_path):
+                    screenshot = self.orchestrator.capture_screen_safely(screen.screen_id)
                     shop_button_loc = image_utils.return_ui_location(shop_template_path, screen.region,
-                                                                         self.confidence)
+                                                                     self.confidence, screenshot)
                     print(f"DEBUG: [{self.monitor_id}] Shop button location: {shop_button_loc}")
 
                     if shop_button_loc:
@@ -630,7 +640,7 @@ class CombatMonitor(BaseMonitor):
                 else:
                     print(f"DEBUG: [{self.monitor_id}] Template path invalid or file not found")
 
-               # 템플릿 실패시 고정 좌표
+                # 템플릿 실패시 고정 좌표
                 if not shop_clicked:
                     print(f"DEBUG: [{self.monitor_id}] Trying fixed coordinates...")
                     with self.io_lock:
@@ -660,8 +670,9 @@ class CombatMonitor(BaseMonitor):
                     # 구매 버튼 찾기 시도
                     image_utils.set_focus(screen.screen_id, delay_after=0.3)
                     purchase_template_path = template_paths.get_template(screen.screen_id, 'PURCHASE_BUTTON')
+                    screenshot = self.orchestrator.capture_screen_safely(screen.screen_id)
                     purchase_button_loc = image_utils.return_ui_location(purchase_template_path, screen.region,
-                                                                         self.confidence)
+                                                                         self.confidence, screenshot)
                     print(f"DEBUG: Purchase button location: {purchase_button_loc}")
 
                     if purchase_button_loc:
@@ -675,8 +686,9 @@ class CombatMonitor(BaseMonitor):
                             shop_reclicked = False
                             shop_template_path = template_paths.get_template(screen.screen_id, 'SHOP_BUTTON')
                             if shop_template_path and os.path.exists(shop_template_path):
+                                screenshot2 = self.orchestrator.capture_screen_safely(screen.screen_id)
                                 shop_button_loc = image_utils.return_ui_location(shop_template_path, screen.region,
-                                                                                 self.confidence)
+                                                                                 self.confidence, screenshot2)
                                 if shop_button_loc:
                                     with self.io_lock:
                                         self.win32_click(shop_button_loc[0], shop_button_loc[1])
@@ -707,8 +719,9 @@ class CombatMonitor(BaseMonitor):
             elif screen.potion_step == 2:
                 # 구매 완료 및 나머지 처리
                 purchase_template_path = template_paths.get_template(screen.screen_id, 'PURCHASE_BUTTON')
+                screenshot = self.orchestrator.capture_screen_safely(screen.screen_id)
                 purchase_button_loc = image_utils.return_ui_location(purchase_template_path, screen.region,
-                                                                     self.confidence)
+                                                                     self.confidence, screenshot)
 
                 if not purchase_button_loc:
                     screen.potion_step = 0  # 리셋
@@ -722,8 +735,9 @@ class CombatMonitor(BaseMonitor):
                     # 확인 버튼 처리
                     confirm_template_path = template_paths.get_template(screen.screen_id, 'CONFIRM_BUTTON')
                     if confirm_template_path and os.path.exists(confirm_template_path):
+                        screenshot2 = self.orchestrator.capture_screen_safely(screen.screen_id)
                         confirm_button_loc = image_utils.return_ui_location(confirm_template_path, screen.region,
-                                                                            self.confidence)
+                                                                            self.confidence, screenshot2)
                         if confirm_button_loc:
                             pyautogui.click(confirm_button_loc[0], confirm_button_loc[1])
                             time.sleep(0.5)
@@ -766,7 +780,9 @@ class CombatMonitor(BaseMonitor):
                 print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: REVIVE_BUTTON template not found.")
                 return False
 
-            revive_location = image_utils.return_ui_location(revive_template_path, screen.region, self.confidence)
+            screenshot = self.orchestrator.capture_screen_safely(screen.screen_id)
+            revive_location = image_utils.return_ui_location(revive_template_path, screen.region, self.confidence,
+                                                             screenshot)
             if not revive_location:
                 print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: REVIVE_BUTTON not found on screen.")
                 return False
@@ -789,8 +805,9 @@ class CombatMonitor(BaseMonitor):
             graveyard_found = False
 
             for attempt in range(max_attempts):
+                screenshot2 = self.orchestrator.capture_screen_safely(screen.screen_id)
                 graveyard_location = image_utils.return_ui_location(graveyard_template_path, screen.region,
-                                                                    self.confidence)
+                                                                    self.confidence, screenshot2)
                 if graveyard_location:
                     pyautogui.click(graveyard_location)
                     print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Clicked GRAVEYARD location.")
@@ -843,7 +860,7 @@ class CombatMonitor(BaseMonitor):
 
             for i in range(samples):
                 try:
-                    screen_img = pyautogui.screenshot(region=screen.region)
+                    screen_img = self.orchestrator.capture_screen_safely(screen.screen_id)
                     screen_gray = cv2.cvtColor(np.array(screen_img), cv2.COLOR_RGB2GRAY)
 
                     match_result = cv2.matchTemplate(screen_gray, template_gray, cv2.TM_SQDIFF_NORMED)
@@ -997,7 +1014,9 @@ class CombatMonitor(BaseMonitor):
                             keyboard.press_and_release('esc')
                             return False
 
-                        icon_pos = image_utils.return_ui_location(arena_icon_template, screen.region, self.confidence)
+                        screenshot = self.orchestrator.capture_screen_safely(screen.screen_id)
+                        icon_pos = image_utils.return_ui_location(arena_icon_template, screen.region, self.confidence,
+                                                                  screenshot)
                         if not icon_pos:
                             keyboard.press_and_release('esc')
                             return False
@@ -1028,7 +1047,9 @@ class CombatMonitor(BaseMonitor):
                     # UI 확인 (임계값 단계적 시도)
                     entry_found = False
                     for threshold in [self.confidence, 0.8, 0.72]:
-                        if image_utils.is_image_present(arena_entry_path, screen.region, threshold=threshold):
+                        screenshot = self.orchestrator.capture_screen_safely(screen.screen_id)
+                        if image_utils.is_image_present(arena_entry_path, screen.region, threshold=threshold,
+                                                        screenshot_img=screenshot):
                             entry_found = True
                             break
                         time.sleep(1.0)
@@ -1135,7 +1156,9 @@ class CombatMonitor(BaseMonitor):
                 # WP2: 타워 근처 도착 확인 (템플릿 또는 위치 기반)
                 tower_template_path = template_paths.get_template(screen.screen_id, 'WAYPOINT_2')
                 if tower_template_path and os.path.exists(tower_template_path):
-                    if image_utils.is_image_present(tower_template_path, screen.region, threshold=0.8):
+                    screenshot = self.orchestrator.capture_screen_safely(screen.screen_id)
+                    if image_utils.is_image_present(tower_template_path, screen.region, threshold=0.8,
+                                                    screenshot_img=screenshot):
                         print(f"INFO: [{self.monitor_id}] WP2 reached - Tower location confirmed")
                         return True
 
@@ -1179,10 +1202,12 @@ class CombatMonitor(BaseMonitor):
         # 최대 3번 시도
         max_attempts = 3
         for attempt in range(max_attempts):
+            screenshot = self.orchestrator.capture_screen_safely(screen.screen_id)
             if image_utils.is_image_present(
                     template_path=template_path,
                     region=screen.region,
-                    threshold=self.confidence
+                    threshold=self.confidence,
+                    screenshot_img=screenshot
             ):
                 print(f"INFO: [{self.monitor_id}] Combat spot reached confirmed on attempt {attempt + 1}")
                 return True
@@ -1306,7 +1331,9 @@ class CombatMonitor(BaseMonitor):
             return False
 
         # 부활 버튼 위치 찾기
-        revive_location = image_utils.return_ui_location(revive_template_path, screen.region, self.confidence)
+        screenshot = self.orchestrator.capture_screen_safely(screen.screen_id)
+        revive_location = image_utils.return_ui_location(revive_template_path, screen.region, self.confidence,
+                                                         screenshot)
         if not revive_location:
             print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: REVIVE_BUTTON not found on screen.")
             return False
@@ -1544,12 +1571,13 @@ class CombatMonitor(BaseMonitor):
             # Combat_spot_near 템플릿 사용 (템플릿 경로가 정의되어 있다면)
             template_path = template_paths.get_template(screen.screen_id, 'COMBAT_SPOT_NEAR')
             if template_path and os.path.exists(template_path):
+                screenshot = self.orchestrator.capture_screen_safely(screen.screen_id)
                 near_combat_spot = image_utils.is_image_present(
                     template_path=template_path,
                     region=screen.region,
-                    threshold=self.confidence
+                    threshold=self.confidence,
+                    screenshot_img=screenshot
                 )
-
             # 2. 대략적인 위치 조정 (필요시)
             if not near_combat_spot:
                 print(

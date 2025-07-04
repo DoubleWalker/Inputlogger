@@ -31,7 +31,8 @@ from Orchestrator.NightCrows.utils.screen_info import SCREEN_REGIONS
 class SystemMonitor:
     """SM 브릿지 - 정책 기반 시스템 모니터"""
 
-    def __init__(self, monitor_id: str, config: Dict, vd_name: str):
+    def __init__(self, monitor_id: str, config: Dict, vd_name: str, orchestrator=None):
+        self.orchestrator = orchestrator  # ← 이 줄 추가
         """브릿지 초기화"""
         # 설정 검증
         if not validate_state_policies():

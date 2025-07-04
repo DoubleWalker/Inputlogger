@@ -7,6 +7,7 @@ import subprocess
 import os
 import sys
 from pathlib import Path
+import pyautogui
 
 try:
     # VDManager 임포트 시도
@@ -115,6 +116,23 @@ class Orchestrator:
         print("Component initialization complete.")
 
         self.setup_schedule()
+        self.capture_lock = threading.Lock()
+
+        # 양쪽 게임의 SCREEN_REGIONS 로드
+        from Orchestrator.NightCrows.utils.screen_info import SCREEN_REGIONS as NC_REGIONS
+        from Orchestrator.Raven2.utils.screen_info import SCREEN_REGIONS as R2_REGIONS
+
+        self.screen_regions = {
+            VirtualDesktop.VD1: NC_REGIONS,
+            VirtualDesktop.VD2: R2_REGIONS
+        }
+
+    def capture_screen_safely(self, screen_id: str):
+        """중앙집중식 화면 캡처"""
+        with self.capture_lock:
+            regions = self.screen_regions[self.current_focus]
+            region = regions[screen_id]
+            return pyautogui.screenshot(region=region)
 
     def _initialize_srm_components(self):
         """실제 SRM 컴포넌트 초기화"""
@@ -122,7 +140,7 @@ class Orchestrator:
         if NightCrowsCombatMonitor:
             try:
                 srm1_config = {'confidence': 0.75}
-                self.srm1 = NightCrowsCombatMonitor(monitor_id="SRM1", config=srm1_config, vd_name="VD1")
+                self.srm1 = NightCrowsCombatMonitor(monitor_id="SRM1", config=srm1_config, vd_name="VD1", orchestrator=self)
 
                 # 화면 정보 추가
                 from Orchestrator.NightCrows.utils.screen_info import SCREEN_REGIONS

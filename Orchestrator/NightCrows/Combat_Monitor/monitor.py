@@ -171,20 +171,21 @@ class CombatMonitor(BaseMonitor):
             return CharacterState.NORMAL
 
         try:
-            # 화면 ID에 맞는 템플릿 경로 가져오기 (없으면 기본 경로 사용 시도)
+            # 템플릿 경로들을 한 번만 가져오기
             dead_template_path = template_paths.get_template(screen.screen_id, 'DEAD') or self.dead_template_path
-            hostile_template_path = template_paths.get_template(screen.screen_id, 'HOSTILE') or self.hostile_template_path
-
-            # DEAD 상태 확인 (최우선)
-            dead_template = self._load_template(dead_template_path)
-            if dead_template is not None and image_utils.compare_images(screenshot, dead_template, threshold=self.confidence):
-                return CharacterState.DEAD
-
-            # HOSTILE 상태 확인 - 연속 샘플링으로 수정
             hostile_template_path = template_paths.get_template(screen.screen_id,
                                                                 'HOSTILE') or self.hostile_template_path
+
+            # DEAD 상태 확인
+            dead_template = self._load_template(dead_template_path)
+            if dead_template is not None and image_utils.compare_images(screenshot, dead_template,
+                                                                        threshold=self.confidence):
+                return CharacterState.DEAD
+
+            # HOSTILE 상태 확인 (재선언 제거)
             if hostile_template_path is not None:
                 hostile_template = self._load_template(hostile_template_path)
+                # ... 나머지 로직
                 if hostile_template is not None:
                     # 연속 샘플링 (최대 3회, 각 0.1초 간격)
                     max_samples = 3

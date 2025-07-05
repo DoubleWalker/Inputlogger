@@ -102,9 +102,10 @@ class CombatMonitor(BaseMonitor):
     Orchestrator에 의해 run_loop 및 stop_event로 제어됩니다.
     템플릿 경로는 config/template_paths.py에서 읽어옵니다.
     """
-    def __init__(self, monitor_id="SRM1", config=None, vd_name="VD1"):
+
+    def __init__(self, monitor_id="SRM1", config=None, vd_name="VD1", orchestrator=None):
         """CombatMonitor 초기화."""
-        super().__init__(monitor_id, config, vd_name)
+        super().__init__(monitor_id, config, vd_name, orchestrator)  # orchestrator 추가!
         self.location_flag: Location = Location.UNKNOWN
         self.death_count: int = 0
         self.current_wp: int = 0

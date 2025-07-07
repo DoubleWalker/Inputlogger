@@ -1,5 +1,5 @@
 # Orchestrator/Raven2/System_Monitor/config/sm_config.py
-# SM2 통합 설정 (config + policies)
+# SM2 통합 설정 - NightCrows 개선 구조 적용
 
 from enum import Enum, auto
 
@@ -21,183 +21,149 @@ class SystemState(Enum):
 
 
 # =============================================================================
-# 🎯 로컬룰 2: 상태별 통합 정책 (4가지 핵심 정책)
+# 🎯 로컬룰 2: 공통 상태 정책 (4대 정책 범주)
 # =============================================================================
+DEFAULT_SEQUENCE_CONFIG = {
+    'max_attempts': 10,
+    'step_timeout': 3.0,
+    'detection_interval': 0.5,
+    'default_wait_after': 1.0,
+    'default_max_detections': 6
+}
 
 SM_STATE_POLICIES = {
     SystemState.NORMAL: {
-        # 1. 무엇을 감지할지
+        # 1. targets: 무엇을 감지할지
         'targets': [
             {'template': 'CONNECTION_CONFIRM_BUTTON', 'result': 'connection_error_detected'},
             {'template': 'APP_ICON', 'result': 'client_crashed_detected'}
         ],
-
-        # 2. 어떻게 할지
+        # 2. action_type: 어떻게 할지
         'action_type': 'detect_only',
-
-        # 3. 어디로 갈지
+        # 3. transitions: 어디로 갈지
         'transitions': {
             'connection_error_detected': SystemState.CONNECTION_ERROR,
             'client_crashed_detected': SystemState.CLIENT_CRASHED,
             'stay_normal': SystemState.NORMAL
         },
-
-        # 4. 어떤 방식으로 처리할지
-        'conditional_flow': 'trigger',
-
-        # 5. 화면별 처리 방식
-        'screen_policy': 'independent_per_screen'
+        # 4. conditional_flow: 어떤 방식으로 처리할지
+        'conditional_flow': 'trigger'
     },
 
     SystemState.CONNECTION_ERROR: {
         'targets': [
-            {'template': 'CONNECTION_CONFIRM_BUTTON', 'result': 'confirm_button_found'}
+            {'template': 'CONNECTION_CONFIRM_BUTTON', 'result': 'confirm_clicked'}
         ],
-
-        'action_type': 'click_and_wait',
-
+        'action_type': 'detect_and_click',
         'transitions': {
             'confirm_clicked': SystemState.LOADING,
-            'confirm_failed': SystemState.CONNECTION_ERROR,
-            'no_confirm_button': SystemState.NORMAL
+            'confirm_click_failed': SystemState.CONNECTION_ERROR
         },
-
         'conditional_flow': 'retry',
-        'screen_policy': 'independent_per_screen',
-        'timeout': 30.0
+        'retry_config': {
+            'max_attempts': 3,
+            'failure_result': 'confirm_click_failed'
+        }
     },
 
     SystemState.CLIENT_CRASHED: {
         'targets': [
-            {'template': 'APP_ICON', 'result': 'app_icon_found'}
+            {'template': 'APP_ICON', 'result': 'app_started'}
         ],
-
-        'action_type': 'restart_app',
-
+        'action_type': 'detect_and_click',
         'transitions': {
-            'app_clicked': SystemState.RESTARTING_APP,
-            'app_click_failed': SystemState.CLIENT_CRASHED,
-            'no_app_icon': SystemState.NORMAL
+            'app_started': SystemState.RESTARTING_APP,
+            'restart_failed': SystemState.CLIENT_CRASHED
         },
-
         'conditional_flow': 'retry',
-        'screen_policy': 'independent_per_screen',
-        'timeout': 60.0
+        'retry_config': {
+            'max_attempts': 3,
+            'failure_result': 'restart_failed'
+        }
     },
 
     SystemState.RESTARTING_APP: {
-        'targets': [
-            {'template': 'APP_LOADING_SCREEN', 'result': 'loading_detected'},
-            {'template': 'LOGIN_SCREEN', 'result': 'login_required'}
-        ],
-
-        'action_type': 'wait_for_loading',
-
+        'targets': [],  # 명시적으로 빈 리스트
+        'action_type': 'time_based_wait',
+        'expected_duration': 35.0,  # RAVEN2는 35초로 조정
+        'timeout': 90.0,
         'transitions': {
-            'loading_detected': SystemState.LOADING,
-            'login_required': SystemState.LOGIN_REQUIRED,
-            'loading_timeout': SystemState.NORMAL,
-            'still_restarting': SystemState.RESTARTING_APP
+            'duration_passed': SystemState.LOGIN_REQUIRED,
+            'timeout_reached': SystemState.CLIENT_CRASHED
         },
-
-        'conditional_flow': 'hold',
-        'screen_policy': 'independent_per_screen',
-        'timeout': 90.0
+        'conditional_flow': 'wait_for_duration'
     },
 
     SystemState.LOADING: {
-        'targets': [
-            {'template': 'GAME_WORLD_LOADED', 'result': 'game_loaded'},
-            {'template': 'LOGIN_SCREEN', 'result': 'login_required'}
-        ],
-
-        'action_type': 'wait_for_completion',
-
+        'targets': [],  # 템플릿 감지 없음
+        'action_type': 'time_based_wait',
+        'expected_duration': 25.0,  # RAVEN2 로딩 시간
+        'timeout': 45.0,
         'transitions': {
-            'game_loaded': SystemState.RETURNING_TO_GAME,
-            'login_required': SystemState.LOGIN_REQUIRED,
-            'loading_timeout': SystemState.NORMAL,
-            'still_loading': SystemState.LOADING
+            'duration_passed': SystemState.LOGIN_REQUIRED,
+            'timeout_reached': SystemState.LOGIN_REQUIRED
         },
-
-        'conditional_flow': 'hold',
-        'screen_policy': 'independent_per_screen',
-        'timeout': 120.0
+        'conditional_flow': 'wait_for_duration'
     },
 
     SystemState.LOGIN_REQUIRED: {
-        'targets': [
-            {'template': 'CONNECT_BUTTON', 'result': 'connect_button_found'}
-        ],
-
-        'action_type': 'login_sequence',
-
-        'transitions': {
-            'login_initiated': SystemState.LOGGING_IN,
-            'login_failed': SystemState.LOGIN_REQUIRED,
-            'no_login_ui': SystemState.NORMAL
+        'targets': [],  # sequence 타입은 targets 비우기
+        'action_type': 'sequence',
+        'sequence_config': {
+            **DEFAULT_SEQUENCE_CONFIG,
+            'actions': [
+                {'template': 'CONNECT_BUTTON', 'initial': True},
+                {'template': 'AD_POPUP'},
+                {'template': 'LOGIN_BUTTON', 'final': True}
+            ]
         },
-
-        'conditional_flow': 'retry',
-        'screen_policy': 'independent_per_screen',
-        'timeout': 60.0
+        'transitions': {
+            'sequence_complete': SystemState.LOGGING_IN,
+            'sequence_failed': SystemState.LOGIN_REQUIRED
+        },
+        'conditional_flow': 'retry'
     },
 
     SystemState.LOGGING_IN: {
-        'targets': [
-            {'template': 'GAME_WORLD_LOADED', 'result': 'login_successful'},
-            {'template': 'LOGIN_SCREEN', 'result': 'login_failed'}
-        ],
-
-        'action_type': 'wait_for_login_result',
-
+        'targets': [],  # 명시적으로 빈 리스트
+        'action_type': 'time_based_wait',
+        'expected_duration': 20.0,  # RAVEN2 로그인 시간
+        'timeout': 60.0,
         'transitions': {
-            'login_successful': SystemState.RETURNING_TO_GAME,
-            'login_failed': SystemState.LOGIN_REQUIRED,
-            'login_timeout': SystemState.NORMAL,
-            'still_logging_in': SystemState.LOGGING_IN
+            'duration_passed': SystemState.RETURNING_TO_GAME,
+            'timeout_reached': SystemState.LOGIN_REQUIRED
         },
-
-        'conditional_flow': 'hold',
-        'screen_policy': 'independent_per_screen',
-        'timeout': 90.0
+        'conditional_flow': 'wait_for_duration'
     },
 
     SystemState.RETURNING_TO_GAME: {
-        'targets': [
-            {'template': 'GAME_WORLD_LOADED', 'result': 'game_ready'}
-        ],
-
-        'action_type': 'finalize_return',
-
+        'targets': [],
+        'action_type': 'time_based_wait',
+        'expected_duration': 12.0,  # RAVEN2 복귀 시간
+        'timeout': 30.0,
         'transitions': {
-            'return_completed': SystemState.NORMAL,
-            'return_timeout': SystemState.NORMAL,
-            'still_returning': SystemState.RETURNING_TO_GAME
+            'duration_passed': SystemState.NORMAL,
+            'timeout_reached': SystemState.NORMAL
         },
-
-        'conditional_flow': 'hold',
-        'screen_policy': 'independent_per_screen',
-        'timeout': 60.0
+        'conditional_flow': 'wait_for_duration'
     }
 }
 
 # =============================================================================
-# 🎯 로컬룰 3: SM2 기본 운영 설정 (SM2만의 고유한 특성)
+# 🎯 로컬룰 3: SM2 운영 설정
 # =============================================================================
 
 SM_CONFIG = {
-    # 타이밍 설정 - "SM2는 5초마다 적당히 체크하는 성격"
+    # 타이밍 설정
     'timing': {
-        'check_interval': 5.0,  # 5초 간격 (SRM의 0.5초보다는 느긋함)
-        'default_timeout': 60.0,  # 기본 타임아웃
+        'check_interval': 5.0,  # 5초 간격
+        'default_timeout': 60.0,
     },
 
-    # 대상 화면 설정 - "SM2는 스마트폰 화면만 관리하는 정책"
+    # 대상 화면 설정 - S1~S4 독립 상태 관리
     'target_screens': {
         'included': ['S1', 'S2', 'S3', 'S4'],  # 스마트폰 화면만
-        'excluded': ['S5'],  # PC 네이티브 제외
-        'check_order': ['S1', 'S2', 'S3', 'S4']  # 체크 순서
+        'excluded': ['S5']  # PC 네이티브 제외
     },
 
     # IO 정책
@@ -212,29 +178,23 @@ SM_CONFIG = {
         'retry_delay': 2.0
     },
 
-    # 독립성 설정
-    'independence': {
-        'isolated_execution': True,
-        'shared_resources': []
-    },
-
-    # 게임 설정
+    # 게임 설정 - RAVEN2 특화
     'game_settings': {
-        'game_type': 'raven2',  # SM1과 다른 부분 1: nightcrows → raven2
-        'vd_name': 'VD2'  # SM1과 다른 부분 2: VD1 → VD2
+        'game_type': 'raven2',  # NightCrows와 다른 부분
+        'vd_name': 'VD2'  # NightCrows와 다른 부분
     }
 }
 
 # =============================================================================
-# 🎯 로컬룰 4: 예외 처리 정책 (SM2만의 예외 대응 방식)
+# 🎯 로컬룰 4: 예외 처리 정책
 # =============================================================================
 
 SM_EXCEPTION_POLICIES = {
     # 연속 실패 시 정책
     'continuous_failure': {
-        'max_continuous_errors': 5,  # 연속 5회 에러 시
-        'action': 'SLEEP_AND_RESET',  # 잠시 쉬고 리셋
-        'sleep_duration': 300.0  # 5분 휴식
+        'max_continuous_errors': 5,
+        'action': 'SLEEP_AND_RESET',
+        'sleep_duration': 300.0
     },
 
     # 알 수 없는 상태 감지 시
@@ -258,20 +218,55 @@ SM_EXCEPTION_POLICIES = {
 # =============================================================================
 
 def get_state_policy(state: SystemState) -> dict:
-    """특정 상태의 정책을 반환합니다."""
+    """특정 상태의 정책을 반환 (모든 화면 공통)"""
     return SM_STATE_POLICIES.get(state, {})
 
 
 def get_all_states() -> list:
-    """SM2가 지원하는 모든 상태 목록을 반환합니다."""
+    """SM2가 지원하는 모든 상태 목록을 반환"""
     return list(SM_STATE_POLICIES.keys())
 
 
+def get_target_screens() -> list:
+    """SM2가 관리하는 화면 목록을 반환"""
+    return SM_CONFIG['target_screens']['included']
+
+
+def get_initial_screen_states() -> dict:
+    """모든 화면의 초기 상태를 반환"""
+    initial_states = {}
+    for screen_id in get_target_screens():
+        initial_states[screen_id] = SystemState.NORMAL
+    return initial_states
+
+
 def validate_state_policies() -> bool:
-    """모든 상태 정책이 올바르게 정의되었는지 검증합니다."""
-    required_keys = ['targets', 'action_type', 'transitions', 'conditional_flow', 'screen_policy']
+    """모든 상태 정책이 올바르게 정의되었는지 검증"""
+    required_keys = ['action_type', 'transitions', 'conditional_flow']
+    valid_flows = ['trigger', 'retry', 'hold', 'wait_for_duration']
 
     for state, policy in SM_STATE_POLICIES.items():
+        action_type = policy.get('action_type', '')
+        flow_type = policy.get('conditional_flow', '')
+
+        # conditional_flow 유효성 검증
+        if flow_type not in valid_flows:
+            print(f"오류: {state.name}의 conditional_flow '{flow_type}'이 유효하지 않습니다.")
+            print(f"유효한 값: {valid_flows}")
+            return False
+
+        # time_based_wait와 sequence는 targets가 없어도 OK
+        if action_type in ['time_based_wait', 'sequence']:
+            targets = policy.get('targets', [])
+            if targets:  # 빈 배열이 아니면 경고
+                print(f"경고: {state.name} 상태({action_type})에 불필요한 targets가 있습니다.")
+        else:
+            # 일반 액션은 targets 필수
+            if 'targets' not in policy or not policy['targets']:
+                print(f"오류: {state.name} 상태에 targets가 필요합니다.")
+                return False
+
+        # 공통 필수 키 검증
         for key in required_keys:
             if key not in policy:
                 print(f"경고: {state.name} 상태에 '{key}' 정책이 없습니다.")
@@ -284,25 +279,69 @@ def validate_state_policies() -> bool:
                 print(f"오류: {state.name}의 전이 결과 '{result}'가 유효하지 않은 상태입니다.")
                 return False
 
-    print("✅ 모든 SM 상태 정책이 올바르게 정의되었습니다.")
+    print("✅ 모든 상태 정책이 올바르게 정의되었습니다.")
     return True
 
 
+def validate_config() -> bool:
+    """설정 유효성 검증"""
+    try:
+        # 필수 섹션 존재 확인
+        required_sections = ['timing', 'target_screens', 'io_policy', 'retry_policy', 'game_settings']
+
+        for section in required_sections:
+            if section not in SM_CONFIG:
+                print(f"오류: 필수 설정 섹션 '{section}'이 없습니다.")
+                return False
+
+        # 타이밍 값 검증
+        timing = SM_CONFIG['timing']
+        if timing['check_interval'] <= 0:
+            print("오류: check_interval은 0보다 커야 합니다.")
+            return False
+
+        if timing['default_timeout'] <= timing['check_interval']:
+            print("오류: default_timeout은 check_interval보다 커야 합니다.")
+            return False
+
+        # 대상 화면 검증
+        target_screens = SM_CONFIG['target_screens']['included']
+        if not target_screens:
+            print("오류: 대상 화면이 비어있습니다.")
+            return False
+
+        print("✅ SM_CONFIG 유효성 검증 완료")
+        return True
+
+    except Exception as e:
+        print(f"오류: 설정 검증 중 예외 발생 - {e}")
+        return False
+
+
 # =============================================================================
-# 🧪 설정 테스트 함수
+# 🧪 테스트 및 디버깅
 # =============================================================================
 
-def test_config():
-    """SM2 설정 및 정책 검증 테스트"""
-    print("=" * 60)
-    print("SM2 (Raven2 SystemMonitor) 통합 설정 테스트")
+if __name__ == "__main__":
+    print("🎯 SM2 공통 정책 + 독립 화면 상태 설정 테스트 (RAVEN2)")
     print("=" * 60)
 
-    if validate_state_policies() and SM_CONFIG:
-        print("\n🎯 상태머신 정책 요약:")
-        for state, policy in SM_STATE_POLICIES.items():
+    # 정책 유효성 검증
+    print("📊 정책 검증 중...")
+    policies_valid = validate_state_policies()
+
+    print("\n📊 설정 검증 중...")
+    config_valid = validate_config()
+
+    if policies_valid and config_valid:
+        print(f"\n📊 정의된 상태 수: {len(SM_STATE_POLICIES)}")
+        print(f"📋 지원 상태들:")
+
+        for i, state in enumerate(get_all_states(), 1):
+            policy = get_state_policy(state)
             transitions = policy.get('transitions', {})
-            print(f"  • {state.name}")
+
+            print(f"  {i}. {state.name}")
             print(f"     • 액션: {policy.get('action_type', 'N/A')}")
             print(f"     • 흐름: {policy.get('conditional_flow', 'N/A')}")
             print(f"     • 전이: {len(transitions)}개 가능")
@@ -310,29 +349,41 @@ def test_config():
             # 타임아웃 정보
             if 'timeout' in policy:
                 print(f"     • 타임아웃: {policy['timeout']}초")
+
+            # 시간 기반 정보
+            if 'expected_duration' in policy:
+                print(f"     • 예상 시간: {policy['expected_duration']}초")
             print()
 
-        print("📊 주요 운영 설정:")
-        print(f"  • 체크 간격: {SM_CONFIG['timing']['check_interval']}초")
-        print(f"  • 대상 화면: {SM_CONFIG['target_screens']['included']}")
-        print(f"  • 제외 화면: {SM_CONFIG['target_screens']['excluded']}")
-        print(f"  • 최대 재시도: {SM_CONFIG['retry_policy']['max_attempts']}회")
+        print(f"📊 관리 대상 화면: {get_target_screens()}")
+
+        print(f"\n📊 초기 화면 상태들:")
+        initial_states = get_initial_screen_states()
+        for screen_id, state in initial_states.items():
+            print(f"  • {screen_id}: {state.name}")
+
+        print("\n🎯 핵심 설계 원칙:")
+        print("  • 공통 정책 사용 (로직은 모든 화면 동일)")
+        print("  • S1~S4 각각 독립적인 상태 실행")
+        print("  • 템플릿 파일은 화면별로 다름 (해상도 차이)")
+        print("  • 스크린 정의는 screen_info.py의 좌표만 사용")
+        print("  • 4대 정책 범주만 사용 (targets, action_type, transitions, conditional_flow)")
+        print("  • conditional_flow 구분:")
+        print("    - trigger: 감지 시 즉시 분기")
+        print("    - retry: 성공할 때까지 재시도")
+        print("    - hold: 조건 만족까지 무한 대기")
+        print("    - wait_for_duration: 정해진 시간 후 자동 전이")
+
+        print("\n🎮 RAVEN2 게임별 특성:")
         print(f"  • 게임 타입: {SM_CONFIG['game_settings']['game_type']}")
         print(f"  • 가상 데스크톱: {SM_CONFIG['game_settings']['vd_name']}")
-
-        print("\n🎯 상태머신 설계 원칙:")
-        print("  • 게임 외부환경 문제 전용 (연결, 크래시, 로그인 등)")
-        print("  • 각 스크린 객체가 독립적으로 상태 전이")
-        print("  • 모든 문제는 결국 NORMAL 상태로 복귀")
-        print("  • trigger/retry/hold 전략으로 흐름 제어")
-        print("  • 4가지 핵심 정책으로 모든 상황 처리")
+        print(f"  • 앱 재시작 시간: 35초 (NightCrows보다 5초 길게)")
+        print(f"  • 로딩 시간: 25초")
+        print(f"  • 로그인 시간: 20초")
+        print(f"  • 게임 복귀 시간: 12초")
 
     else:
-        print("❌ 상태 정책 또는 설정 검증 실패!")
+        print("❌ 정책 또는 설정 검증 실패!")
 
     print("\n" + "=" * 60)
-    print("SM2 통합 설정 테스트 완료")
-
-
-if __name__ == "__main__":
-    test_config()
+    print("SM2 설정 테스트 완료 (RAVEN2)")

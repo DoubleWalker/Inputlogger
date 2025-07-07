@@ -1,5 +1,5 @@
 # Orchestrator/NightCrows/System_Monitor/config/sm_config.py
-# SM1 통합 설정 (config + policies)
+# SM1 통합 설정 - 공통 정책 + S1~S4 독립 상태 실행
 
 from enum import Enum, auto
 
@@ -21,32 +21,33 @@ class SystemState(Enum):
 
 
 # =============================================================================
-# 🎯 로컬룰 2: 상태별 통합 정책 (4가지 핵심 정책)
+# 🎯 로컬룰 2: 공통 상태 정책 (4대 정책 범주)
 # =============================================================================
+DEFAULT_SEQUENCE_CONFIG = {
+    'max_attempts': 10,
+    'step_timeout': 3.0,
+    'detection_interval': 0.5,
+    'default_wait_after': 1.0,
+    'default_max_detections': 6
+}
 
 SM_STATE_POLICIES = {
     SystemState.NORMAL: {
-        # 1. 무엇을 감지할지
+        # 1. targets: 무엇을 감지할지
         'targets': [
             {'template': 'CONNECTION_CONFIRM_BUTTON', 'result': 'connection_error_detected'},
             {'template': 'APP_ICON', 'result': 'client_crashed_detected'}
         ],
-
-        # 2. 어떻게 할지
+        # 2. action_type: 어떻게 할지
         'action_type': 'detect_only',
-
-        # 3. 어디로 갈지
+        # 3. transitions: 어디로 갈지
         'transitions': {
             'connection_error_detected': SystemState.CONNECTION_ERROR,
             'client_crashed_detected': SystemState.CLIENT_CRASHED,
             'stay_normal': SystemState.NORMAL
         },
-
-        # 4. 어떤 방식으로 처리할지
-        'conditional_flow': 'trigger',
-
-        # 5. 어느 화면에서 처리할지
-        'screen_policy': 'all_screens'
+        # 4. conditional_flow: 어떤   방식으로 처리할지
+        'conditional_flow': 'trigger'
     },
 
     SystemState.CONNECTION_ERROR: {
@@ -55,11 +56,10 @@ SM_STATE_POLICIES = {
         ],
         'action_type': 'detect_and_click',
         'transitions': {
-            'confirm_clicked': SystemState.NORMAL,
+            'confirm_clicked': SystemState.LOGIN_REQUIRED,
             'confirm_click_failed': SystemState.CONNECTION_ERROR
         },
         'conditional_flow': 'retry',
-        'screen_policy': 'any_screen',
         'retry_config': {
             'max_attempts': 3,
             'failure_result': 'confirm_click_failed'
@@ -68,115 +68,104 @@ SM_STATE_POLICIES = {
 
     SystemState.CLIENT_CRASHED: {
         'targets': [
-            {'template': 'APP_ICON', 'result': 'app_started'},
-            {'template': 'APP_LOADING_SCREEN', 'result': 'loading_detected'}
+            {'template': 'APP_ICON', 'result': 'app_started'}
         ],
         'action_type': 'detect_and_click',
         'transitions': {
-            'app_started': SystemState.LOADING,
-            'loading_detected': SystemState.LOADING,
+            'app_started': SystemState.RESTARTING_APP,
             'restart_failed': SystemState.CLIENT_CRASHED
         },
-        'conditional_flow': 'trigger_retry_hold',
-        'screen_policy': 'any_screen',
+        'conditional_flow': 'retry',
         'retry_config': {
             'max_attempts': 3,
             'failure_result': 'restart_failed'
         }
     },
 
+
     SystemState.RESTARTING_APP: {
-        'targets': [
-            {'template': 'APP_LOADING_SCREEN', 'result': 'loading_detected'},
-            {'template': 'LOGIN_SCREEN', 'result': 'login_screen_detected'}
-        ],
-        'action_type': 'detect_only',
+        'targets': [],  # 명시적으로 빈 리스트
+        'action_type': 'time_based_wait',
+        'expected_duration': 30.0,
+        'timeout': 90.0,
         'transitions': {
-            'loading_detected': SystemState.LOADING,
-            'login_screen_detected': SystemState.LOGIN_REQUIRED,
-            'restart_timeout': SystemState.CLIENT_CRASHED
+            'duration_passed': SystemState.LOGIN_REQUIRED,
+            'timeout_reached': SystemState.CLIENT_CRASHED
         },
-        'conditional_flow': 'hold',
-        'screen_policy': 'any_screen',
-        'timeout': 60.0
+        'conditional_flow': 'wait_for_duration'
     },
 
     SystemState.LOADING: {
-        'targets': [
-            {'template': 'LOGIN_SCREEN', 'condition': 'without_loading_screen', 'result': 'loading_completed'}
-        ],
-        'action_type': 'detect_only',
+        'targets': [],  # 템플릿 감지 없음
+        'action_type': 'time_based_wait',
+        'expected_duration': 30.0,  # 30초 대기 후 로그인 단계로
+        'timeout': 45.0,
         'transitions': {
-            'loading_completed': SystemState.LOGIN_REQUIRED,
-            'loading_timeout': SystemState.CLIENT_CRASHED
+            'duration_passed': SystemState.LOGIN_REQUIRED,
+            'timeout_reached': SystemState.LOGIN_REQUIRED
         },
-        'conditional_flow': 'wait_until_condition',
-        'screen_policy': 'any_screen',
-        'timeout': 120.0
+        'conditional_flow': 'wait_for_duration'
     },
 
     SystemState.LOGIN_REQUIRED: {
-        'targets': [
-            {'template': 'CONNECT_BUTTON', 'result': 'connect_clicked'}
-        ],
-        'action_type': 'detect_and_click',
-        'transitions': {
-            'connect_clicked': SystemState.LOGGING_IN,
-            'login_failed': SystemState.LOGIN_REQUIRED
+        'targets': [],  # sequence 타입은 targets 비우기
+        'action_type': 'sequence',
+        'sequence_config': {
+            **DEFAULT_SEQUENCE_CONFIG,
+            'actions': [
+                {'template': 'CONNECT_BUTTON', 'initial': True},
+                {'template': 'AD_POPUP'},
+                # LOADING_SPINNER 제거
+                {'template': 'LOGIN_BUTTON', 'final': True}
+            ]
         },
-        'conditional_flow': 'trigger_retry_hold',
-        'screen_policy': 'any_screen',
-        'retry_config': {
-            'max_attempts': 3,
-            'failure_result': 'login_failed'
-        }
+        'transitions': {
+            'sequence_complete': SystemState.LOGGING_IN,
+            'sequence_failed': SystemState.LOGIN_REQUIRED
+        },
+        'conditional_flow': 'retry'
     },
 
     SystemState.LOGGING_IN: {
-        'targets': [
-            {'template': 'GAME_WORLD_LOADED', 'result': 'login_completed'}
-        ],
-        'action_type': 'detect_only',
+        'targets': [],  # 명시적으로 빈 리스트
+        'action_type': 'time_based_wait',
+        'expected_duration': 25.0,
+        'timeout': 60.0,
         'transitions': {
-            'login_completed': SystemState.RETURNING_TO_GAME,
-            'login_timeout': SystemState.LOGIN_REQUIRED
+            'duration_passed': SystemState.RETURNING_TO_GAME,
+            'timeout_reached': SystemState.LOGIN_REQUIRED
         },
-        'conditional_flow': 'wait_until_condition',
-        'screen_policy': 'any_screen',
-        'timeout': 60.0
+        'conditional_flow': 'wait_for_duration'
     },
 
     SystemState.RETURNING_TO_GAME: {
-        'targets': [
-            {'template': 'GAME_WORLD_LOADED', 'result': 'returned_to_game'}
-        ],
-        'action_type': 'detect_only',
+        'targets': [],
+        'action_type': 'time_based_wait',
+        'expected_duration': 15.0,
+        'timeout': 30.0,
         'transitions': {
-            'returned_to_game': SystemState.NORMAL,
-            'return_timeout': SystemState.LOGIN_REQUIRED
+            'duration_passed': SystemState.NORMAL,
+            'timeout_reached': SystemState.NORMAL
         },
-        'conditional_flow': 'wait_until_condition',
-        'screen_policy': 'any_screen',
-        'timeout': 15.0
+        'conditional_flow': 'wait_for_duration'
     }
 }
 
 # =============================================================================
-# 🎯 로컬룰 3: 개성적 설정 (SM1만의 고유한 특성)
+# 🎯 로컬룰 3: SM1 운영 설정
 # =============================================================================
 
 SM_CONFIG = {
-    # 타이밍 설정 - "SM1은 5초마다 적당히 체크하는 성격"
+    # 타이밍 설정
     'timing': {
-        'check_interval': 5.0,  # 5초 간격 (SRM의 0.5초보다는 느긋함)
-        'default_timeout': 60.0,  # 기본 타임아웃
+        'check_interval': 5.0,  # 5초 간격
+        'default_timeout': 60.0,
     },
 
-    # 대상 화면 설정 - "SM1은 스마트폰 화면만 관리하는 정책"
+    # 대상 화면 설정 - S1~S4 독립 상태 관리
     'target_screens': {
         'included': ['S1', 'S2', 'S3', 'S4'],  # 스마트폰 화면만
-        'excluded': ['S5'],  # PC 네이티브 제외
-        'check_order': ['S1', 'S2', 'S3', 'S4']  # 체크 순서
+        'excluded': ['S5']  # PC 네이티브 제외
     },
 
     # IO 정책
@@ -191,29 +180,23 @@ SM_CONFIG = {
         'retry_delay': 2.0
     },
 
-    # 독립성 설정
-    'independence': {
-        'isolated_execution': True,
-        'shared_resources': []
-    },
-
     # 게임 설정
     'game_settings': {
-        'game_type': 'nightcrows',  # 글로벌 설정 키
-        'vd_name': 'VD1'  # 가상 데스크톱
+        'game_type': 'nightcrows',
+        'vd_name': 'VD1'
     }
 }
 
 # =============================================================================
-# 🎯 로컬룰 4: 예외 처리 정책 (SM1만의 예외 대응 방식)
+# 🎯 로컬룰 4: 예외 처리 정책
 # =============================================================================
 
 SM_EXCEPTION_POLICIES = {
     # 연속 실패 시 정책
     'continuous_failure': {
-        'max_continuous_errors': 5,  # 연속 5회 에러 시
-        'action': 'SLEEP_AND_RESET',  # 잠시 쉬고 리셋
-        'sleep_duration': 300.0  # 5분 휴식
+        'max_continuous_errors': 5,
+        'action': 'SLEEP_AND_RESET',
+        'sleep_duration': 300.0
     },
 
     # 알 수 없는 상태 감지 시
@@ -237,20 +220,55 @@ SM_EXCEPTION_POLICIES = {
 # =============================================================================
 
 def get_state_policy(state: SystemState) -> dict:
-    """특정 상태의 정책을 반환합니다."""
+    """특정 상태의 정책을 반환 (모든 화면 공통)"""
     return SM_STATE_POLICIES.get(state, {})
 
 
 def get_all_states() -> list:
-    """SM1이 지원하는 모든 상태 목록을 반환합니다."""
+    """SM1이 지원하는 모든 상태 목록을 반환"""
     return list(SM_STATE_POLICIES.keys())
 
 
+def get_target_screens() -> list:
+    """SM1이 관리하는 화면 목록을 반환"""
+    return SM_CONFIG['target_screens']['included']
+
+
+def get_initial_screen_states() -> dict:
+    """모든 화면의 초기 상태를 반환"""
+    initial_states = {}
+    for screen_id in get_target_screens():
+        initial_states[screen_id] = SystemState.NORMAL
+    return initial_states
+
+
 def validate_state_policies() -> bool:
-    """모든 상태 정책이 올바르게 정의되었는지 검증합니다."""
-    required_keys = ['targets', 'action_type', 'transitions', 'conditional_flow', 'screen_policy']
+    """모든 상태 정책이 올바르게 정의되었는지 검증"""
+    required_keys = ['action_type', 'transitions', 'conditional_flow']
+    valid_flows = ['trigger', 'retry', 'hold', 'wait_for_duration']
 
     for state, policy in SM_STATE_POLICIES.items():
+        action_type = policy.get('action_type', '')
+        flow_type = policy.get('conditional_flow', '')
+
+        # conditional_flow 유효성 검증
+        if flow_type not in valid_flows:
+            print(f"오류: {state.name}의 conditional_flow '{flow_type}'이 유효하지 않습니다.")
+            print(f"유효한 값: {valid_flows}")
+            return False
+
+        # time_based_wait와 sequence는 targets가 없어도 OK
+        if action_type in ['time_based_wait', 'sequence']:
+            targets = policy.get('targets', [])
+            if targets:  # 빈 배열이 아니면 경고
+                print(f"경고: {state.name} 상태({action_type})에 불필요한 targets가 있습니다.")
+        else:
+            # 일반 액션은 targets 필수
+            if 'targets' not in policy or not policy['targets']:
+                print(f"오류: {state.name} 상태에 targets가 필요합니다.")
+                return False
+
+        # 공통 필수 키 검증
         for key in required_keys:
             if key not in policy:
                 print(f"경고: {state.name} 상태에 '{key}' 정책이 없습니다.")
@@ -263,7 +281,7 @@ def validate_state_policies() -> bool:
                 print(f"오류: {state.name}의 전이 결과 '{result}'가 유효하지 않은 상태입니다.")
                 return False
 
-    print("✅ 모든 SM 상태 정책이 올바르게 정의되었습니다.")
+    print("✅ 모든 상태 정책이 올바르게 정의되었습니다.")
     return True
 
 
@@ -271,7 +289,7 @@ def validate_config() -> bool:
     """설정 유효성 검증"""
     try:
         # 필수 섹션 존재 확인
-        required_sections = ['timing', 'target_screens', 'io_policy', 'retry_policy', 'independence', 'game_settings']
+        required_sections = ['timing', 'target_screens', 'io_policy', 'retry_policy', 'game_settings']
 
         for section in required_sections:
             if section not in SM_CONFIG:
@@ -288,10 +306,10 @@ def validate_config() -> bool:
             print("오류: default_timeout은 check_interval보다 커야 합니다.")
             return False
 
-        # 재시도 정책 검증
-        retry = SM_CONFIG['retry_policy']
-        if retry['max_attempts'] < 1:
-            print("오류: max_attempts는 1 이상이어야 합니다.")
+        # 대상 화면 검증
+        target_screens = SM_CONFIG['target_screens']['included']
+        if not target_screens:
+            print("오류: 대상 화면이 비어있습니다.")
             return False
 
         print("✅ SM_CONFIG 유효성 검증 완료")
@@ -307,7 +325,7 @@ def validate_config() -> bool:
 # =============================================================================
 
 if __name__ == "__main__":
-    print("🎯 SystemMonitor 통합 설정 테스트")
+    print("🎯 SM1 공통 정책 + 독립 화면 상태 설정 테스트")
     print("=" * 60)
 
     # 정책 유효성 검증
@@ -333,25 +351,29 @@ if __name__ == "__main__":
             # 타임아웃 정보
             if 'timeout' in policy:
                 print(f"     • 타임아웃: {policy['timeout']}초")
+
+            # 시간 기반 정보
+            if 'expected_duration' in policy:
+                print(f"     • 예상 시간: {policy['expected_duration']}초")
             print()
 
-        print("📊 주요 운영 설정:")
-        print(f"  • 체크 간격: {SM_CONFIG['timing']['check_interval']}초")
-        print(f"  • 대상 화면: {SM_CONFIG['target_screens']['included']}")
-        print(f"  • 제외 화면: {SM_CONFIG['target_screens']['excluded']}")
-        print(f"  • 최대 재시도: {SM_CONFIG['retry_policy']['max_attempts']}회")
-        print(f"  • 게임 타입: {SM_CONFIG['game_settings']['game_type']}")
-        print(f"  • 가상 데스크톱: {SM_CONFIG['game_settings']['vd_name']}")
+        print(f"📊 관리 대상 화면: {get_target_screens()}")
 
-        print("\n🎯 상태머신 설계 원칙:")
-        print("  • 게임 외부환경 문제 전용 (연결, 크래시, 로그인 등)")
-        print("  • 각 스크린 객체가 독립적으로 상태 전이")
-        print("  • 모든 문제는 결국 NORMAL 상태로 복귀")
-        print("  • trigger/retry/hold 전략으로 흐름 제어")
-        print("  • 4가지 핵심 정책으로 모든 상황 처리")
+        print(f"\n📊 초기 화면 상태들:")
+        initial_states = get_initial_screen_states()
+        for screen_id, state in initial_states.items():
+            print(f"  • {screen_id}: {state.name}")
+
+        print("\n🎯 핵심 설계 원칙:")
+        print("  • 공통 정책 사용 (로직은 모든 화면 동일)")
+        print("  • S1~S4 각각 독립적인 상태 실행")
+        print("  • 템플릿 파일은 화면별로 다름 (해상도 차이)")
+        print("  • 스크린 정의는 screen_info.py의 좌표만 사용")
+        print("  • 4대 정책 범주만 사용 (targets, action_type, transitions, conditional_flow)")
+        print("  • 시간 기반 처리로 안정성 향상")
 
     else:
-        print("❌ 상태 정책 또는 설정 검증 실패!")
+        print("❌ 정책 또는 설정 검증 실패!")
 
     print("\n" + "=" * 60)
-    print("SystemMonitor 통합 설정 테스트 완료")
+    print("SM1 설정 테스트 완료")

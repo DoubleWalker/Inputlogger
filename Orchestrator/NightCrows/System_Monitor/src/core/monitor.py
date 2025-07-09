@@ -25,6 +25,7 @@ from Orchestrator.NightCrows.utils.screen_utils import (
     detect_designated_template_image,
     click_designated_template_image
 )
+from Orchestrator.NightCrows.utils.image_utils import set_focus
 from Orchestrator.NightCrows.utils.screen_info import SCREEN_REGIONS
 
 
@@ -196,11 +197,10 @@ class SystemMonitor:
                 continue
 
             # 글로벌룰 호출: 감지
-            if self._detect_template_in_region(template_path, screen_id, region):
+            if self._detect_template(screen_obj, template_path=template_path):
                 # 클릭이 필요한 경우 실행
                 if should_click:
-                    self._click_template_in_region(template_path, screen_id, region)
-
+                    self._click_template(screen_obj, template_path=template_path)
                 return {result_key: True}
 
         return {}
@@ -326,22 +326,21 @@ class SystemMonitor:
         # 템플릿이 있는 액션: 템플릿 감지 시에만 실행
         if 'template' in action:
             template_name = action['template']
-            return self._check_template_presence(template_name, screen_obj)
+            return self._detect_template(screen_obj, template_name=template_name)
 
         # operation만 있는 액션: 항상 실행 가능
         return True
 
     def _execute_sequence_action(self, action: dict, screen_obj: dict) -> bool:
-        """개별 시퀀스 액션 실행 - 해당 화면에서만"""
         operation = action.get('operation', 'click')
 
         if operation == 'click':
             template_name = action.get('template')
-            return self._click_template_by_name(template_name, screen_obj)
+            return self._click_template(screen_obj, template_name=template_name)
 
         elif operation == 'wait':
             template_name = action.get('template')
-            return self._check_template_presence(template_name, screen_obj)
+            return self._detect_template(screen_obj, template_name=template_name)
 
         elif operation == 'wait_duration':
             duration = action.get('duration', 1.0)
@@ -353,55 +352,57 @@ class SystemMonitor:
             return False
 
     # =========================================================================
-    # 🔧 글로벌룰 호출 함수들 - 간소화된 구조
+    # 🔧 글로벌룰 호출 함수들 - 명시적 파라미터로 통합
     # =========================================================================
 
-    def _detect_template_in_region(self, template_path: str, screen_id: str, region: tuple) -> bool:
-        """템플릿 감지 - IO 동기화 포함"""
+    def _detect_template(self, screen_obj: dict, template_path=None, template_name=None) -> bool:
+        """템플릿 감지 - 경로 또는 이름으로"""
+        if template_path:
+            path = template_path
+        elif template_name:
+            path = get_template(screen_obj['screen_id'], template_name)
+        else:
+            raise ValueError("template_path or template_name required")
+
         try:
             with self.io_lock:
                 return detect_designated_template_image(
-                    screen_id=screen_id,
-                    screen_region=region,
-                    template_path=template_path
+                    screen_id=screen_obj['screen_id'],
+                    screen_region=screen_obj['region'],
+                    template_path=path
                 )
         except Exception as e:
             print(f"WARN: [{self.monitor_id}] Template detection error: {e}")
             return False
 
-    def _click_template_in_region(self, template_path: str, screen_id: str, region: tuple) -> bool:
-        """템플릿 클릭 - IO 동기화 포함"""
+    def _click_template(self, screen_obj: dict, template_path=None, template_name=None) -> bool:
+        """템플릿 클릭 - 경로 또는 이름으로"""
+        if template_path:
+            path = template_path
+        elif template_name:
+            path = get_template(screen_obj['screen_id'], template_name)
+        else:
+            raise ValueError("template_path or template_name required")
+
         try:
             with self.io_lock:
                 return click_designated_template_image(
-                    screen_id=screen_id,
-                    screen_region=region,
-                    template_path=template_path
+                    screen_id=screen_obj['screen_id'],
+                    screen_region=screen_obj['region'],
+                    template_path=path
                 )
         except Exception as e:
             print(f"ERROR: [{self.monitor_id}] Template click error: {e}")
             return False
 
-    def _check_template_presence(self, template_name: str, screen_obj: dict) -> bool:
-        """템플릿 존재 확인 - 특정 화면에서만"""
-        screen_id = screen_obj['screen_id']
-        region = screen_obj['region']
-
-        template_path = get_template(screen_id, template_name)
-        if template_path:
-            return self._detect_template_in_region(template_path, screen_id, region)
-        return False
-
-    def _click_template_by_name(self, template_name: str, screen_obj: dict) -> bool:
-        """템플릿 이름으로 클릭 - 특정 화면에서만"""
-        screen_id = screen_obj['screen_id']
-        region = screen_obj['region']
-
-        template_path = get_template(screen_id, template_name)
-        if template_path:
-            if self._detect_template_in_region(template_path, screen_id, region):
-                return self._click_template_in_region(template_path, screen_id, region)
-        return False
+    def _set_screen_focus(self, screen_id: str) -> bool:
+        """화면 포커스 설정"""
+        try:
+            with self.io_lock:
+                return set_focus(screen_id)
+        except Exception as e:
+            print(f"ERROR: [{self.monitor_id}] Focus error: {e}")
+            return False
 
     # =========================================================================
     # 🔄 상태 전이 및 예외 처리

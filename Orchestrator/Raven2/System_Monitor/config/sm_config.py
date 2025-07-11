@@ -101,13 +101,12 @@ SM_STATE_POLICIES = {
     },
 
     SystemState.LOGIN_REQUIRED: {
-        'targets': [],  # sequence 타입은 targets 비움
+        'targets': [],
         'action_type': 'sequence',
         'sequence_config': {
             'max_attempts': 10,
             'actions': [
-                {'template': 'CONNECT_BUTTON', 'operation': 'click', 'initial': True},
-                {'template': 'AD_POPUP', 'operation': 'click'},
+                {'operation': 'set_focus', 'initial': True},
                 {'template': 'LOGIN_BUTTON', 'operation': 'click', 'final': True}
             ]
         },

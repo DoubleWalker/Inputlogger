@@ -133,13 +133,13 @@ SM_STATE_POLICIES = {
     # =========================================================================
 
     SystemState.LOGIN_REQUIRED: {
-        'targets': [],  # sequence는 targets 비움
+        'targets': [],
         'action_type': 'sequence',
         'sequence_config': {
-            'max_attempts': 10,  # 시퀀스 전체 재시도 횟수
+            'max_attempts': 10,
             'actions': [
-                # 1단계: 연결 버튼 클릭 (최초 1회만)
-                {'template': 'CONNECT_BUTTON', 'operation': 'click', 'initial': True},
+                # 1단계: 화면 중앙 클릭 (포커스 설정)
+                {'operation': 'set_focus', 'initial': True},
 
                 # 2단계: 광고 팝업 처리 (나타나면 클릭)
                 {'template': 'AD_POPUP', 'operation': 'click'},
@@ -150,7 +150,7 @@ SM_STATE_POLICIES = {
         },
         'transitions': {
             'sequence_complete': SystemState.LOGGING_IN,
-            'sequence_failed': SystemState.LOGIN_REQUIRED  # 실패 시 재시도
+            'sequence_failed': SystemState.LOGIN_REQUIRED
         },
         'conditional_flow': 'sequence_with_retry'
     }

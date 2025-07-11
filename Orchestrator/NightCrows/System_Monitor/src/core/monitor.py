@@ -346,6 +346,10 @@ class SystemMonitor:
             duration = action.get('duration', 1.0)
             time.sleep(duration)
             return True
+        elif operation == 'set_focus':
+            # ➕ 새로 추가 필요!
+            screen_id = screen_obj['screen_id']
+            return self._set_screen_focus(screen_id)
 
         else:
             print(f"WARN: [{self.monitor_id}] Unknown operation: {operation}")

@@ -30,7 +30,7 @@ SCREEN_TEMPLATE_PATHS = {
 }
 
 # =============================================================================
-# 🖼️ 화면별 템플릿 정의 (화면 ID를 키로 사용하는 중첩 사전)
+# 🖼️ 화면별 템플릿 정의 (sm_config.py에서 실제 사용되는 템플릿만)
 # =============================================================================
 
 TEMPLATES = {
@@ -40,14 +40,9 @@ TEMPLATES = {
 
         # 클라이언트 크래시 관련
         'APP_ICON': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "app_icon.png"),
-        'APP_LOADING_SCREEN': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "loading_screen.png"),
 
         # 로그인 관련
-        'LOGIN_SCREEN': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "login_screen.png"),
-        'CONNECT_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "connect_button.png"),
-
-        # 복귀 확인
-        'GAME_WORLD_LOADED': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "world_loaded.png"),
+        'LOGIN_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "login_button.png"),
     },
 
     'S2': {
@@ -56,14 +51,9 @@ TEMPLATES = {
 
         # 클라이언트 크래시 관련
         'APP_ICON': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "app_icon.png"),
-        'APP_LOADING_SCREEN': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "loading_screen.png"),
 
         # 로그인 관련
-        'LOGIN_SCREEN': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "login_screen.png"),
-        'CONNECT_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "connect_button.png"),
-
-        # 복귀 확인
-        'GAME_WORLD_LOADED': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "world_loaded.png"),
+        'LOGIN_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "login_button.png"),
     },
 
     'S3': {
@@ -72,14 +62,9 @@ TEMPLATES = {
 
         # 클라이언트 크래시 관련
         'APP_ICON': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "app_icon.png"),
-        'APP_LOADING_SCREEN': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "loading_screen.png"),
 
         # 로그인 관련
-        'LOGIN_SCREEN': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "login_screen.png"),
-        'CONNECT_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "connect_button.png"),
-
-        # 복귀 확인
-        'GAME_WORLD_LOADED': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "world_loaded.png"),
+        'LOGIN_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "login_button.png"),
     },
 
     'S4': {
@@ -88,14 +73,9 @@ TEMPLATES = {
 
         # 클라이언트 크래시 관련
         'APP_ICON': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "app_icon.png"),
-        'APP_LOADING_SCREEN': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "loading_screen.png"),
 
         # 로그인 관련
-        'LOGIN_SCREEN': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "login_screen.png"),
-        'CONNECT_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "connect_button.png"),
-
-        # 복귀 확인
-        'GAME_WORLD_LOADED': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "world_loaded.png"),
+        'LOGIN_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "login_button.png"),
     }
 }
 

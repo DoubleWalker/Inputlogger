@@ -360,7 +360,7 @@ class SystemMonitor:
     # =========================================================================
 
     def _detect_template(self, screen_obj: dict, template_path=None, template_name=None) -> bool:
-        """템플릿 감지 - 경로 또는 이름으로"""
+        """템플릿 감지 - 중앙집중식 캡처 사용"""
         if template_path:
             path = template_path
         elif template_name:
@@ -370,17 +370,21 @@ class SystemMonitor:
 
         try:
             with self.io_lock:
-                return detect_designated_template_image(
-                    screen_id=screen_obj['screen_id'],
-                    screen_region=screen_obj['region'],
-                    template_path=path
+                # ✅ 중앙집중식 캡처 사용 (SRM1 패턴 적용)
+                screenshot = self.orchestrator.capture_screen_safely(screen_obj['screen_id'])
+                from Orchestrator.NightCrows.utils.image_utils import is_image_present
+                return is_image_present(
+                    template_path=path,
+                    region=screen_obj['region'],
+                    threshold=0.85,
+                    screenshot_img=screenshot  # ← 핵심: screenshot_img 전달
                 )
         except Exception as e:
             print(f"WARN: [{self.monitor_id}] Template detection error: {e}")
             return False
 
     def _click_template(self, screen_obj: dict, template_path=None, template_name=None) -> bool:
-        """템플릿 클릭 - 경로 또는 이름으로"""
+        """템플릿 클릭 - 중앙집중식 캡처 사용"""
         if template_path:
             path = template_path
         elif template_name:
@@ -390,10 +394,14 @@ class SystemMonitor:
 
         try:
             with self.io_lock:
-                return click_designated_template_image(
-                    screen_id=screen_obj['screen_id'],
-                    screen_region=screen_obj['region'],
-                    template_path=path
+                # ✅ 중앙집중식 캡처 사용 (SRM1 패턴 적용)
+                screenshot = self.orchestrator.capture_screen_safely(screen_obj['screen_id'])
+                from Orchestrator.NightCrows.utils.image_utils import click_image
+                return click_image(
+                    template_path=path,
+                    region=screen_obj['region'],
+                    threshold=0.85,
+                    screenshot_img=screenshot  # ← 핵심: screenshot_img 전달
                 )
         except Exception as e:
             print(f"ERROR: [{self.monitor_id}] Template click error: {e}")
@@ -452,9 +460,9 @@ class SystemMonitor:
 # 🔌 Orchestrator 호출 인터페이스
 # =============================================================================
 
-def create_system_monitor(monitor_id: str, config: Dict, vd_name: str) -> SystemMonitor:
+def create_system_monitor(monitor_id: str, config: Dict, vd_name: str, orchestrator=None) -> SystemMonitor:
     """Orchestrator에서 호출하는 팩토리 함수"""
-    return SystemMonitor(monitor_id, config, vd_name)
+    return SystemMonitor(monitor_id, config, vd_name, orchestrator)
 
 
 if __name__ == "__main__":

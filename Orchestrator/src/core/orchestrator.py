@@ -4,10 +4,11 @@ import schedule
 import enum
 import queue
 import subprocess
-import os
+import numpy as np
 import sys
 from pathlib import Path
 import pyautogui
+import os
 
 try:
     # VDManager 임포트 시도
@@ -128,11 +129,20 @@ class Orchestrator:
         }
 
     def capture_screen_safely(self, screen_id: str):
-        """중앙집중식 화면 캡처"""
+        """중앙집중식 화면 캡처 - PIL Image 반환"""
         with self.capture_lock:
-            regions = self.screen_regions[self.current_focus]
-            region = regions[screen_id]
-            return pyautogui.screenshot(region=region)
+            try:
+                regions = self.screen_regions.get(self.current_focus)
+                if not regions or screen_id not in regions:
+                    print(f"Error: Screen region not found for {screen_id} on {self.current_focus}")
+                    return None
+
+                region = regions[screen_id]
+                screenshot = pyautogui.screenshot(region=region)
+                return screenshot  # ✅ PIL Image 그대로 반환
+            except Exception as e:
+                print(f"Error capturing screen for {screen_id}: {e}")
+                return None
 
     def _initialize_srm_components(self):
         """실제 SRM 컴포넌트 초기화"""
@@ -158,7 +168,7 @@ class Orchestrator:
         # SRM2 (Raven2) 초기화
         if Raven2CombatMonitor:
             try:
-                self.srm2 = Raven2CombatMonitor()
+                self.srm2 = Raven2CombatMonitor(orchestrator=self)
 
                 # 화면 정보 추가
                 from Orchestrator.Raven2.utils.screen_info import SCREEN_REGIONS as RAVEN2_REGIONS
@@ -181,7 +191,7 @@ class Orchestrator:
         if create_system_monitor:
             try:
                 sm1_config = {}  # SystemMonitor 설정
-                self.sm1 = create_system_monitor("SM1", sm1_config, "VD1")
+                self.sm1 = create_system_monitor("SM1", sm1_config, "VD1", orchestrator=self)  # ← 수정!
                 print("INFO: SM1 initialized successfully")
             except Exception as e:
                 print(f"ERROR: Failed to initialize SM1: {e}")
@@ -193,7 +203,7 @@ class Orchestrator:
         if create_system_monitor_raven2:
             try:
                 sm2_config = {}  # SystemMonitor 설정
-                self.sm2 = create_system_monitor_raven2("SM2", sm2_config, "VD2")
+                self.sm2 = create_system_monitor_raven2("SM2", sm2_config, "VD2", orchestrator=self)  # ← 수정!
                 print("INFO: SM2 initialized successfully")
             except Exception as e:
                 print(f"ERROR: Failed to initialize SM2: {e}")

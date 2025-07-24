@@ -1,5 +1,4 @@
 import sys
-from Orchestrator.NightCrows.utils.screen_utils import TaskScreenPreparer
 import os
 from pathlib import Path
 import time
@@ -23,7 +22,7 @@ sys.path.insert(0, str(project_root))
 # sys.path.insert(0, str(nightcrows_dir))   # NightCrows 내부 모듈 직접 접근 필요시
 
 # --- 경로 설정 끝 ---
-
+from Orchestrator.NightCrows.utils.screen_utils import TaskScreenPreparer
 
 # 경로 설정 후 MailOpener 클래스 임포트
 # opener.py의 위치: Orchestrator/NightCrows/Mail_opener/src/core/opener.py

@@ -279,6 +279,13 @@ class CombatMonitor(BaseMonitor):
             self.location_flag = Location.FIELD  # 템플릿 없으면 기본값 FIELD 사용
             return False
 
+        # ✅ 템플릿 미리 로드하여 유효성 검증
+        arena_template = self._load_template(arena_template_path)
+        if arena_template is None:
+            print(f"ERROR: [{self.monitor_id}] Failed to load arena template: {arena_template_path}")
+            self.location_flag = Location.FIELD
+            return False
+
         max_attempts = 5
         check_interval = 0.6  # 0.5초 간격으로 확인
         is_arena = False
@@ -291,10 +298,10 @@ class CombatMonitor(BaseMonitor):
                 # 화면 캡처 및 템플릿 매칭
                 screen_capture = self.orchestrator.capture_screen_safely(first_screen.screen_id)
                 if screen_capture:
-                    # arena 인디케이터 체크
+                    # ✅ 이미 로드된 템플릿 사용
                     if image_utils.compare_images(
                             screen_capture,
-                            self._load_template(arena_template_path),
+                            arena_template,  # ← 미리 검증된 템플릿 사용
                             threshold=self.confidence
                     ):
                         print(
@@ -319,8 +326,6 @@ class CombatMonitor(BaseMonitor):
         print(
             f"INFO: [{self.monitor_id}] Initial Location determined after {max_attempts} checks: {self.location_flag.name}")
         return True
-
-    # --- 게임 상호작용 메서드들 ---
 
     def _change_state(self, screen: ScreenMonitorInfo, new_state: ScreenState):
         """화면 상태 변경 및 관련 정보 업데이트"""

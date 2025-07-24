@@ -13,6 +13,12 @@ def compare_images(screen_img_obj, template_img_obj, threshold=0.8):
     :return: 임계값 이상이면 True, 아니면 False
     """
     try:
+        # ✅ 입력값 안전성 체크 추가
+        if template_img_obj is None:
+            return False
+        if not hasattr(template_img_obj, 'shape'):
+            return False
+
         screen_gray = cv2.cvtColor(np.array(screen_img_obj), cv2.COLOR_RGB2GRAY)
         if len(template_img_obj.shape) == 3:
             template_gray = cv2.cvtColor(template_img_obj, cv2.COLOR_BGR2GRAY)
@@ -48,7 +54,8 @@ def return_ui_location(template_path, region=None, threshold=0.8, screenshot_img
         template_h, template_w = template_img.shape[:2]
 
         if screenshot_img is None:
-            raise ValueError("screenshot_img must be provided by Orchestrator")
+            print(f"WARNING: screenshot_img not provided, falling back to direct capture for {template_path}")
+            screenshot_img = pyautogui.screenshot(region=region)
 
             # screenshot_img만 사용, 개별 캡쳐 완전 차단
         screen_img = screenshot_img

@@ -1,9 +1,9 @@
 import sys
 from pathlib import Path
 
-# 프로젝트 루트 경로 설정
-current_dir = Path(__file__).parent
-project_root = current_dir.parent if current_dir.name == 'src' else current_dir.parent.parent
+# 현재 main.py가 Orchestrator 폴더 내부에 있으므로
+current_dir = Path(__file__).parent  # Orchestrator 폴더
+project_root = current_dir.parent    # Inputlogger 폴더 (프로젝트 루트)
 sys.path.insert(0, str(project_root))
 
 # 이제 절대 경로로 임포트

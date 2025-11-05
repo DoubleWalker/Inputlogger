@@ -20,11 +20,7 @@ from Orchestrator.NightCrows.System_Monitor.config.sm_config import (
     validate_state_policies
 )
 
-# 글로벌룰 import (NightCrows)
-from Orchestrator.NightCrows.utils.screen_utils import (
-    detect_designated_template_image,
-    click_designated_template_image
-)
+
 from Orchestrator.NightCrows.utils.image_utils import set_focus
 from Orchestrator.NightCrows.utils.screen_info import SCREEN_REGIONS
 

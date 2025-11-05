@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 import pyautogui
 import os
+from .io_scheduler import IOScheduler, Priority
 
 try:
     # VDManager 임포트 시도
@@ -97,7 +98,7 @@ class Orchestrator:
         except Exception as e:
             print(f"Failed to initialize VDManager: {e}")
             self.vd_manager = None
-
+        self.io_scheduler = IOScheduler()  # ← 추가
         self.active_monitors = {}
         self.current_focus = None
         self.active_state = ActiveState.IDLE
@@ -150,7 +151,7 @@ class Orchestrator:
         if NightCrowsCombatMonitor:
             try:
                 srm1_config = {'confidence': 0.75}
-                self.srm1 = NightCrowsCombatMonitor(monitor_id="SRM1", config=srm1_config, vd_name="VD1", orchestrator=self)
+                self.srm1 = NightCrowsCombatMonitor(monitor_id="SRM1", config=srm1_config, vd_name="VD1", orchestrator=self, io_scheduler=self.io_scheduler)
 
                 # 화면 정보 추가
                 from Orchestrator.NightCrows.utils.screen_info import SCREEN_REGIONS
@@ -168,7 +169,7 @@ class Orchestrator:
         # SRM2 (Raven2) 초기화
         if Raven2CombatMonitor:
             try:
-                self.srm2 = Raven2CombatMonitor(orchestrator=self)
+                self.srm2 = Raven2CombatMonitor(orchestrator=self, io_scheduler=self.io_scheduler)
 
                 # 화면 정보 추가
                 from Orchestrator.Raven2.utils.screen_info import SCREEN_REGIONS as RAVEN2_REGIONS
@@ -191,7 +192,7 @@ class Orchestrator:
         if create_system_monitor:
             try:
                 sm1_config = {}  # SystemMonitor 설정
-                self.sm1 = create_system_monitor("SM1", sm1_config, "VD1", orchestrator=self)  # ← 수정!
+                self.sm1 = create_system_monitor("SM1", sm1_config, "VD1", orchestrator=self, io_scheduler=self.io_scheduler)
                 print("INFO: SM1 initialized successfully")
             except Exception as e:
                 print(f"ERROR: Failed to initialize SM1: {e}")
@@ -203,7 +204,7 @@ class Orchestrator:
         if create_system_monitor_raven2:
             try:
                 sm2_config = {}  # SystemMonitor 설정
-                self.sm2 = create_system_monitor_raven2("SM2", sm2_config, "VD2", orchestrator=self)  # ← 수정!
+                self.sm2 = create_system_monitor_raven2("SM2", sm2_config, "VD2", orchestrator=self, io_scheduler=self.io_scheduler)
                 print("INFO: SM2 initialized successfully")
             except Exception as e:
                 print(f"ERROR: Failed to initialize SM2: {e}")
@@ -423,6 +424,9 @@ class Orchestrator:
             print("Critical Error: VDManager is not available. Orchestrator cannot run.")
             return
 
+        stop_event_for_io = threading.Event()
+        self.io_scheduler.start(stop_event_for_io)
+
         print("Orchestrator starting main loop...")
         self.pending_scheduled_task = None
 
@@ -493,6 +497,7 @@ class Orchestrator:
 
             except KeyboardInterrupt:
                 print("KeyboardInterrupt received. Shutting down Orchestrator...")
+                stop_event_for_io.set()
                 break
             except Exception as e:
                 print(f"!!! Unhandled exception in main loop: {e} !!!")
@@ -501,6 +506,10 @@ class Orchestrator:
                 time.sleep(5)
 
         self.shutdown()
+
+    def request_io(self, component, screen_id, action, priority=Priority.NORMAL):
+        """컴포넌트들이 호출할 IO 요청 메서드"""
+        self.io_scheduler.request(component, screen_id, action, priority)
 
     def shutdown(self):
         """오케스트레이터 종료 시 정리 작업"""

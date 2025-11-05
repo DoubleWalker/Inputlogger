@@ -46,6 +46,10 @@ def return_ui_location(template_path, region=None, threshold=0.8, screenshot_img
         print(f"Template file not found: {template_path}")
         return None
 
+    # ✅ 엄격한 검증
+    if screenshot_img is None:
+        raise ValueError(f"screenshot_img must be provided by Orchestrator for {template_path}")
+
     try:
         template_img = cv2.imread(template_path, 0)
         if template_img is None:
@@ -53,15 +57,7 @@ def return_ui_location(template_path, region=None, threshold=0.8, screenshot_img
             return None
         template_h, template_w = template_img.shape[:2]
 
-        if screenshot_img is None:
-            print(f"WARNING: screenshot_img not provided, falling back to direct capture for {template_path}")
-            screenshot_img = pyautogui.screenshot(region=region)
-
-            # screenshot_img만 사용, 개별 캡쳐 완전 차단
-        screen_img = screenshot_img
-
-        screen_gray = cv2.cvtColor(np.array(screen_img), cv2.COLOR_RGB2GRAY)
-
+        screen_gray = cv2.cvtColor(np.array(screenshot_img), cv2.COLOR_RGB2GRAY)
         result = cv2.matchTemplate(screen_gray, template_img, cv2.TM_CCOEFF_NORMED)
         _, max_val, _, max_loc = cv2.minMaxLoc(result)
 
@@ -69,7 +65,6 @@ def return_ui_location(template_path, region=None, threshold=0.8, screenshot_img
             center_x = max_loc[0] + template_w // 2
             center_y = max_loc[1] + template_h // 2
 
-            # region이 지정되었으면 절대 좌표로 변환
             if region:
                 center_x += region[0]
                 center_y += region[1]

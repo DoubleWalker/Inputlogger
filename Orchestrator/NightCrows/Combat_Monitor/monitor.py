@@ -63,12 +63,6 @@ class ScreenMonitorInfo:
     retry_count: int = 0
     last_state_change_time: float = 0.0
     s1_completed: bool = False  # ← 새로 추가!
-    # 💥 (변경) 기존 스텝 변수들은 '범용 스텝'으로 통합 예정
-    wp1_step: int = 0  # (유지 - 나중에 제거됨)
-    potion_step: int = 0  # (유지 - 나중에 제거됨)
-    step_start_time: float = 0.0  # (유지 - policy_step_start_time으로 대체됨)
-    shop_retry_count: int = 0  # (유지 - 나중에 제거됨)
-
     # 💥 (신규) 범용 실행기를 위한 변수
     policy_step: int = 0
     policy_step_start_time: float = 0.0
@@ -241,81 +235,6 @@ class CombatMonitor(BaseMonitor):
             print(f"ERROR: [{self.monitor_id}] Exception during arena check (Screen: {screen.screen_id}): {e}")
             return False
 
-    def _determine_initial_location(self, stop_event: threading.Event) -> bool:
-        """S1 화면을 깨워서 ARENA 또는 FIELD 상태를 정확히 판단합니다."""
-        if not self.screens:
-            print(f"ERROR: [{self.monitor_id}] No screens added. Cannot determine initial location.")
-            self.location_flag = Location.UNKNOWN
-            return False
-
-        first_screen = self.screens[0]  # S1 화면
-        print(f"INFO: [{self.monitor_id}] Determining initial location using screen {first_screen.screen_id}...")
-
-        # 1. 대기 화면 깨우기
-        print(f"INFO: [{self.monitor_id}] Waking up screen {first_screen.screen_id}...")
-        if not image_utils.set_focus(first_screen.screen_id, delay_after=0.5):
-            print(f"ERROR: [{self.monitor_id}] Failed to set focus on screen {first_screen.screen_id}")
-            return False
-
-        # ESC 키를 눌러 대기화면 해제
-        keyboard.press_and_release('esc')
-        time.sleep(1.0)  # 대기화면 해제 후 잠시 대기
-
-        # 2. Arena 상태 확인 (여러 번 시도)
-        arena_template_path = template_paths.get_template(first_screen.screen_id, 'ARENA') or self.arena_template_path
-        if not arena_template_path or not os.path.exists(arena_template_path):
-            print(f"ERROR: [{self.monitor_id}] Arena template not found for screen {first_screen.screen_id}")
-            self.location_flag = Location.FIELD  # 템플릿 없으면 기본값 FIELD 사용
-            return False
-
-        # ✅ 템플릿 미리 로드하여 유효성 검증
-        arena_template = self._load_template(arena_template_path)
-        if arena_template is None:
-            print(f"ERROR: [{self.monitor_id}] Failed to load arena template: {arena_template_path}")
-            self.location_flag = Location.FIELD
-            return False
-
-        max_attempts = 5
-        check_interval = 0.6  # 0.5초 간격으로 확인
-        is_arena = False
-
-        for attempt in range(max_attempts):
-            if stop_event.is_set():
-                return False
-
-            try:
-                # 화면 캡처 및 템플릿 매칭
-                screen_capture = self.orchestrator.capture_screen_safely(first_screen.screen_id)
-                if screen_capture:
-                    # ✅ 이미 로드된 템플릿 사용
-                    if image_utils.compare_images(
-                            screen_capture,
-                            arena_template,  # ← 미리 검증된 템플릿 사용
-                            threshold=self.confidence
-                    ):
-                        print(
-                            f"INFO: [{self.monitor_id}] Arena indicator found on attempt {attempt + 1}/{max_attempts}")
-                        is_arena = True
-                        break
-                    else:
-                        print(
-                            f"INFO: [{self.monitor_id}] Arena indicator not found on attempt {attempt + 1}/{max_attempts}")
-
-                # 다음 시도 전 대기
-                if attempt < max_attempts - 1 and not stop_event.wait(check_interval):
-                    continue
-
-            except Exception as e:
-                print(f"ERROR: [{self.monitor_id}] Error during arena check (attempt {attempt + 1}): {e}")
-                if attempt < max_attempts - 1:
-                    continue
-
-        # 3. 결과에 따라 FLAG 설정
-        self.location_flag = Location.ARENA if is_arena else Location.FIELD
-        print(
-            f"INFO: [{self.monitor_id}] Initial Location determined after {max_attempts} checks: {self.location_flag.name}")
-        return True
-
     def _do_s1_emergency_return(self, screen: ScreenMonitorInfo):
         """S1의 긴급 귀환 IO 시퀀스 (스케줄러가 호출)"""
         try:
@@ -437,6 +356,10 @@ class CombatMonitor(BaseMonitor):
                     print(f"ERROR: [{self.monitor_id}] Unknown subroutine name '{subroutine_name}'")
             # --- 'execute_subroutine' 지원 종료 ---
 
+            elif operation == 'set_focus':
+                if not image_utils.set_focus(screen.screen_id, delay_after=0.5):
+                    print(f"ERROR: [{self.monitor_id}] Failed to set focus on screen {screen.screen_id}")
+
             # --- 🚀 [기존] 'click_relative' operation 지원 (들여쓰기 수정됨) ---
             elif operation == 'click_relative':
                 key = action.get('key')
@@ -463,6 +386,7 @@ class CombatMonitor(BaseMonitor):
         """
         [범용 실행기]
         현재 상태의 정책을 srm_config에서 읽어, 'policy_step'에 맞는 행동을 실행/검사합니다.
+        (🚀 _determine_initial_location 로직이 통합된 버전)
         """
 
         # 1. 현재 상태의 "매뉴얼"을 가져옴
@@ -473,6 +397,21 @@ class CombatMonitor(BaseMonitor):
             print(f"WARN: [{self.monitor_id}] {screen.current_state.name} is not a sequence state.")
             return
 
+        # 🚀 [신규] INITIALIZING 상태 특별 처리 (S2-S5 대기 로직)
+        # S1 (리더)을 제외한 모든 화면은 S1이 위치를 확정할 때까지 여기서 대기합니다.
+        if screen.current_state == ScreenState.INITIALIZING and screen.screen_id != 'S1':
+            if self.location_flag == Location.UNKNOWN:
+                # S1이 아직 작업 중이므로, 이 화면은 대기
+                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waiting for S1 to determine location...")
+                return  # ★★★ 함수 즉시 종료 (아무것도 안 함)
+            else:
+                # S1이 작업을 마쳤음 (location_flag가 ARENA 또는 FIELD로 설정됨)
+                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: S1 finished. Moving to NORMAL state.")
+                self._change_state(screen, ScreenState.NORMAL)
+                screen.policy_step = 0  # 리셋
+                return  # ★★★ 상태 변경 후 즉시 종료
+        # (S1이거나, INITIALIZING 상태가 아닌 경우에만 아래 로직으로 진행)
+
         # 3. 현재 "스텝 번호"와 "지시서 목록"을 가져옴
         step_index = screen.policy_step
         actions = policy.get('sequence_config', {}).get('actions', [])
@@ -481,9 +420,14 @@ class CombatMonitor(BaseMonitor):
         if step_index >= len(actions):
             print(
                 f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Sequence '{screen.current_state.name}' completed.")
-            next_state_key = policy.get('transitions', {}).get('sequence_complete', 'NORMAL')
 
-            # ScreenState Enum 멤버로 변환 (srm_config는 Enum 객체 자체를 값으로 가짐)
+            # 🚀 [신규] S1이 INITIALIZING을 '성공'하면 ARENA로 설정
+            if screen.current_state == ScreenState.INITIALIZING and screen.screen_id == 'S1':
+                self.location_flag = Location.ARENA
+                print(f"INFO: [{self.monitor_id}] Initial Location (S1 Success): {self.location_flag.name}")
+
+            # 'sequence_complete'에 정의된 다음 상태로 전이
+            next_state_key = policy.get('transitions', {}).get('sequence_complete', 'NORMAL')
             next_state = next_state_key if isinstance(next_state_key, ScreenState) else ScreenState.NORMAL
 
             self._change_state(screen, next_state)
@@ -491,109 +435,116 @@ class CombatMonitor(BaseMonitor):
             screen.policy_step_start_time = 0.0
             return
 
-            # 5. "매뉴얼"에서 현재 스텝의 "지시서"를 가져옴
-            current_action = actions[step_index]
-            operation = current_action.get('operation')
+        # 5. "매뉴얼"에서 현재 스텝의 "지시서"를 가져옴
+        current_action = actions[step_index]
+        operation = current_action.get('operation')
 
-            # --- 🚀 [신규] 컨텍스트(Context) 키 검사 ---
-            required_context_str = current_action.get('context')
-            if required_context_str:
-                # 'FIELD' 또는 'ARENA' 문자열을 Location Enum으로 변환
-                required_context = getattr(Location, required_context_str, Location.UNKNOWN)
+        # --- 🚀 [기존] 컨텍스트(Context) 키 검사 ---
+        # (S1이 INITIALIZING 상태일 때는 location_flag가 UNKNOWN이므로 이 검사는 통과됨)
+        required_context_str = current_action.get('context')
+        if required_context_str:
+            # 'FIELD' 또는 'ARENA' 문자열을 Location Enum으로 변환
+            required_context = getattr(Location, required_context_str, Location.UNKNOWN)
 
-                if self.location_flag != required_context:
-                    print(
-                        f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Step {step_index} ({operation}) skipped (Context mismatch: {self.location_flag.name} != {required_context_str})")
-                    # 컨텍스트가 맞지 않으면 이 액션을 건너뛰고 바로 다음 스텝으로
-                    screen.policy_step += 1
-                    screen.policy_step_start_time = time.time()
-                    return  # ★★★ 현재 함수 실행 종료 ★★★
-            # --- 컨텍스트 검사 종료 ---
-
-            # 6. "지시서"를 해석하고 실행
-
-            # --- A. IO 요청 (click, key_press 등) ---
-                    # 🚀 'execute_subroutine' 추가
-            if operation in ['click', 'key_press', 'set_focus', 'click_relative', 'execute_subroutine']:
-               # IO는 요청만 하고 즉시 다음 스텝으로 넘어감
-               self.io_scheduler.request(
-                   component=self.monitor_id,
-                   screen_id=screen.screen_id,
-                   action=lambda: self._do_policy_action(screen, current_action),
-                   priority=Priority.NORMAL
-               )
-            # 🚀 'click_relative' 추가
-            if operation in ['click', 'key_press', 'set_focus', 'click_relative']:
-                # IO는 요청만 하고 즉시 다음 스텝으로 넘어감
-                self.io_scheduler.request(
-                    component=self.monitor_id,
-                    screen_id=screen.screen_id,
-                    action=lambda: self._do_policy_action(screen, current_action),
-                    priority=Priority.NORMAL
-                )
+            if self.location_flag != required_context:
                 print(
-                    f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Step {step_index} ({operation}) requested.")
+                    f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Step {step_index} ({operation}) skipped (Context mismatch: {self.location_flag.name} != {required_context_str})")
+                # 컨텍스트가 맞지 않으면 이 액션을 건너뛰고 바로 다음 스텝으로
                 screen.policy_step += 1
-                screen.policy_step_start_time = time.time()  # 다음 스텝(대기)을 위한 시간 기록
+                screen.policy_step_start_time = time.time()
+                return  # ★★★ 현재 함수 실행 종료 ★★★
+        # --- 컨텍스트 검사 종료 ---
 
-            # --- B. 대기 (wait_duration) ---
-            elif operation == 'wait_duration':
-                # ... (기존 wait_duration 로직) ...
-                if screen.policy_step_start_time == 0.0 and current_action.get('initial') == True:
-                    screen.policy_step_start_time = time.time()
+        # 6. "지시서"를 해석하고 실행
 
-                elapsed = time.time() - screen.policy_step_start_time
-                duration = current_action.get('duration', 5.0)  # 기본 5초
+        # --- A. IO 요청 (click, key_press 등) ---
+        # 🚀 'set_focus' operation 추가
+        if operation in ['click', 'key_press', 'set_focus', 'click_relative', 'execute_subroutine']:
+            # IO는 요청만 하고 즉시 다음 스텝으로 넘어감
+            self.io_scheduler.request(
+                component=self.monitor_id,
+                screen_id=screen.screen_id,
+                action=lambda: self._do_policy_action(screen, current_action),
+                priority=Priority.NORMAL
+            )
+            print(
+                f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Step {step_index} ({operation}) requested.")
+            screen.policy_step += 1
+            screen.policy_step_start_time = time.time()  # 다음 스텝(대기)을 위한 시간 기록
 
-                if elapsed >= duration:
-                    print(
-                        f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Step {step_index} ({operation} {duration}s) complete.")
-                    screen.policy_step += 1  # 💥 다음 스텝으로
-                    screen.policy_step_start_time = time.time()
-                else:
-                    pass  # 아직 대기 중
+        # --- B. 대기 (wait_duration) ---
+        elif operation == 'wait_duration':
+            if screen.policy_step_start_time == 0.0 and current_action.get('initial') == True:
+                screen.policy_step_start_time = time.time()
 
-            # --- C. 시각적 확인 (wait) [🚀 업그레이드] ---
-            elif operation == 'wait':
-                template_key = current_action.get('template')
+            elapsed = time.time() - screen.policy_step_start_time
+            duration = current_action.get('duration', 5.0)  # 기본 5초
 
-                # 1. 템플릿 검사
-                if self._check_template_present(screen, template_key):
-                    print(
-                        f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Step {step_index} ({operation} '{template_key}') complete.")
-                    screen.policy_step += 1  # 💥 다음 스텝으로
-                    screen.policy_step_start_time = time.time()
+            if elapsed >= duration:
+                print(
+                    f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Step {step_index} ({operation} {duration}s) complete.")
+                screen.policy_step += 1  # 💥 다음 스텝으로
+                screen.policy_step_start_time = time.time()
+            else:
+                pass  # 아직 대기 중
 
-                # 2. 템플릿이 없다면, 타임아웃 검사
-                else:
-                    step_timeout = current_action.get('timeout')
-                    if step_timeout:
-                        # 이 스텝이 시작된 시간 (이전 스텝이 완료된 시간)
-                        elapsed_on_step = time.time() - screen.policy_step_start_time
+        # --- C. 시각적 확인 (wait) [🚀 업그레이드] ---
+        elif operation == 'wait':
+            template_key = current_action.get('template')
 
-                        if elapsed_on_step > step_timeout:
-                            print(
-                                f"WARN: [{self.monitor_id}] Step {step_index} ('wait {template_key}') timed out after {elapsed_on_step:.1f}s")
+            # 1. 템플릿 검사
+            if self._check_template_present(screen, template_key):
+                print(
+                    f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Step {step_index} ({operation} '{template_key}') complete.")
+                screen.policy_step += 1  # 💥 다음 스텝으로
+                screen.policy_step_start_time = time.time()
 
-                            on_timeout_action = current_action.get('on_timeout')
+            # 2. 템플릿이 없다면, 타임아웃 검사
+            else:
+                step_timeout = current_action.get('timeout')
+                if step_timeout:
+                    # 이 스텝이 시작된 시간 (이전 스텝이 완료된 시간)
+                    elapsed_on_step = time.time() - screen.policy_step_start_time
 
-                            if on_timeout_action == 'fail_sequence':
-                                # 'sequence_failed' 트랜지션을 강제로 트리거
-                                # (다음 _execute_conditional_flow가 처리할 수 있도록)
-                                # 상태를 직접 바꾸는 대신, policy_step을 최대치로 보내 시퀀스를 종료시킴
-                                screen.policy_step = len(actions)  # 🚀 책갈피를 맨 뒤로 넘김
+                    if elapsed_on_step > step_timeout:
+                        print(
+                            f"WARN: [{self.monitor_id}] Step {step_index} ('wait {template_key}') timed out after {elapsed_on_step:.1f}s")
 
-                            # (참고: on_timeout이 없으면 템플릿을 찾을 때까지 영원히 대기)
+                        on_timeout_action = current_action.get('on_timeout')
 
-                    # (그 외): 아직 타임아웃 안됐고, 템플릿도 못찾음 -> "아무것도 안 함"
-                    pass
+                        if on_timeout_action == 'fail_sequence':
+                            # 🚀 [신규] S1이 INITIALIZING에서 '타임아웃(실패)'되면 FIELD로 설정
+                            if screen.current_state == ScreenState.INITIALIZING and screen.screen_id == 'S1':
+                                self.location_flag = Location.FIELD
+                                print(
+                                    f"INFO: [{self.monitor_id}] Initial Location (S1 Timeout): {self.location_flag.name}")
 
-            # --- D. (기타 operation 추가...) ---
+                            # 🚀 [버그 수정]
+                            # 기존: policy_step을 맨 뒤로 보내 'sequence_complete'가 호출되도록 함 (오류)
+                            # 수정: 'sequence_failed' 트랜지션을 즉시 찾아 상태를 변경함
 
-            # 'final': True 속성이 있으면 스텝 완료 후 즉시 종료
-            if current_action.get('final') == True and screen.policy_step > step_index:
-                # (위의 step_index >= len(actions) 로직이 다음 루프에서 처리해 줄 것임)
+                            next_state_key = policy.get('transitions', {}).get('sequence_failed', 'NORMAL')
+                            next_state = next_state_key if isinstance(next_state_key,
+                                                                      ScreenState) else ScreenState.NORMAL
+
+                            self._change_state(screen, next_state)
+                            screen.policy_step = 0
+                            screen.policy_step_start_time = 0.0
+                            return  # ★★★ 상태 변경 후 즉시 종료
+
+                        # (참고: on_timeout이 없으면 템플릿을 찾을 때까지 영원히 대기)
+                        pass
+
+                # (그 외): 아직 타임아웃 안됐고, 템플릿도 못찾음 -> "아무것도 안 함"
                 pass
+
+        # --- D. (기타 operation 추가...) ---
+
+        # 'final': True 속성이 있으면 스텝 완료 후 즉시 종료
+        if current_action.get('final') == True and screen.policy_step > step_index:
+            # (위의 'step_index >= len(actions)' 로직이 다음 루프에서 처리해 줄 것임)
+            pass
+
     def _handle_screen_state(self, screen: ScreenMonitorInfo, stop_event: threading.Event):
         """현재 화면 상태에 따라 처리"""
         state = screen.current_state
@@ -608,9 +559,9 @@ class CombatMonitor(BaseMonitor):
                 # 적대 상태로 전환
                 self._change_state(screen, ScreenState.HOSTILE)
 
-        # 2. DEAD 상태 - 패턴 B (요청-플래그-확인)
-        elif state == ScreenState.DEAD:
-            # 🚀 srm_config.py의 'sequence_config'를 실행기가 읽어서 처리합니다.
+        # 🚀 [수정] INITIALIZING을 DEAD와 함께 묶어서 처리
+        # 2. DEAD, INITIALIZING 상태 - 패턴 B (요청-플래그-확인)
+        elif state in [ScreenState.DEAD, ScreenState.INITIALIZING]:
             self._execute_policy_step(screen)
 
         # 3. RECOVERING 상태 - 부활 완료 체크 (변경 없음)
@@ -1069,17 +1020,16 @@ class CombatMonitor(BaseMonitor):
             self.max_wp = 0
 
         # 시작 위치 결정
-        if not self._determine_initial_location(stop_event):
-            print(f"INFO: [{self.monitor_id}] CombatMonitor stopped during initial location check.")
-            return
-        print(f"INFO: [{self.monitor_id}] Initial monitoring context: {self.location_flag.name}")
+        self.location_flag = Location.UNKNOWN
+        print(f"INFO: [{self.monitor_id}] Initial monitoring context: UNKNOWN (pending detection)")
 
         # 각 화면의 상태를 NORMAL로 초기화
         for screen in self.screens:
-            screen.current_state = ScreenState.NORMAL
+            screen.current_state = ScreenState.INITIALIZING
             screen.last_state_change_time = time.time()
             screen.retry_count = 0
-
+            screen.policy_step = 0  # 👈 policy_step 초기화 추가
+            screen.policy_step_start_time = 0.
         # 메인 루프 시작
         while not stop_event.is_set():
             try:

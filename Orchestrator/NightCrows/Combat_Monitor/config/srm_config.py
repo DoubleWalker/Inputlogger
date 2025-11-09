@@ -10,6 +10,7 @@ from enum import Enum, auto
 class ScreenState(Enum):
     """SRM1 화면별 상태 정의 (원래 SRM1 구조 유지)"""
     NORMAL = auto()  # 정상 상태
+    INITIALIZING = auto()
     DEAD = auto()  # 사망 상태
     RECOVERING = auto()  # 부활 중
     HOSTILE = auto()  # 적대 상태
@@ -41,6 +42,37 @@ SRM1_STATE_POLICIES = {
 
         # 4. 조건부 흐름제어 - 위험 감지되면 즉시 분기
         'conditional_flow': 'trigger'
+    },
+
+ScreenState.INITIALIZING: {
+        'targets': [],
+        'action_type': 'sequence',
+
+        'sequence_config': {
+            'actions': [
+                # ❗️ 'S1'만 이 로직을 실행하는 것이 보장됩니다.
+                # ❗️ 따라서 'screen_id': 'S1' 태그도 모두 제거할 수 있습니다.
+
+                # Step 0: S1 화면에 포커스
+                {'operation': 'set_focus', 'initial': True},
+                # Step 1: ESC 키 입력
+                {'operation': 'key_press', 'key': 'esc'},
+                # Step 2: 1초 대기
+                {'operation': 'wait_duration', 'duration': 1.0},
+                # Step 3: ARENA 템플릿 대기 (최대 5초)
+                {'operation': 'wait', 'template': 'ARENA_TEMPLATE', 'timeout': 5.0,
+                 'on_timeout': 'fail_sequence', 'final': True},
+
+                # ❗️ S2-S5를 위한 'wait_for_flag' 로직은 완전히 제거됩니다.
+            ]
+        },
+
+        'transitions': {
+            'sequence_complete': ScreenState.NORMAL,  # S1이 ARENA 템플릿을 찾음
+            'sequence_failed': ScreenState.NORMAL,    # S1이 타임아웃됨 (FIELD)
+            'sequence_in_progress': ScreenState.INITIALIZING
+        },
+        'conditional_flow': 'sequence_with_retry'
     },
 
     ScreenState.DEAD: {

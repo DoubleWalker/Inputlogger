@@ -27,5 +27,6 @@ class CombatScreenInfo:
     ratio: float = 1.0  # 기본값 1.0으로 설정
     current_state: ScreenState = ScreenState.SLEEP # 초기 상태는 SLEEP 유지
     retry_count: int = 0
-    # 필요시 상태 머신 관리를 위한 추가 필드 선언 가능
-    # 예: last_action_time = 0 등
+    # ⬇️ SRM1의 '엔진' 구동을 위해 이 두 필드 추가 ⬇️
+    policy_step: int = 0
+    policy_step_start_time: float = 0.0

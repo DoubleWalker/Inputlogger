@@ -1,185 +1,253 @@
 # Orchestrator/NightCrows/System_Monitor/config/sm_config.py
 """
-SM1 리모델링 설정 - 4대 정책 범주 + 화면별 개별 객체성 적용
-- targets, action_type, transitions, conditional_flow 중심
-- 간소화된 구조로 브릿지 복잡성 최소화
-- 화면별 독립 상태머신 지원
+SM1 v3 리모델링 설정 (제너레이터 '상황반장' 아키텍처)
+- '똑똑한 정책' (Smart Policy) 모델
+- monitor.py(실행기)에 '지시서'를 발행하는 제너레이터 함수들을 정의
+- get_state_policies: '제너레이터'를 실행할 상태 (예: LOGIN_REQUIRED)
+- get_detection_policy: '단순 감지'만 할 상태 (예: NORMAL)
 """
 
 from enum import Enum, auto
+from typing import Generator, Dict, Any, Optional
 
 
 # =============================================================================
-# 🎯 로컬룰 1: 상태 정의 (SM1의 생활 패턴)
+# 🎯 로컬룰 1: 상태 정의 (이름/값은 v1과 동일하게 유지)
 # =============================================================================
 
 class SystemState(Enum):
-    """SystemMonitor 상태 정의 - 간소화된 구조"""
-    NORMAL = auto()  # 정상 상태 (기본)
-    CONNECTION_ERROR = auto()  # 연결 에러 감지
-    CLIENT_CRASHED = auto()  # 클라이언트 크래시
-    RESTARTING_APP = auto()  # 앱 재시작 대기
-    LOGIN_REQUIRED = auto()  # 로그인 필요
-    LOGGING_IN = auto()  # 로그인 진행 중
-    RETURNING_TO_GAME = auto()  # 게임 복귀 중
+    """SystemMonitor 상태 정의 (v1과 동일)"""
+    NORMAL = auto()
+    CONNECTION_ERROR = auto()
+    CLIENT_CRASHED = auto()
+    RESTARTING_APP = auto()
+    LOGIN_REQUIRED = auto()
+    LOGGING_IN = auto()
+    RETURNING_TO_GAME = auto()
 
 
 # =============================================================================
-# 🎯 로컬룰 2: 4대 정책 범주 기반 상태 정책
+# 🎯 로컬룰 2: "상황반장" 정책 (v1 로직의 제너레이터 '번역')
+# =============================================================================
+#
+# 각 함수는 '제너레이터'입니다.
+# 'yield'를 만나면 '지시서'를 반환하고, 'monitor.py'가 처리를 완료하고
+# 다음 루프에서 'next()'를 호출할 때까지 '일시 정지'합니다.
+#
+# 'screen' 객체(컨텍스트)는 monitor.py가 인자로 주입해줍니다.
+#
 # =============================================================================
 
-SM_STATE_POLICIES = {
-    # =========================================================================
-    # 🔍 감지 전용 상태들
-    # =========================================================================
+def policy_connection_error(screen: dict) -> Generator[Dict[str, Any], Any, None]:
+    """
+    [상황반장: 연결 오류]
+    v1의 'detect_and_click' (retry 3회) 로직을 번역합니다.
+    """
+    print(f"INFO: [{screen['screen_id']}] 상황반장: '연결 오류' 접수. 3회 확인 시도.")
 
+    # v1의 'retry_config': max_attempts: 3, retry_delay: 2.5
+    for attempt in range(1, 4):  # 1, 2, 3
+        # 'click_if_present' 지시: 있으면 클릭하고 'pos' 반환, 없으면 None 반환
+        pos = yield {
+            'operation': 'click_if_present',
+            'template_name': 'CONNECTION_CONFIRM_BUTTON'
+        }
+
+        if pos:
+            print(f"INFO: [{screen['screen_id']}] 연결 오류 확인 버튼 클릭 성공.")
+            return  # 성공! 제너레이터 종료 (-> 'complete' 전이)
+
+        # 실패 시 2.5초 대기 후 다음 시도
+        yield {'operation': 'wait_duration', 'duration': 2.5}
+
+    # 3회 모두 실패하면 예외 발생 (-> 'fail' 전이)
+    raise Exception("Failed to click CONNECTION_CONFIRM_BUTTON after 3 attempts")
+
+
+def policy_client_crashed(screen: dict) -> Generator[Dict[str, Any], Any, None]:
+    """
+    [상황반장: 클라이언트 크래시]
+    v1의 'detect_and_click' (retry 3회) 로직을 번역합니다.
+    """
+    print(f"INFO: [{screen['screen_id']}] 상황반장: '클라이언트 크래시' 접수. 3회 재시작 시도.")
+
+    # v1의 'retry_config': max_attempts: 3, retry_delay: 3.0
+    for attempt in range(1, 4):  # 1, 2, 3
+        pos = yield {
+            'operation': 'click_if_present',
+            'template_name': 'APP_ICON'
+        }
+        if pos:
+            print(f"INFO: [{screen['screen_id']}] 앱 아이콘 클릭 성공 (재시작).")
+            return  # 성공! 제너레이터 종료
+
+        yield {'operation': 'wait_duration', 'duration': 3.0}
+
+    raise Exception("Failed to click APP_ICON after 3 attempts")
+
+
+def policy_restarting_app(screen: dict) -> Generator[Dict[str, Any], Any, None]:
+    """
+    [상황반장: 앱 재시작 대기]
+    v1의 'time_based_wait' (expected_duration: 30.0) 로직을 번역합니다.
+    """
+    print(f"INFO: [{screen['screen_id']}] 상황반장: '앱 재시작' 대기 (30초).")
+
+    # v1의 'expected_duration': 30.0
+    yield {'operation': 'wait_duration', 'duration': 30.0}
+
+    # 30초 대기 후, 제너레이터가 정상 종료 (-> 'complete' 전이)
+    print(f"INFO: [{screen['screen_id']}] 앱 재시작 시간 경과. 'LOGIN_REQUIRED'로 이동.")
+
+
+def policy_logging_in(screen: dict) -> Generator[Dict[str, Any], Any, None]:
+    """
+    [상황반장: 로그인 진행 중]
+    v1의 'time_based_wait' (expected_duration: 25.0) 로직을 번역합니다.
+    """
+    print(f"INFO: [{screen['screen_id']}] 상황반장: '로그인' 대기 (25초).")
+
+    # v1의 'expected_duration': 25.0
+    yield {'operation': 'wait_duration', 'duration': 25.0}
+
+    print(f"INFO: [{screen['screen_id']}] 로그인 시간 경과. 'RETURNING_TO_GAME'으로 이동.")
+
+
+def policy_returning_to_game(screen: dict) -> Generator[Dict[str, Any], Any, None]:
+    """
+    [상황반장: 게임 복귀 중]
+    v1의 'time_based_wait' (expected_duration: 15.0) 로직을 번역합니다.
+    """
+    print(f"INFO: [{screen['screen_id']}] 상황반장: '게임 복귀' 대기 (15초).")
+
+    # v1의 'expected_duration': 15.0
+    yield {'operation': 'wait_duration', 'duration': 15.0}
+
+    print(f"INFO: [{screen['screen_id']}] 게임 복귀 시간 경과. 'NORMAL'로 이동.")
+
+
+def policy_login_required(screen: dict) -> Generator[Dict[str, Any], Any, None]:
+    """
+    [상황반장: 로그인 필요 (시퀀스)]
+    v1의 'action_type: sequence' (max_attempts: 10) 로직을 번역합니다.
+    """
+    print(f"INFO: [{screen['screen_id']}] 상황반장: '로그인 시퀀스' 접수 (최대 10회).")
+
+    # v1의 'sequence_config': max_attempts: 10
+    for attempt in range(1, 11):  # 1부터 10까지
+        print(f"INFO: [{screen['screen_id']}] 로그인 시도 ({attempt}/10)")
+
+        try:
+            # 1. 'set_focus' 지시 (v1 시퀀스 1단계)
+            yield {'operation': 'set_focus'}
+
+            # 2. 'click_if_present(AD_POPUP)' 지시 (v1 시퀀스 2단계)
+            yield {
+                'operation': 'click_if_present',
+                'template_name': 'AD_POPUP'
+            }
+
+            # 3. 'click(LOGIN_BUTTON)' 지시 (v1 시퀀스 3단계)
+            # 'click' 지시는 monitor.py에 의해 '못찾으면 예외 발생'으로 처리됨
+            pos = yield {
+                'operation': 'click',
+                'template_name': 'LOGIN_BUTTON'
+            }
+
+            # 'click'이 성공하면 (예외가 발생 안하면) 로그인 성공
+            print(f"INFO: [{screen['screen_id']}] 로그인 버튼 클릭 성공.")
+            return  # 성공! 제너레이터 종료 (-> 'complete' 전이)
+
+        except Exception as e:
+            # 'click'이 실패(예외)하면 catch
+            print(f"WARN: [{screen['screen_id']}] 로그인 시도 {attempt} 실패: {e}")
+            yield {'operation': 'wait_duration', 'duration': 3.0}  # 3초 후 재시도
+
+    # 10회 루프를 모두 돌았는데 return하지 못하면 예외 발생 (-> 'fail' 전이)
+    raise Exception("Failed to login after 10 attempts")
+
+
+# =============================================================================
+# 🎯 로컬룰 3: 정책 라우터 (Monitor가 "상황반장"을 찾는 함수)
+# =============================================================================
+
+# [v3] 1. '감지 전용' 상태 맵 (예: NORMAL)
+# : '바보 실행기(monitor.py)'가 이 맵을 순회하며 '단순 감지'만 수행합니다.
+DETECTION_POLICY_MAP = {
     SystemState.NORMAL: {
-        # 1. targets: 문제 상황 감지용 템플릿들
         'targets': [
-            {'template': 'CONNECTION_CONFIRM_BUTTON', 'result': 'connection_error_detected'},
-            {'template': 'APP_ICON', 'result': 'client_crashed_detected'}
-        ],
-        # 2. action_type: 감지만 (클릭 안함)
-        'action_type': 'detect_only',
-        # 3. transitions: 문제 발견 시 해당 복구 상태로
-        'transitions': {
-            'connection_error_detected': SystemState.CONNECTION_ERROR,
-            'client_crashed_detected': SystemState.CLIENT_CRASHED
-        },
-        # 4. conditional_flow: 즉시 전이
-        'conditional_flow': 'trigger'
-    },
-
-    # =========================================================================
-    # 🔧 즉시 처리 상태들 (감지+클릭)
-    # =========================================================================
-
-    SystemState.CONNECTION_ERROR: {
-        'targets': [
-            {'template': 'CONNECTION_CONFIRM_BUTTON', 'result': 'confirm_clicked'}
-        ],
-        'action_type': 'detect_and_click',
-        'transitions': {
-            'confirm_clicked': SystemState.LOGIN_REQUIRED,
-            'retry_failed': SystemState.CONNECTION_ERROR  # 재시도 실패 시 현재 상태 유지
-        },
-        'conditional_flow': 'retry',
-        'retry_config': {
-            'max_attempts': 3,
-            'retry_delay': 2.5,
-            'failure_result': 'retry_failed'
-        }
-    },
-
-    SystemState.CLIENT_CRASHED: {
-        'targets': [
-            {'template': 'APP_ICON', 'result': 'app_started'}
-        ],
-        'action_type': 'detect_and_click',
-        'transitions': {
-            'app_started': SystemState.RESTARTING_APP,
-            'retry_failed': SystemState.CLIENT_CRASHED
-        },
-        'conditional_flow': 'retry',
-        'retry_config': {
-            'max_attempts': 3,
-            'retry_delay': 3.0,
-            'failure_result': 'retry_failed'
-        }
-    },
-
-    # =========================================================================
-    # ⏰ 시간 기반 대기 상태들
-    # =========================================================================
-
-    SystemState.RESTARTING_APP: {
-        'targets': [],  # 시간 기반 처리 - 템플릿 감지 없음
-        'action_type': 'time_based_wait',
-        'expected_duration': 30.0,  # 앱 재시작 예상 시간
-        'timeout': 90.0,  # 최대 대기 시간
-        'transitions': {
-            'duration_passed': SystemState.LOGIN_REQUIRED,
-            'timeout_reached': SystemState.CLIENT_CRASHED  # 재시작 실패로 간주
-        },
-        'conditional_flow': 'wait_for_duration'
-    },
-
-    SystemState.LOGGING_IN: {
-        'targets': [],
-        'action_type': 'time_based_wait',
-        'expected_duration': 25.0,  # 로그인 완료 예상 시간
-        'timeout': 60.0,
-        'transitions': {
-            'duration_passed': SystemState.RETURNING_TO_GAME,
-            'timeout_reached': SystemState.LOGIN_REQUIRED  # 로그인 실패
-        },
-        'conditional_flow': 'wait_for_duration'
-    },
-
-    SystemState.RETURNING_TO_GAME: {
-        'targets': [],
-        'action_type': 'time_based_wait',
-        'expected_duration': 15.0,  # 게임 복귀 예상 시간
-        'timeout': 30.0,
-        'transitions': {
-            'duration_passed': SystemState.NORMAL,
-            'timeout_reached': SystemState.NORMAL  # 타임아웃도 정상으로 간주
-        },
-        'conditional_flow': 'wait_for_duration'
-    },
-
-    # =========================================================================
-    # 🔄 시퀀스 실행 상태
-    # =========================================================================
-
-    SystemState.LOGIN_REQUIRED: {
-        'targets': [],
-        'action_type': 'sequence',
-        'sequence_config': {
-            'max_attempts': 10,
-            'actions': [
-                # 1단계: 화면 중앙 클릭 (포커스 설정)
-                {'operation': 'set_focus', 'initial': True},
-
-                # 2단계: 광고 팝업 처리 (나타나면 클릭)
-                {'template': 'AD_POPUP', 'operation': 'click'},
-
-                # 3단계: 로그인 버튼 클릭 (최종 단계)
-                {'template': 'LOGIN_BUTTON', 'operation': 'click', 'final': True}
-            ]
-        },
-        'transitions': {
-            'sequence_complete': SystemState.LOGGING_IN,
-            'sequence_failed': SystemState.LOGIN_REQUIRED
-        },
-        'conditional_flow': 'sequence_with_retry'
+            # v1의 'transitions'를 번역: '감지 템플릿' -> '전이될 상태'
+            {'template_name': 'CONNECTION_CONFIRM_BUTTON', 'next_state': SystemState.CONNECTION_ERROR},
+            {'template_name': 'APP_ICON', 'next_state': SystemState.CLIENT_CRASHED}
+        ]
     }
 }
 
+# [v3] 2. '제너레이터 실행' 상태 맵 (예: LOGGING_IN)
+# : '바보 실행기(monitor.py)'가 이 맵을 보고 '상황반장(generator)'을 호출합니다.
+STATE_POLICY_MAP = {
+    SystemState.CONNECTION_ERROR: {
+        'generator': policy_connection_error,
+        'transitions': {
+            'complete': SystemState.LOGIN_REQUIRED,  # v1의 'confirm_clicked'
+            'fail': SystemState.CONNECTION_ERROR  # v1의 'retry_failed'
+        }
+    },
+    SystemState.CLIENT_CRASHED: {
+        'generator': policy_client_crashed,
+        'transitions': {
+            'complete': SystemState.RESTARTING_APP,  # v1의 'app_started'
+            'fail': SystemState.CLIENT_CRASHED  # v1의 'retry_failed'
+        }
+    },
+    SystemState.RESTARTING_APP: {
+        'generator': policy_restarting_app,
+        'transitions': {
+            'complete': SystemState.LOGIN_REQUIRED,  # v1의 'duration_passed'
+            'fail': SystemState.CLIENT_CRASHED  # v1의 'timeout_reached'
+        }
+    },
+    SystemState.LOGGING_IN: {
+        'generator': policy_logging_in,
+        'transitions': {
+            'complete': SystemState.RETURNING_TO_GAME,  # v1의 'duration_passed'
+            'fail': SystemState.LOGIN_REQUIRED  # v1의 'timeout_reached'
+        }
+    },
+    SystemState.RETURNING_TO_GAME: {
+        'generator': policy_returning_to_game,
+        'transitions': {
+            'complete': SystemState.NORMAL,  # v1의 'duration_passed'
+            'fail': SystemState.NORMAL  # v1의 'timeout_reached'
+        }
+    },
+    SystemState.LOGIN_REQUIRED: {
+        'generator': policy_login_required,
+        'transitions': {
+            'complete': SystemState.LOGGING_IN,  # v1의 'sequence_complete'
+            'fail': SystemState.LOGIN_REQUIRED  # v1의 'sequence_failed'
+        }
+    },
+}
+
 # =============================================================================
-# 🎯 로컬룰 3: 운영 설정
+# 🎯 로컬룰 4: 운영 설정 (v1과 동일하게 유지)
 # =============================================================================
+# (monitor.py가 여전히 이 설정들을 참조합니다)
 
 SM_CONFIG = {
-    # 타이밍 설정
     'timing': {
-        'check_interval': 5.0,  # 메인 루프 체크 간격
-        'default_timeout': 60.0  # 기본 타임아웃
+        'check_interval': 5.0,
+        'default_timeout': 60.0
     },
-
-    # 대상 화면 설정 - screen_info.py의 SCREEN_REGIONS 키와 일치해야 함
     'target_screens': {
-        'included': ['S1', 'S2', 'S3', 'S4'],  # 스마트폰 화면들
-        'excluded': ['S5']  # PC 네이티브는 제외
+        'included': ['S1', 'S2', 'S3', 'S4'],
+        'excluded': ['S5']
     },
-
-    # IO 정책
     'io_policy': {
-        'lock_timeout': 5.0,  # IO Lock 타임아웃
-        'click_delay': 0.2  # 클릭 후 대기 시간
+        'lock_timeout': 5.0,
+        'click_delay': 0.2
     },
-
-    # 게임 설정
     'game_settings': {
         'game_type': 'nightcrows',
         'vd_name': 'VD1'
@@ -187,7 +255,7 @@ SM_CONFIG = {
 }
 
 # =============================================================================
-# 🎯 로컬룰 4: 예외 처리 정책
+# 🎯 로컬룰 5: 예외 처리 정책 (v1과 동일하게 유지)
 # =============================================================================
 
 SM_EXCEPTION_POLICIES = {
@@ -195,13 +263,11 @@ SM_EXCEPTION_POLICIES = {
         'default_action': 'RETURN_TO_NORMAL',
         'recovery_delay': 30.0
     },
-
     'continuous_failure': {
         'max_continuous_errors': 5,
         'action': 'SLEEP_AND_RESET',
         'sleep_duration': 300.0
     },
-
     'unknown_state': {
         'default_action': 'RETURN_TO_NORMAL',
         'fallback_delay': 30.0
@@ -210,93 +276,48 @@ SM_EXCEPTION_POLICIES = {
 
 
 # =============================================================================
-# 🔧 유틸리티 함수들
+# 🔧 유틸리티 함수들 (Monitor가 호출하는 핵심 함수)
 # =============================================================================
 
-def get_state_policy(state: SystemState) -> dict:
-    """상태별 정책 반환 (모든 화면 공통 사용)"""
-    return SM_STATE_POLICIES.get(state, {})
+def get_state_policies() -> dict:
+    """
+    [v3] '제너레이터 실행'이 필요한 상태들의 정책 맵을 반환합니다.
+    (monitor.py가 참조 'get_state_policies'을(를) 찾을 수 없습니다 -> 해결)
+    """
+    return STATE_POLICY_MAP
 
 
-def get_all_states() -> list:
-    """지원하는 모든 상태 목록"""
-    return list(SM_STATE_POLICIES.keys())
-
-
-def get_target_screens() -> list:
-    """관리 대상 화면 목록"""
-    return SM_CONFIG['target_screens']['included']
-
-
-def validate_state_policies() -> bool:
-    """상태 정책 유효성 검증"""
-    required_keys = ['action_type', 'transitions', 'conditional_flow']
-    valid_action_types = ['detect_only', 'detect_and_click', 'sequence', 'time_based_wait']
-    valid_flows = ['trigger', 'retry', 'wait_for_duration', 'sequence_with_retry']
-
-    for state, policy in SM_STATE_POLICIES.items():
-        # 필수 키 검증
-        for key in required_keys:
-            if key not in policy:
-                print(f"오류: {state.name} 상태에 '{key}' 정책이 없습니다.")
-                return False
-
-        # action_type 유효성 검증
-        action_type = policy.get('action_type')
-        if action_type not in valid_action_types:
-            print(f"오류: {state.name}의 action_type '{action_type}'이 유효하지 않습니다.")
-            return False
-
-        # conditional_flow 유효성 검증
-        flow_type = policy.get('conditional_flow')
-        if flow_type not in valid_flows:
-            print(f"오류: {state.name}의 conditional_flow '{flow_type}'이 유효하지 않습니다.")
-            return False
-
-        # targets 일관성 검증
-        if action_type in ['time_based_wait', 'sequence']:
-            targets = policy.get('targets', [])
-            if targets:
-                print(f"경고: {state.name} 상태({action_type})에 불필요한 targets가 있습니다.")
-        else:
-            if 'targets' not in policy or not policy['targets']:
-                print(f"오류: {state.name} 상태에 targets가 필요합니다.")
-                return False
-
-        # transitions 유효성 검증
-        transitions = policy.get('transitions', {})
-        for result_key, next_state in transitions.items():
-            if not isinstance(next_state, SystemState):
-                print(f"오류: {state.name}의 전이 '{result_key}'가 유효하지 않은 상태입니다.")
-                return False
-
-    print("✅ 모든 상태 정책이 올바르게 정의되었습니다.")
-    return True
+def get_detection_policy() -> dict:
+    """
+    [v3] '단순 감지'만 필요한 상태들의 정책 맵을 반환합니다.
+    (monitor.py가 참조 'get_detection_policy'을(를) 찾을 수 없습니다 -> 해결)
+    """
+    return DETECTION_POLICY_MAP
 
 
 def validate_config() -> bool:
-    """설정 유효성 검증"""
+    """v1의 설정 유효성 검증 (v3에서도 유효함)"""
     try:
-        # 필수 섹션 확인
         required_sections = ['timing', 'target_screens', 'io_policy', 'game_settings']
         for section in required_sections:
             if section not in SM_CONFIG:
                 print(f"오류: 필수 설정 섹션 '{section}'이 없습니다.")
                 return False
-
-        # 타이밍 값 검증
-        timing = SM_CONFIG['timing']
-        if timing['check_interval'] <= 0:
+        if SM_CONFIG['timing']['check_interval'] <= 0:
             print("오류: check_interval은 0보다 커야 합니다.")
             return False
-
-        # 대상 화면 검증
-        target_screens = SM_CONFIG['target_screens']['included']
-        if not target_screens:
+        if not SM_CONFIG['target_screens']['included']:
             print("오류: 대상 화면이 비어있습니다.")
             return False
 
         print("✅ SM_CONFIG 유효성 검증 완료")
+
+        # [v3] 제너레이터 맵 검증
+        if not STATE_POLICY_MAP or not DETECTION_POLICY_MAP:
+            print("오류: v3 정책 맵(STATE_POLICY_MAP, DETECTION_POLICY_MAP)이 비어있습니다.")
+            return False
+
+        print("✅ v3 제너레이터 정책 맵 로드됨")
         return True
 
     except Exception as e:
@@ -309,59 +330,33 @@ def validate_config() -> bool:
 # =============================================================================
 
 if __name__ == "__main__":
-    print("🎯 SM1 리모델링 설정 테스트")
+    print("🎯 SM1 v3 '상황반장' 설정 테스트")
     print("=" * 60)
 
-    # 정책 유효성 검증
-    print("📊 4대 정책 범주 검증 중...")
-    policies_valid = validate_state_policies()
-
-    print("\n📊 설정 검증 중...")
     config_valid = validate_config()
 
-    if policies_valid and config_valid:
-        print(f"\n📊 정의된 상태 수: {len(SM_STATE_POLICIES)}")
-        print(f"📋 상태별 정책 요약:")
+    if config_valid:
+        # ❌ 잘못된 부분 (들여쓰기 한 칸 많음)
+        #   print("\n[v3 감지 전용 상태 (DetectOnly)]:
+        #         ")
 
-        for i, state in enumerate(get_all_states(), 1):
-            policy = get_state_policy(state)
-            action_type = policy.get('action_type', 'N/A')
-            flow_type = policy.get('conditional_flow', 'N/A')
-            transitions = policy.get('transitions', {})
+        # ✅ 수정된 부분 (들여쓰기 수정)
+        print("\n[v3 감지 전용 상태 (DetectOnly)]:")
+        for state, policy in get_detection_policy().items():
+            print(f"  - {state.name} (감지 템플릿: {len(policy.get('targets', []))}개)")
 
-            print(f"  {i}. {state.name}")
-            print(f"     • 액션: {action_type}")
-            print(f"     • 흐름: {flow_type}")
-            print(f"     • 전이: {len(transitions)}개")
+        # ❌ 잘못된 부분 (들여쓰기 한 칸 많음)
+        #   print("\n[v3 상황반장 상태 (Generator)]:
+        #         ")
 
-            # 특수 설정 표시
-            if 'expected_duration' in policy:
-                print(f"     • 예상 시간: {policy['expected_duration']}초")
-            if 'retry_config' in policy:
-                retry_config = policy['retry_config']
-                print(f"     • 재시도: 최대 {retry_config.get('max_attempts', 'N/A')}회")
-            if 'sequence_config' in policy:
-                sequence_config = policy['sequence_config']
-                actions = sequence_config.get('actions', [])
-                print(f"     • 시퀀스: {len(actions)}개 액션")
-            print()
-
-        print(f"📊 관리 대상 화면: {get_target_screens()}")
-
-        print(f"\n🎯 4대 정책 범주 적용 현황:")
-        print("  • targets: 감지할 템플릿 정의")
-        print("  • action_type: 실행 방식 (detect_only, detect_and_click, sequence, time_based_wait)")
-        print("  • transitions: 상태 전이 매핑")
-        print("  • conditional_flow: 전이 타이밍 전략 (trigger, retry, wait_for_duration, sequence_with_retry)")
-
-        print(f"\n🌉 브릿지 호환성:")
-        print("  • 화면별 개별 객체성 지원")
-        print("  • screen_info.py의 SCREEN_REGIONS 연동")
-        print("  • template_paths.py 템플릿 시스템 연동")
-        print("  • 글로벌룰(screen_utils) 호출 구조")
+        # ✅ 수정된 부분 (들여쓰기 수정)
+        print("\n[v3 상황반장 상태 (Generator)]:")
+        for state, policy in get_state_policies().items():
+            gen_name = policy.get('generator', lambda: None).__name__
+            print(f"  - {state.name} -> {gen_name}")
 
     else:
-        print("❌ 정책 또는 설정 검증 실패!")
+        print("❌ 설정 검증 실패!")
 
     print("\n" + "=" * 60)
-    print("SM1 리모델링 설정 테스트 완료")
+    print("sm_config.py (v3) 테스트 완료")

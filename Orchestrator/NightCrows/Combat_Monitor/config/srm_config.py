@@ -27,8 +27,8 @@ SRM1_STATE_POLICIES = {
     ScreenState.NORMAL: {
         # 1. 무엇을 감지할지 - 위험 요소 스캔
         'targets': [
-            {'template': 'DEAD_TEMPLATE', 'result': 'death_detected'},
-            {'template': 'HOSTILE_TEMPLATE', 'result': 'hostile_detected'}
+            {'template': 'DEAD', 'result': 'death_detected'},
+            {'template': 'HOSTILE', 'result': 'hostile_detected'}
         ],
 
         # 2. 어떻게 할지 - 감지만 (모니터링)
@@ -60,7 +60,7 @@ ScreenState.INITIALIZING: {
                 # Step 2: 1초 대기
                 {'operation': 'wait_duration', 'duration': 1.0},
                 # Step 3: ARENA 템플릿 대기 (최대 5초)
-                {'operation': 'wait', 'template': 'ARENA_TEMPLATE', 'timeout': 5.0,
+                {'operation': 'wait', 'template': 'ARENA', 'timeout': 5.0,
                  'on_timeout': 'fail_sequence', 'final': True},
 
                 # ❗️ S2-S5를 위한 'wait_for_flag' 로직은 완전히 제거됩니다.
@@ -262,7 +262,7 @@ ScreenState.INITIALIZING: {
             {'operation': 'key_press', 'key': 'y', 'context': 'ARENA'},
             {'operation': 'wait_duration', 'duration': 35.0, 'context': 'ARENA'},
             # WP1 도착 확인 (ARENA 템플릿)
-            {'operation': 'wait', 'template': 'ARENA_TEMPLATE', 'timeout': 10.0, 'context': 'ARENA'},
+            {'operation': 'wait', 'template': 'ARENA', 'timeout': 10.0, 'context': 'ARENA'},
 
             # WP2 (기존과 유사)
             {'operation': 'key_press', 'key': 'm', 'context': 'ARENA'},

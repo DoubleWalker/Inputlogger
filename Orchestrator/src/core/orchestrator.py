@@ -191,8 +191,9 @@ class Orchestrator:
         # SM1 (NightCrows) 초기화
         if create_system_monitor:
             try:
-                sm1_config = {}  # SystemMonitor 설정
-                self.sm1 = create_system_monitor("SM1", sm1_config, "VD1", orchestrator=self, io_scheduler=self.io_scheduler)
+                # sm1_config = {}  # SystemMonitor 설정 (이 줄은 남겨두거나 삭제해도 됩니다)
+                # ❗️ config 인자 제거
+                self.sm1 = create_system_monitor("SM1", "VD1", orchestrator=self)
                 print("INFO: SM1 initialized successfully")
             except Exception as e:
                 print(f"ERROR: Failed to initialize SM1: {e}")
@@ -203,8 +204,9 @@ class Orchestrator:
         # SM2 (Raven2) 초기화
         if create_system_monitor_raven2:
             try:
-                sm2_config = {}  # SystemMonitor 설정
-                self.sm2 = create_system_monitor_raven2("SM2", sm2_config, "VD2", orchestrator=self, io_scheduler=self.io_scheduler)
+                # sm2_config = {}  # SystemMonitor 설정 (이 줄은 남겨두거나 삭제해도 됩니다)
+                # ❗️ config 인자 제거
+                self.sm2 = create_system_monitor_raven2("SM2", "VD2", orchestrator=self)
                 print("INFO: SM2 initialized successfully")
             except Exception as e:
                 print(f"ERROR: Failed to initialize SM2: {e}")

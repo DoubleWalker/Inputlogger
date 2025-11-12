@@ -135,7 +135,7 @@ class SystemMonitor:
         targets = policy.get('targets', [])
 
         for target in targets:
-            template_name = target.get('template')
+            template_name = target.get('template_name')
             next_state = target.get('next_state')
 
             if not template_name or not next_state:
@@ -286,7 +286,7 @@ class SystemMonitor:
             return return_ui_location(
                 template_path=path,
                 region=screen_obj['region'],
-                threshold=0.85,
+                threshold=0.82,
                 screenshot_img=screenshot
             )
         # ℹ️ [설명] '너무 광범위한 예외 절' :

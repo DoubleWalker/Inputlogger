@@ -145,10 +145,28 @@ class SystemMonitor:
 
             # ✅ [수정 4] _detect_template이 (x, y) 또는 None을 반환하므로,
             #    'if self._detect_template(...):'는 템플릿을 찾았을 때(truthy) 동작합니다.
-            if self._detect_template(screen_obj, template_path=template_path):
+            pos = self._detect_template(screen_obj, template_path=template_path)
+
+            if pos:  # 템플릿을 찾았다면
                 print(f"INFO: [{screen_obj['screen_id']}] DetectOnly: '{template_name}' 발견.")
+
+                # --- 🌟 [수정] Orchestrator에게 즉시 오류 보고 및 리턴 값 확인 ---
+                is_false_positive = False  # 기본값
+                if self.orchestrator:
+                    # ❗️ *** 수정 1: 리턴 값 캡처 ***
+                    is_false_positive = self.orchestrator.report_system_error(self.monitor_id, screen_obj['screen_id'])
+
+                # ❗️ *** 수정 2: 리턴 값 확인 ***
+                if is_false_positive:
+                    print(
+                        f"INFO: [{screen_obj['screen_id']}] Orchestrator confirmed False Positive. SM1 will NOT transition state.")
+                    return  # <-- *** 상태 전이 중단 ***
+                # --- 🌟 수정 완료 ---
+
+                # (is_false_positive가 False인 경우에만 아래 로직 실행)
+                # 이제 SM1이 이 화면의 제어권을 가짐
                 self._transition_screen_to_state(screen_obj, next_state, f"detected: {template_name}")
-                return
+                return  # 중요: 감지했으므로 루프 즉시 종료
 
     def _run_generator_step(self, screen_obj: dict, policy: dict, current_time: float):
         """[v3] '제너레이터' 상태 처리기 (예: LOGGING_IN)"""

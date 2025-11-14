@@ -165,7 +165,7 @@ class SystemMonitor:
     # =========================================================================
 
     def _handle_detection_targets(self, policy: dict, screen_obj: dict, should_click: bool = False) -> dict:
-        """(❗️ [수정] IO 스케줄러 요청 로직으로 변경)"""
+        """(❗️ [수정] 감지 시 Orchestrator에 오류 보고 추가)"""
         targets = policy.get('targets', [])
         if not targets:
             return {}
@@ -182,8 +182,13 @@ class SystemMonitor:
 
             # (Sensor) 감지
             if self._detect_template(screen_obj, template_path=template_path):
+                # --- 🌟 [추가] Orchestrator에게 화면별 오류 보고 ---
+                if self.orchestrator:
+                    # SRM2가 이 화면(screen_id)에서만 손 떼도록 요청
+                    self.orchestrator.report_system_error(self.monitor_id, screen_id)
+                # --- 🌟 추가 완료 ---
+
                 if should_click:
-                    # ❗️ (Execution) IO 스케줄러에 람다 요청
                     action_lambda = lambda p=template_path, r=region: image_utils.click_image(
                         template_path=p,
                         region=r,

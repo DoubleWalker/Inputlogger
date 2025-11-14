@@ -96,7 +96,7 @@ class CombatMonitor(BaseMonitor):
         self.stop_event = None
 
         self.screens: List[ScreenMonitorInfo] = []
-        self.confidence = self.config.get('confidence', 0.75)
+        self.confidence = self.config.get('confidence', 0.85)
 
         # 필수 템플릿 경로 로드
         self.arena_template_path = getattr(template_paths, 'ARENA_TEMPLATE', None)
@@ -106,6 +106,19 @@ class CombatMonitor(BaseMonitor):
         if not all([self.arena_template_path, self.dead_template_path, self.hostile_template_path]):
             print(f"WARNING: [{self.monitor_id}] Essential template attributes (ARENA, DEAD, HOSTILE) "
                   f"not found in template_paths module or config. State detection might fail.")
+            # --- 💥 [여기] 템플릿 전체 검증 로직 추가 💥 ---
+            print(f"INFO: [{self.monitor_id}] Verifying ALL registered template file paths...")
+        if not template_paths.verify_template_paths():
+                # verify_template_paths()가 False를 반환하면 (문제가 있으면)
+                # 템플릿이 누락되었다는 경고가 template_paths.py에 의해 이미 출력됨
+                print(f"ERROR: [{self.monitor_id}] Critical templates are missing. Monitor will likely fail.")
+                # --------------------------------------------------------------------
+                # 💡 중요: 여기서 프로그램을 중단시키는 것이 더 안전할 수 있습니다.
+                # 예: raise FileNotFoundError("필수 템플릿이 누락되었습니다. 프로그램을 중단합니다.")
+                # --------------------------------------------------------------------
+        else:
+                print(f"INFO: [{self.monitor_id}] All registered template paths are valid.")
+            # --- 💥 [여기까지] 추가 💥 ---
 
     def add_screen(self, screen_id: str, region: Tuple[int, int, int, int]):
         """모니터링할 화면 영역과 ID를 등록합니다."""
@@ -122,6 +135,42 @@ class CombatMonitor(BaseMonitor):
         screen = ScreenMonitorInfo(screen_id=screen_id, region=region)
         self.screens.append(screen)
         print(f"INFO: [{self.monitor_id}] Screen added: ID={screen_id}, Region={region}")
+
+    def get_current_state(self, screen_id: str) -> Optional[ScreenState]:
+        """
+        [신규] Orchestrator가 이 스크린의 현재 상태(맥락)를 쿼리합니다.
+        SM1의 오진(False Positive)을 방지하기 위해 사용됩니다.
+        """
+        screen = next((s for s in self.screens if s.screen_id == screen_id), None)
+        if screen:
+            # srm_config.py에 정의된 ScreenState Enum 객체를 반환
+            return screen.current_state
+
+        print(f"WARN: [{self.monitor_id}] get_current_state: Screen {screen_id} not found.")
+        return None
+
+    def force_reset_screen(self, screen_id: str):
+        """
+        [신규] Orchestrator에 의해 호출됨.
+        지정된 화면의 모든 시퀀스를 강제로 중지하고 NORMAL 상태로 리셋합니다.
+        """
+        screen = next((s for s in self.screens if s.screen_id == screen_id), None)
+
+        if screen:
+            print(f"INFO: [{self.monitor_id}] Screen {screen_id} is being forcibly reset by Orchestrator.")
+
+            # 1. 진행 중인 모든 시퀀스 변수 초기화
+            screen.policy_step = 0
+            screen.policy_step_start_time = 0.0
+            screen.retry_count = 0
+            screen.s1_completed = False  # 파티 복귀 플래그 초기화
+            if hasattr(screen, 'party_check_count'):
+                del screen.party_check_count  # 파티 체크 카운터 삭제
+
+            # 2. 상태를 NORMAL로 변경 (이로 인해 다음 틱부터는 _get_character_state_on_screen만 실행됨)
+            self._change_state(screen, ScreenState.NORMAL)
+        else:
+            print(f"WARN: [{self.monitor_id}] force_reset_screen: Screen {screen_id} not found.")
 
     def _load_template(self, template_path: Optional[str]) -> Optional[cv2.typing.MatLike]:
         """템플릿 이미지를 로드하고 유효성을 검사합니다."""
@@ -235,53 +284,74 @@ class CombatMonitor(BaseMonitor):
             print(f"ERROR: [{self.monitor_id}] Exception during arena check (Screen: {screen.screen_id}): {e}")
             return False
 
-    def _do_s1_emergency_return(self, screen: ScreenMonitorInfo):
-        """S1의 긴급 귀환 IO 시퀀스 (스케줄러가 호출)"""
-        try:
-            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Executing emergency return IO...")
-            image_utils.set_focus(screen.screen_id, delay_after=0.2)
-            keyboard.press_and_release('esc')
-            time.sleep(0.3)
-            # _click_relative는 내부에 time.sleep을 포함하므로 IO 스케줄러에서 실행하기 적합
-            self._click_relative(screen, 'flight_button', delay_after=1.0)
-        except Exception as e:
-            print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Exception in _do_s1_emergency_return: {e}")
-            traceback.print_exc()
-
     def _change_state(self, screen: ScreenMonitorInfo, new_state: ScreenState):
         """화면 상태 변경 및 관련 정보 업데이트"""
         old_state = screen.current_state
+
+        # ❗️ [수정] 재귀 호출 방지: 상태가 같으면 즉시 반환
+        if old_state == new_state:
+            return
+
         screen.current_state = new_state
         screen.last_state_change_time = time.time()
+        screen.retry_count = 0
 
-        # 특정 상태에서는 retry_count 초기화
-        if new_state != old_state:
-            screen.retry_count = 0
-
-        # ★ 새로 추가: 누군가 HOSTILE되면 S1을 BUYING_POTIONS로 강제 변경
+        # ★ S1 강제 상태 변경 로직 ★
         if (new_state == ScreenState.HOSTILE and
                 screen.screen_id != 'S1' and
-                self.location_flag == Location.FIELD):  # ← 이 조건 추가!
+                self.location_flag == Location.FIELD):
 
             s1_screen = next((s for s in self.screens if s.screen_id == 'S1'), None)
-            if s1_screen and s1_screen.current_state == ScreenState.NORMAL:
-                 print(
-                    f"INFO: [{self.monitor_id}] S1 emergency town return due to {screen.screen_id} attack (FIELD context)")
 
-                 # 🚨 [수정] 직접 IO 실행 대신, 스케줄러에 요청
-                 self.io_scheduler.request(
-                     component=self.monitor_id,
-                     screen_id=s1_screen.screen_id,
-                     action=lambda: self._do_s1_emergency_return(s1_screen),
-                     priority=Priority.HIGH  # 다른 캐릭터가 공격받는 상황이므로 HIGH
-                 )
+            # ❗️ [수정] S1이 유효하고, '안전한' 상태일 때만
+            if s1_screen and s1_screen.current_state in [ScreenState.NORMAL, ScreenState.RETURNING,
+                                                         ScreenState.INITIALIZING]:
 
-                 s1_screen.current_state = ScreenState.BUYING_POTIONS
-                 s1_screen.last_state_change_time = time.time()
-                 s1_screen.retry_count = 0
+                print(
+                    f"INFO: [{self.monitor_id}] S1 emergency return triggered by {screen.screen_id} attack (FIELD context).")
 
+                # --- S1이 AWAKE인지 SLEEP인지 확인 ---
+                is_s1_sleeping = False
+                # 1. 'SLEEP' 템플릿 경로 가져오기 (방금 template_paths.py에 추가함)
+                sleep_template_path = template_paths.get_template(s1_screen.screen_id, 'SLEEP')
+
+                if sleep_template_path and os.path.exists(sleep_template_path):
+                    try:
+                        # 2. S1 화면 스크린샷 및 템플릿 로드
+                        s1_screenshot = self.orchestrator.capture_screen_safely(s1_screen.screen_id)
+                        sleep_template = self._load_template(sleep_template_path)
+
+                        if s1_screenshot is not None and sleep_template is not None:
+                            # 3. 'SLEEP' 템플릿이 감지되면 (절전 상태)
+                            if image_utils.compare_images(s1_screenshot, sleep_template, threshold=self.confidence):
+                                is_s1_sleeping = True
+                                print(f"INFO: [{self.monitor_id}] S1 is visually SLEEPING. Will use S1_EMERGENCY_FLEE.")
+                            else:
+                                # 4. 'SLEEP' 템플릿이 없으면 (활성 상태)
+                                print(f"INFO: [{self.monitor_id}] S1 is visually AWAKE. Will use HOSTILE.")
+                        else:
+                            print(
+                                f"WARN: [{self.monitor_id}] Could not load S1 screenshot or sleep template. Assuming AWAKE.")
+
+                    except Exception as e:
+                        print(f"WARN: [{self.monitor_id}] Error checking S1 sleep state: {e}. Assuming AWAKE.")
+                else:
+                    print(f"WARN: [{self.monitor_id}] 'SLEEP' template not defined for S1. Assuming AWAKE.")
+                # --- S1 상태 확인 종료 ---
+
+                # ❗️ [수정] S1의 시각적 상태에 따라 다른 상태로 전이
+                if is_s1_sleeping:
+                    # 절전 모드면 -> 활성화가 포함된 'S1_EMERGENCY_FLEE'로
+                    self._change_state(s1_screen, ScreenState.S1_EMERGENCY_FLEE)
+                else:
+                    # 활성 상태면 -> 활성화가 없는 'HOSTILE'로
+                    self._change_state(s1_screen, ScreenState.HOSTILE)
+
+        # ❗️ [수정] 로그 출력을 재귀 호출 바깥으로 이동
+        # (self.current_state가 아닌 screen.current_state를 사용해야 함)
+        if old_state != screen.current_state:
             print(
-                f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: State changed: {old_state.name} -> {new_state.name}")
+                f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: State changed: {old_state.name} -> {screen.current_state.name}")
 
     def _check_template_present(self, screen: ScreenMonitorInfo, template_key: str) -> bool:
         """범용 실행기가 'wait' operation을 위해 사용하는 템플릿 검사기"""
@@ -335,7 +405,11 @@ class CombatMonitor(BaseMonitor):
                     print(f"WARN: [{self.monitor_id}] Failed to find template '{template_key}' for click")
 
             elif operation == 'key_press':
-                # ... (기존 key_press 로직) ...
+                # --- 🌟 [BUGFIX] 키 입력 전 'safe_click_point'를 클릭하여 포커스 설정 ---
+                if not self._click_relative(screen, 'safe_click_point', delay_after=0.1):
+                    print(f"ERROR: [{self.monitor_id}] FAILED TO CLICK 'safe_click_point' for {screen.screen_id}")
+                    return  # 안전 클릭 실패 시 작업 중단
+                # --- 🌟 수정 완료 ---
                 key = action.get('key')
                 if key:
                     keyboard.press_and_release(key)
@@ -391,26 +465,40 @@ class CombatMonitor(BaseMonitor):
 
         # 1. 현재 상태의 "매뉴얼"을 가져옴
         policy = srm_config.get_state_policy(screen.current_state)
-
+        action_type = policy.get('action_type')
         # 2. 매뉴얼이 'sequence' 타입이 아니면 실행기 대상이 아님
-        if policy.get('action_type') != 'sequence':
-            print(f"WARN: [{self.monitor_id}] {screen.current_state.name} is not a sequence state.")
-            return
+        if action_type == 'time_based_wait':
+            expected_duration = policy.get('expected_duration', 10.0)  # config에서 시간 가져오기
+            elapsed = time.time() - screen.last_state_change_time  # 상태 변경 후 경과 시간
 
-        # 🚀 [신규] INITIALIZING 상태 특별 처리 (S2-S5 대기 로직)
-        # S1 (리더)을 제외한 모든 화면은 S1이 위치를 확정할 때까지 여기서 대기합니다.
-        if screen.current_state == ScreenState.INITIALIZING and screen.screen_id != 'S1':
-            if self.location_flag == Location.UNKNOWN:
-                # S1이 아직 작업 중이므로, 이 화면은 대기
-                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waiting for S1 to determine location...")
-                return  # ★★★ 함수 즉시 종료 (아무것도 안 함)
+            if elapsed >= expected_duration:
+                # 지정된 시간이 경과함 -> 다음 상태로 전환
+                print(
+                    f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: '{screen.current_state.name}' state duration ({expected_duration}s) complete.")
+
+                # config의 'duration_complete'에 지정된 다음 상태로 이동
+                next_state_key = policy.get('transitions', {}).get('duration_complete', 'NORMAL')
+                next_state = next_state_key if isinstance(next_state_key, ScreenState) else ScreenState.NORMAL
+                self._change_state(screen, next_state)
             else:
-                # S1이 작업을 마쳤음 (location_flag가 ARENA 또는 FIELD로 설정됨)
-                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: S1 finished. Moving to NORMAL state.")
-                self._change_state(screen, ScreenState.NORMAL)
-                screen.policy_step = 0  # 리셋
-                return  # ★★★ 상태 변경 후 즉시 종료
-        # (S1이거나, INITIALIZING 상태가 아닌 경우에만 아래 로직으로 진행)
+                # 아직 대기 중... (아무것도 하지 않음)
+                pass
+            return  # 'time_based_wait' 처리는 여기서 종료
+        elif action_type == 'sequence':
+                # 🚀 [신규] INITIALIZING 상태 특별 처리 (S2-S5 대기 로직)
+                # S1 (리더)을 제외한 모든 화면은 S1이 위치를 확정할 때까지 여기서 대기합니다.
+            if screen.current_state == ScreenState.INITIALIZING and screen.screen_id != 'S1':
+                if self.location_flag == Location.UNKNOWN:
+                    # S1이 아직 작업 중이므로, 이 화면은 대기
+                    print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waiting for S1 to determine location...")
+                    return  # ★★★ 함수 즉시 종료 (아무것도 안 함)
+                else:
+                    # S1이 작업을 마쳤음 (location_flag가 ARENA 또는 FIELD로 설정됨)
+                    print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: S1 finished. Moving to NORMAL state.")
+                    self._change_state(screen, ScreenState.NORMAL)
+                    screen.policy_step = 0  # 리셋
+                    return  # ★★★ 상태 변경 후 즉시 종료
+                    # (S1이거나, INITIALIZING 상태가 아닌 경우에만 아래 로직으로 진행)
 
         # 3. 현재 "스텝 번호"와 "지시서 목록"을 가져옴
         step_index = screen.policy_step
@@ -574,7 +662,7 @@ class CombatMonitor(BaseMonitor):
             self._execute_policy_step(screen)
 
         # 5. FLEEING 상태 - 도주 완료 체크 (변경 없음)
-        elif state == ScreenState.FLEEING:
+        elif state in [ScreenState.FLEEING, ScreenState.S1_EMERGENCY_FLEE]:  # <--- 🌟 이 부분 수정
             # srm_config.py의 'time_based_wait' 정책을 실행합니다.
             self._execute_policy_step(screen)
 
@@ -704,6 +792,28 @@ class CombatMonitor(BaseMonitor):
     def _do_flight(self, screen: ScreenMonitorInfo):
         """도주 버튼 클릭 실행 (IO만 담당, Lock 없음)"""
         try:
+            # --- 🌟 [수정] IO 행동 전 화면 활성화 (Wake-up) ---
+
+            # 1. 'safe_click_point' 클릭으로 포커스
+            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waking up screen (Focus Click)...")
+            if not self._click_relative(screen, 'safe_click_point', delay_after=0.1):  # 딜레이 0.1초로 단축
+                # safe_click_point 클릭 실패 시 (정의되지 않았거나) 화면 중앙을 클릭
+                print(f"WARN: [{self.monitor_id}] Screen {screen.screen_id}: safe_click_point failed. Clicking center.")
+                try:
+                    region_x, region_y, region_w, region_h = screen.region
+                    center_x = region_x + (region_w // 2)
+                    center_y = region_y + (region_h // 2)
+                    pyautogui.click(center_x, center_y)
+                    time.sleep(0.1)  # 클릭 후 짧은 대기
+                except Exception as e_center:
+                    print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Failed to click center: {e_center}")
+                    return  # 화면 클릭(활성화) 실패 시 비행 중단
+
+            # 2. [사용자 요청] 'esc' 키 눌러서 활성화
+            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waking up screen (ESC key)...")
+            keyboard.press_and_release('esc')  #
+            time.sleep(0.3)  # esc 입력 후 활성화 대기
+
             flight_template_path = template_paths.get_template(screen.screen_id, 'FLIGHT_BUTTON')
             if not flight_template_path:
                 print(f"ERROR: [{self.monitor_id}] Screen {screen.screen_id}: Flight template path not configured.")

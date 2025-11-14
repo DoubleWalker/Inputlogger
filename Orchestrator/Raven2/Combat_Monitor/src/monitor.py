@@ -64,7 +64,7 @@ class CombatMonitor(BaseMonitor):
             window_id=window_id,
             region=region,
             ratio=ratio,
-            current_state=srm_config.get_initial_state()  # -> ScreenState.SLEEP
+            current_state=ScreenState.SLEEP
         )
 
         # ❗️ v3: 제너레이터 실행을 위한 상태 변수들
@@ -75,6 +75,29 @@ class CombatMonitor(BaseMonitor):
 
         self.screens.append(screen)
         print(f"[{self.monitor_id}] Screen registered - ID: {window_id}, State: {screen.current_state.name}")
+
+    def force_reset_screen(self, screen_id: str):
+        """
+        [신규] Orchestrator에 의해 호출됨.
+        지정된 화면의 모든 시퀀스를 강제로 중지하고 NORMAL 상태로 리셋합니다.
+        """
+        screen = next((s for s in self.screens if s.window_id == screen_id), None)
+
+        if screen:
+            print(f"INFO: [{self.monitor_id}] Screen {screen_id} is being forcibly reset by Orchestrator.")
+
+            # 1. 진행 중인 모든 시퀀스 변수 초기화
+            screen.policy_step = 0
+            screen.policy_step_start_time = 0.0
+            screen.retry_count = 0
+            screen.s1_completed = False  # 파티 복귀 플래그 초기화
+            if hasattr(screen, 'party_check_count'):
+                del screen.party_check_count  # 파티 체크 카운터 삭제
+
+            # 2. 상태를 NORMAL로 변경 (이로 인해 다음 틱부터는 _get_character_state_on_screen만 실행됨)
+            self._change_state(screen, ScreenState.SLEEP)
+        else:
+            print(f"WARN: [{self.monitor_id}] force_reset_screen: Screen {screen_id} not found.")
 
     # =========================================================================
     # 🎯 1. [v3] 메인 루프 (v1의 거대 if/elif 제거)
@@ -294,7 +317,27 @@ class CombatMonitor(BaseMonitor):
                 elif not instruction.get('optional', False):
                     print(f"ERROR: [{screen.window_id}] 'click_fixed' 지시 실패 (좌표 없음): {instruction['coord_key']}")
 
+
             elif op == 'key_press':
+
+                # 🌟 [1단계] 포커스 확보
+
+                safe_coords = self._helper_get_coords(screen, 'safe_click_point')
+
+                if safe_coords:
+
+                    pyautogui.click(safe_coords[0], safe_coords[1])
+
+                    time.sleep(0.1)  # 포커스 안착 대기
+
+                else:
+
+                    print(f"ERROR: [{screen.window_id}] safe_click_point not found! key_press may fail.")
+
+                    return  # 포커스 실패 시 키 입력 중단
+
+                # 🌟 [2단계] 실제 키 입력 (포커스 확보된 상태에서)
+
                 keyboard.press_and_release(instruction['key'])
 
             elif op == 'drag':

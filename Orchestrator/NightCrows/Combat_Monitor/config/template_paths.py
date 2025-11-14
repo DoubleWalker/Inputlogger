@@ -19,6 +19,7 @@ SCREEN_TEMPLATE_PATHS = {
 # 화면별 템플릿 정의 (화면 ID를 키로 사용하는 중첩 사전)
 TEMPLATES = {
     'S1': {
+        'SLEEP': os.path.join(BASE_TEMPLATE_PATH, "NightCrows", "s1.png"),
         'ARENA': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "arena_indicator.png"),
         'DEAD': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "dead_indicator.png"),
         'HOSTILE': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "hostile_indicator.png"),
@@ -45,6 +46,7 @@ TEMPLATES = {
         'S5': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "s5.png")  # 새로 추가: S1이 S5 찾을 때 사용
     },
     'S2': {
+        'SLEEP': os.path.join(BASE_TEMPLATE_PATH, "NightCrows", "s2.png"),
         'ARENA': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "arena_indicator.png"),
         'DEAD': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "dead_indicator.png"),
         'HOSTILE': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "hostile_indicator.png"),
@@ -66,6 +68,7 @@ TEMPLATES = {
         'ARENA_ENTRY_UI': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "arena_entry_ui.png"),
     },
     'S3': {
+        'SLEEP': os.path.join(BASE_TEMPLATE_PATH, "NightCrows", "s3.png"),
         'ARENA': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "arena_indicator.png"),
         'DEAD': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "dead_indicator.png"),
         'HOSTILE': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "hostile_indicator.png"),
@@ -87,6 +90,7 @@ TEMPLATES = {
         'ARENA_ENTRY_UI': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "arena_entry_ui.png"),
     },
     'S4': {
+        'SLEEP': os.path.join(BASE_TEMPLATE_PATH, "NightCrows", "s4.png"),
         'ARENA': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "arena_indicator.png"),
         'DEAD': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "dead_indicator.png"),
         'HOSTILE': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "hostile_indicator.png"),
@@ -108,6 +112,7 @@ TEMPLATES = {
         'ARENA_ENTRY_UI': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "arena_entry_ui.png"),
     },
     'S5': {
+        'SLEEP': os.path.join(BASE_TEMPLATE_PATH, "NightCrows", "s5.png"),
         'ARENA': os.path.join(SCREEN_TEMPLATE_PATHS['S5'], "arena_indicator.png"),
         'DEAD': os.path.join(SCREEN_TEMPLATE_PATHS['S5'], "dead_indicator.png"),
         'HOSTILE': os.path.join(SCREEN_TEMPLATE_PATHS['S5'], "hostile_indicator.png"),

@@ -37,6 +37,7 @@ EVENT_UI_REGIONS: Dict[str, Dict[str, Tuple[int, int, int, int]]] = {
 FIXED_UI_COORDS = {
     'S1': {
         # 기존 좌표 유지
+        'safe_click_point': (400, 0),
         'main_menu_button': (750, 18),
         'field_return_reset': (535, 327),  #
         'field_return_start': (716, 328),  #
@@ -54,6 +55,7 @@ FIXED_UI_COORDS = {
     },
     'S2': {
         # 기존 좌표 유지
+        'safe_click_point': (420, 0),
         'main_menu_button': (820, 18),
         'field_return_reset': (571, 359),  #
         'field_return_start': (763, 355),  #
@@ -69,6 +71,7 @@ FIXED_UI_COORDS = {
     },
     'S3': {
         # 기존 좌표 유지
+        'safe_click_point': (0, 164),
         'main_menu_button': (713, 15),
         'field_return_reset': (512, 327),  #
         'field_return_start': (688, 327),  #
@@ -85,6 +88,7 @@ FIXED_UI_COORDS = {
     },
     'S4': {
         # 기존 좌표 유지
+        'safe_click_point': (0, 140),
         'main_menu_button': (748, 15),
         'field_return_reset': (543, 324),  #
         'field_return_start': (732, 323),  #
@@ -100,6 +104,7 @@ FIXED_UI_COORDS = {
     },
     'S5': {
         # 기존 좌표 유지
+        'safe_click_point': (900, -7),
         'main_menu_button': (1117, 28),
         'field_return_reset': (822, 621),  #
         'field_return_start': (1057, 618),  #

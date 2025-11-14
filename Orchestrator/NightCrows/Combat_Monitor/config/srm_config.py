@@ -14,6 +14,7 @@ class ScreenState(Enum):
     DEAD = auto()  # 사망 상태
     RECOVERING = auto()  # 부활 중
     HOSTILE = auto()  # 적대 상태
+    S1_EMERGENCY_FLEE = auto()
     FLEEING = auto()  # 도주 중
     BUYING_POTIONS = auto()  # 물약 구매 중 (구매+복귀 포함)
     RETURNING = auto()  # 복귀 중 (웨이포인트 포함)
@@ -54,7 +55,6 @@ ScreenState.INITIALIZING: {
                 # ❗️ 따라서 'screen_id': 'S1' 태그도 모두 제거할 수 있습니다.
 
                 # Step 0: S1 화면에 포커스
-                {'operation': 'set_focus', 'initial': True},
                 # Step 1: ESC 키 입력
                 {'operation': 'key_press', 'key': 'esc'},
                 # Step 2: 1초 대기
@@ -101,6 +101,36 @@ ScreenState.INITIALIZING: {
         },
 
         # 4. 조건부 흐름제어 - 성공할 때까지 재시도
+        'conditional_flow': 'sequence_with_retry'
+    },
+    # 🌟 [신규] S1_EMERGENCY_FLEE 정책 추가
+    # 이 상태는 S1이 잠든(NORMAL) 상태에서 S2-S5의 피격으로 강제 호출된 상태입니다.
+    ScreenState.S1_EMERGENCY_FLEE: {
+        'targets': [],
+        'action_type': 'sequence',
+        'sequence_config': {
+            'actions': [
+                # Step 0: S1 화면을 깨우기 위해 'safe_click_point' 클릭
+                {
+                    'operation': 'click_relative',
+                    'key': 'safe_click_point',
+                    'delay_after': 0.3,  # 클릭 후 활성화 대기
+                    'initial': True
+                },
+
+                # Step 1: 화면이 깨어난 후, 기존 HOSTILE과 동일하게 _do_flight 실행
+                {
+                    'operation': 'execute_subroutine',
+                    'name': '_do_flight',
+                    'final': True
+                }
+            ]
+        },
+        'transitions': {
+            'sequence_complete': ScreenState.FLEEING,  # 성공하면 FLEEING
+            'sequence_failed': ScreenState.S1_EMERGENCY_FLEE,  # 실패 시 재시도
+            'sequence_in_progress': ScreenState.S1_EMERGENCY_FLEE
+        },
         'conditional_flow': 'sequence_with_retry'
     },
 

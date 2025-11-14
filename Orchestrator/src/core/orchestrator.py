@@ -1,5 +1,7 @@
 import threading
 import time
+from operator import truediv
+
 import schedule
 import enum
 import queue
@@ -10,6 +12,7 @@ from pathlib import Path
 import pyautogui
 import os
 from .io_scheduler import IOScheduler, Priority
+from Orchestrator.NightCrows.Combat_Monitor.config.srm_config import ScreenState
 
 try:
     # VDManager 임포트 시도
@@ -512,6 +515,42 @@ class Orchestrator:
     def request_io(self, component, screen_id, action, priority=Priority.NORMAL):
         """컴포넌트들이 호출할 IO 요청 메서드"""
         self.io_scheduler.request(component, screen_id, action, priority)
+
+    def report_system_error(self, monitor_id: str, screen_id: str):
+        """
+        [신규] SM(System Monitor)이 치명적인 오류(연결 끊김 등)를 감지했을 때 호출됩니다.
+        Orchestrator가 해당 VD의 SRM(Combat Monitor)에게 스크린 제어를 중지하도록 명령합니다.
+        """
+        try:
+            if monitor_id == "SM1" and self.srm1:
+                # --- 🌟 [신규] 맥락 확인 로직 ---
+                # 1. SRM1(monitor.py)에 추가된 get_current_state 함수를 호출
+                srm_state = self.srm1.get_current_state(screen_id)
+
+                # 2. SRM1이 '물약 구매' 또는 '복귀' 작업을 수행 중일 때 탐지된 오류는
+                #    정상적인 '확인' 버튼일 가능성이 높으므로 '무시'합니다.
+                if srm_state in [ScreenState.BUYING_POTIONS, ScreenState.RETURNING]:
+                    print(
+                        f"Orchestrator: SM1 reported error on {screen_id}, but SRM1 is in a 'safe' state ({srm_state.name}). Ignoring report as False Positive.")
+                    # SRM1의 작업을 중단시키지 않고, SM1의 보고를 무시(return)
+                    return True
+                    # --- 🌟 맥락 확인 끝 ---
+
+                # 3. 만약 'NORMAL'이나 'HOSTILE' 등 예상치 못한 상태였다면, '진짜' 오류입니다.
+                print(
+                    f"Orchestrator: SM1 reported a REAL error on {screen_id} (SRM State: {srm_state}). Forcing SRM1 to reset screen.")
+                self.srm1.force_reset_screen(screen_id)  # 👈 기존 강제 리셋 로직 수행
+                return False
+
+            elif monitor_id == "SM2" and self.srm2:
+                # (추후 Raven2에도 동일한 로직 적용 시 사용)
+                print(f"Orchestrator: SM2 reported error on {screen_id}. Forcing SRM2 to reset screen.")
+                self.srm2.force_reset_screen(screen_id) # SRM2에도 force_reset_screen 구현 필요
+                return False
+
+        except Exception as e:
+            print(f"ERROR: [Orchestrator] Failed during report_system_error handling: {e}")
+            return False
 
     def shutdown(self):
         """오케스트레이터 종료 시 정리 작업"""

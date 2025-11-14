@@ -36,6 +36,7 @@ EVENT_UI_REGIONS: Dict[str, Dict[str, Tuple[int, int, int, int]]] = {
 # 각 화면별 고정 UI 요소의 상대 좌표 (화면 영역의 좌상단 기준)
 FIXED_UI_COORDS = {
     'S1': {
+        'safe_click_point': (360, 0),
         'main_menu_button': (681, 23),
         'retreat_confirm_button': (350, 283),
         'leader_hp_pixel': (132, 124),
@@ -44,6 +45,7 @@ FIXED_UI_COORDS = {
         'notice_tab':(67,267)# S1 리더 HP 바 확인 픽셀 상대 좌표
     },
     'S2': {
+        'safe_click_point': (420, 0),
         'main_menu_button': (698, 23),
         'retreat_confirm_button': (375, 298),
         'leader_hp_pixel': (125, 130),
@@ -52,6 +54,7 @@ FIXED_UI_COORDS = {
         'notice_tab':(52,272) # S2 리더 HP 바 확인 픽셀 상대 좌표
     },
     'S3': {
+        'safe_click_point': (0, 160),
         'main_menu_button': (680, 20),
         'retreat_confirm_button': (350, 285),
         'leader_hp_pixel': (117, 126),
@@ -61,6 +64,7 @@ FIXED_UI_COORDS = {
         # S3 리더 HP 바 확인 픽셀 상대 좌표
     },
     'S4': {
+        'safe_click_point': (0, 160),
         'main_menu_button': (680, 20),
         'retreat_confirm_button': (350, 283),
         'leader_hp_pixel': (113, 121),
@@ -69,6 +73,7 @@ FIXED_UI_COORDS = {
         'notice_tab':(64,259) # S4 리더 HP 바 확인 픽셀 상대 좌표
     },
     'S5': {
+        'safe_click_point': (830, -10),
         'main_menu_button': (1172, 27),
         'retreat_confirm_button': (607, 520),
         'unlock_button':(35,625),

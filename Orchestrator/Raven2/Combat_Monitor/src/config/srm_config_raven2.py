@@ -1,29 +1,12 @@
 # C:/Orchestrator/Raven2/Combat_Monitor/src/config/srm_config_raven2.py
 # (v3 - 제너레이터 "상황반장" 아키텍처)
 
-from enum import Enum, auto
 from typing import Callable, Generator, Dict, Any, Optional
-
+from Orchestrator.Raven2.Combat_Monitor.src.models.screen_info import ScreenState
 
 # =============================================================================
 # 🎯 1. 상태 정의 (monitor_v1의 ScreenState 계승)
 # =============================================================================
-
-class ScreenState(Enum):
-    """
-    레이븐2 모니터의 상태 정의 (v1/v2와 동일)
-
-    """
-    SLEEP = auto()
-    AWAKE = auto()
-    DEAD = auto()  # 사망 감지 (policy_dead 호출)
-    RECOVERING = auto()  # 부활 중 (policy_recovering 호출)
-    ABNORMAL = auto()  # 비정상 상태 감지 (policy_abnormal 호출)
-    RETREATING = auto()  # 후퇴 중 (policy_retreating 호출)
-    SAFE_ZONE = auto()  # 안전지대 도착 (policy_safe_zone 호출)
-    POTIONS_PURCHASED = auto()  # 물약 구매 완료 (policy_potions_purchased 호출)
-    RETURNING_TO_COMBAT = auto()  # 사냥터 복귀 중 (policy_returning_to_combat 호출)
-
 
 # =============================================================================
 # 🎯 2. "상황반장" 정책 (monitor_v1.py 로직의 "번역")

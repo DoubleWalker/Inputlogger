@@ -153,7 +153,7 @@ class Orchestrator:
         # SRM1 (NightCrows) 초기화
         if NightCrowsCombatMonitor:
             try:
-                srm1_config = {'confidence': 0.75}
+                srm1_config = {'confidence': 0.85}
                 self.srm1 = NightCrowsCombatMonitor(monitor_id="SRM1", config=srm1_config, vd_name="VD1", orchestrator=self, io_scheduler=self.io_scheduler)
 
                 # 화면 정보 추가
@@ -458,45 +458,54 @@ class Orchestrator:
                             time.sleep(1)
                             continue
 
-                # 3. 이벤트 기반 시간 분할 로직 (게임 상황 고려)
-                if self.active_state in [ActiveState.MONITORING_VD1, ActiveState.MONITORING_VD2]:
-                    now = time.time()
-                    duration_on_current_vd = now - self.last_focus_switch_time
-                    switch_needed = False
-                    next_vd = None
-                    current_slice_duration = 0
+                # 3. [수정] IO 작업 중이 아닐 때만 시간 분할 로직 실행
+                if not self.io_scheduler.lock.locked():
 
-                    if self.active_state == ActiveState.MONITORING_VD1:
-                        current_slice_duration = self.vd1_slice_duration
-                        if duration_on_current_vd > current_slice_duration:
-                            switch_needed = True
-                            next_vd = VirtualDesktop.VD2
-                    elif self.active_state == ActiveState.MONITORING_VD2:
-                        current_slice_duration = self.vd2_slice_duration
-                        if duration_on_current_vd > current_slice_duration:
-                            switch_needed = True
-                            next_vd = VirtualDesktop.VD1
+                    # (기존 3번 로직 시작)
+                    if self.active_state in [ActiveState.MONITORING_VD1, ActiveState.MONITORING_VD2]:
+                        now = time.time()
+                        duration_on_current_vd = now - self.last_focus_switch_time
+                        switch_needed = False
+                        next_vd = None
+                        current_slice_duration = 0
 
-                    if switch_needed:
-                        # 게임 상황을 고려한 안전 체크
-                        total_elapsed = now - self.start_time
-                        safety_check = self._check_vd_switch_safety()
+                        if self.active_state == ActiveState.MONITORING_VD1:
+                            current_slice_duration = self.vd1_slice_duration
+                            if duration_on_current_vd > current_slice_duration:
+                                switch_needed = True
+                                next_vd = VirtualDesktop.VD2
+                        elif self.active_state == ActiveState.MONITORING_VD2:
+                            current_slice_duration = self.vd2_slice_duration
+                            if duration_on_current_vd > current_slice_duration:
+                                switch_needed = True
+                                next_vd = VirtualDesktop.VD1
 
-                        if safety_check:
-                            print(f"INFO: [T+{total_elapsed:.0f}s] All screens in safe state - ready for VD switch")
-                            print(
-                                f"INFO: Time slice expired on {self.current_focus.name} after {duration_on_current_vd:.0f}s. Switching to {next_vd.name}")
-                            next_state = ActiveState.MONITORING_VD1 if next_vd == VirtualDesktop.VD1 else ActiveState.MONITORING_VD2
-                            self.set_focus(next_vd, next_state)
-                        else:
-                            print(f"INFO: [T+{total_elapsed:.0f}s] VD switch delayed - critical operations detected")
-                            # 최대 지연 시간 체크 (15분 추가 대기)
-                            max_delay = current_slice_duration + 900  # +15분
-                            if duration_on_current_vd > max_delay:
+                        if switch_needed:
+                            # 게임 상황을 고려한 안전 체크
+                            total_elapsed = now - self.start_time
+                            safety_check = self._check_vd_switch_safety()
+
+                            if safety_check:
+                                print(f"INFO: [T+{total_elapsed:.0f}s] All screens in safe state - ready for VD switch")
                                 print(
-                                    f"WARN: [T+{total_elapsed:.0f}s] Max delay reached ({duration_on_current_vd:.0f}s). Force switching to {next_vd.name}")
+                                    f"INFO: Time slice expired on {self.current_focus.name} after {duration_on_current_vd:.0f}s. Switching to {next_vd.name}")
                                 next_state = ActiveState.MONITORING_VD1 if next_vd == VirtualDesktop.VD1 else ActiveState.MONITORING_VD2
                                 self.set_focus(next_vd, next_state)
+                            else:
+                                print(
+                                    f"INFO: [T+{total_elapsed:.0f}s] VD switch delayed - critical operations detected")
+                                # 최대 지연 시간 체크 (15분 추가 대기)
+                                max_delay = current_slice_duration + 900  # +15분
+                                if duration_on_current_vd > max_delay:
+                                    print(
+                                        f"WARN: [T+{total_elapsed:.0f}s] Max delay reached ({duration_on_current_vd:.0f}s). Force switching to {next_vd.name}")
+                                    next_state = ActiveState.MONITORING_VD1 if next_vd == VirtualDesktop.VD1 else ActiveState.MONITORING_VD2
+                                    self.set_focus(next_vd, next_state)
+                    # (기존 3번 로직 끝)
+
+                # [추가] IO 작업 중일 때 로그
+                elif self.active_state in [ActiveState.MONITORING_VD1, ActiveState.MONITORING_VD2]:
+                    print(f"INFO: [Orchestrator] IO Scheduler is busy. Pausing VD switch timer.")
 
                 time.sleep(1)
 

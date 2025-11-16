@@ -103,12 +103,12 @@ def policy_restarting_app(screen: dict) -> Generator[Dict[str, Any], Any, None]:
 def policy_logging_in(screen: dict) -> Generator[Dict[str, Any], Any, None]:
     """
     [상황반장: 로그인 진행 중]
-    v1의 'time_based_wait' (expected_duration: 25.0) 로직을 번역합니다.
+    v1의 'time_based_wait' (expected_duration: 15.0) 로직을 번역합니다.
     """
-    print(f"INFO: [{screen['screen_id']}] 상황반장: '로그인' 대기 (25초).")
+    print(f"INFO: [{screen['screen_id']}] 상황반장: '로그인' 대기 (15초).")
 
-    # v1의 'expected_duration': 25.0
-    yield {'operation': 'wait_duration', 'duration': 25.0}
+    # v1의 'expected_duration': 15.0
+    yield {'operation': 'wait_duration', 'duration': 15.0}
 
     print(f"INFO: [{screen['screen_id']}] 로그인 시간 경과. 'RETURNING_TO_GAME'으로 이동.")
 

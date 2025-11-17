@@ -1,6 +1,7 @@
 # srm1_config.py - SRM1 통합 설정 (운영 설정 + 4대 정책)
 
 from enum import Enum, auto
+from typing import final
 
 
 # =============================================================================
@@ -221,7 +222,8 @@ ScreenState.INITIALIZING: {
         'sequence_config': {
             'actions': [
                 # Step 0: 상점 클릭
-                {'template': 'SHOP_BUTTON', 'operation': 'click', 'initial': True},
+                {'template': 'SHOP_BUTTON', 'operation': 'wait', 'timeout': 30.0, 'initial': True},
+                {'template': 'SHOP_BUTTON', 'operation': 'click'},
 
                 # Step 1: 15초 대기 (상점 로딩)
                 {'operation': 'wait_duration', 'duration': 15.0},
@@ -239,16 +241,8 @@ ScreenState.INITIALIZING: {
                 {'operation': 'key_press', 'key': 'esc'},
                 {'operation': 'wait_duration', 'duration': 0.5},
                 {'operation': 'key_press', 'key': 'esc'},
-                {'operation': 'wait_duration', 'duration': 1.0},  # <-- final: True 제거됨
+                {'operation': 'wait_duration', 'duration': 1.0,'final': True}  # <-- final: True 제거됨
 
-                # --- 🚀 [신규] 누락된 필드 복귀 로직 추가 ---
-                # 이 스텝들은 'FIELD' 컨텍스트일 때만 실행됩니다.
-                {'operation': 'click_relative', 'key': 'main_menu_button', 'delay_after': 1.0, 'context': 'FIELD'},
-                {'operation': 'click_relative', 'key': 'field_schedule_button', 'delay_after': 1.0, 'context': 'FIELD'},
-                {'operation': 'click_relative', 'key': 'field_return_reset', 'delay_after': 1.0, 'context': 'FIELD'},
-                # 마지막 스텝에 'final: True'를 붙여 시퀀스 종료를 알림
-                {'operation': 'click_relative', 'key': 'field_return_start', 'delay_after': 1.0, 'context': 'FIELD',
-                 'final': True}
             ]
         },
 
@@ -288,17 +282,7 @@ ScreenState.INITIALIZING: {
         # 시퀀스 설정 - 기존 wp1_step, wp2_step 등을 표준화된 actions로 변환
         'sequence_config': {
         'actions': [
-            # === FIELD 컨텍스트: S1 (리더) ===
-            # '파티원(S2~S5) 템플릿'을 '3회' 찾을 때까지 '2초' 간격으로 'wait'
-            # '40초'가 지나면 'timeout'
-            # '5회' 재시도 후 'fail'
-            # 재시도 시 'field_return_button' 클릭
-            # (이 로직을 wait, click_relative, execute_subroutine 등으로 구현)
-            {'operation': '...', 'context': 'FIELD', 'screen_id': 'S1'},
 
-            # === FIELD 컨텍스트: S2-S5 (팔로워) ===
-            # 'S1 템플릿'을 '3회' 찾을 때까지... (S1과 거의 동일)
-            {'operation': '...', 'context': 'FIELD', 'screen_id_not': 'S1'},
 
             # === ARENA 컨텍스트: WP1 ~ WP5 ===
             # WP1 (기존과 유사)
@@ -316,16 +300,7 @@ ScreenState.INITIALIZING: {
             # WP2 도착 확인
             {'operation': 'wait', 'template': 'WAYPOINT_2', 'timeout': 10.0, 'context': 'ARENA'},
 
-            # WP3 (기존 _move_to_party_shared_wp 로직)
-            {'operation': 'execute_subroutine', 'name': '_do_wp3_movement', 'context': 'ARENA'},
-            {'operation': 'wait_duration', 'duration': 8.0, 'context': 'ARENA'}, # 이동 대기
-
-            # WP4 (기존 _execute_sequence("wp4_glider") 로직)
-            {'operation': 'execute_subroutine', 'name': '_do_wp4_glider', 'context': 'ARENA'},
-            {'operation': 'wait_duration', 'duration': 10.0, 'context': 'ARENA'}, # 비행 대기
-
-            # WP5 (최종 도착 확인)
-            {'operation': 'wait', 'template': 'COMBAT_SPOT', 'timeout': 20.0, 'on_timeout': 'fail_sequence', 'context': 'ARENA', 'final': True}
+            {'operation': 'execute_subroutine', 'name': '_do_wp3_movement', 'context': 'ARENA','final':True}
         ]
     },
         'transitions': {
@@ -408,11 +383,64 @@ SRM1_CONFIG = {
 # 🔧 유틸리티 함수들
 # =============================================================================
 
-def get_state_policy(state: ScreenState) -> dict:
-    """특정 상태의 정책을 반환합니다."""
-    return SRM1_STATE_POLICIES.get(state, {})
+def get_state_policy(state: ScreenState, screen_id: str = None) -> dict:
+    """
+    특정 상태의 정책을 반환합니다.
+    screen_id가 제공되면 RETURNING 상태에서 화면별 WP 시퀀스를 주입합니다.
+    """
+    base_policy = SRM1_STATE_POLICIES.get(state, {})
 
+    # RETURNING 상태이고 screen_id가 제공된 경우에만 WP 시퀀스 주입
+    if state == ScreenState.RETURNING and screen_id:
+        from .srm_config_wp_sequences import get_wp_sequence
 
+        # 기존 정책 복사
+        policy = base_policy.copy()
+
+        # sequence_config가 있는지 확인
+        if 'sequence_config' not in policy:
+            return policy
+
+        # actions 복사
+        actions = policy['sequence_config'].get('actions', [])[:]
+
+        # WP3 관련 항목 찾기 (execute_subroutine으로 시작하는 부분)
+        wp3_start_idx = None
+        wp3_end_idx = None
+
+        for i, action in enumerate(actions):
+            if action.get('operation') == 'execute_subroutine' and action.get('name') == '_do_wp3_movement':
+                wp3_start_idx = i
+                # WP3~WP5 관련 항목 모두 찾기 (다음 비-WP 항목까지)
+                for j in range(i, len(actions)):
+                    if actions[j].get('context') == 'ARENA':
+                        wp3_end_idx = j
+                    else:
+                        break
+                if wp3_end_idx is None:
+                    wp3_end_idx = i
+                break
+
+        # WP3 시퀀스가 발견되면 교체
+        if wp3_start_idx is not None:
+            # 해당 스크린의 녹화된 시퀀스 로드
+            wp_sequence = get_wp_sequence(screen_id, 'wp3', context='ARENA')
+
+            if wp_sequence:
+                # 기존 WP3~WP5 제거하고 새 시퀀스 삽입
+                before_wp = actions[:wp3_start_idx]
+                after_wp = actions[wp3_end_idx + 1:]
+
+                new_actions = before_wp + wp_sequence + after_wp
+
+                # 새 정책에 업데이트된 actions 적용
+                policy['sequence_config']['actions'] = new_actions
+
+                print(f"INFO: Screen {screen_id}: WP sequence injected ({len(wp_sequence)} operations)")
+
+        return policy
+
+    return base_policy
 def get_all_states() -> list:
     """SRM1이 지원하는 모든 상태 목록을 반환합니다."""
     return list(SRM1_STATE_POLICIES.keys())

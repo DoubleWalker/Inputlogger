@@ -115,11 +115,13 @@ class CombatMonitor(BaseMonitor):
         self.policy_handlers: Dict[str, Callable[[ScreenMonitorInfo, dict], None]] = {
             'click': self._handle_click_operation,
             'key_press': self._handle_keypress_operation,
+            'key_hold': self._handle_key_hold_operation,
             'wait_duration': self._handle_wait_duration,
             'wait': self._handle_wait_template,
             'execute_subroutine': self._handle_subroutine,
             'set_focus': self._handle_set_focus,
             'click_relative': self._handle_click_relative_operation,
+            'key_press_raw': self._handle_key_press_raw_operation
         }
 
         self._verify_templates()
@@ -524,6 +526,25 @@ class CombatMonitor(BaseMonitor):
     # ========================================================================
     # Policy Operation Handlers
     # ========================================================================
+    def _handle_key_press_raw_operation(self, screen: ScreenMonitorInfo, action: dict):
+        """key_press_raw operation 처리 (press 또는 release만)"""
+        self.io_scheduler.request(
+            component=self.monitor_id,
+            screen_id=screen.screen_id,
+            action=lambda: self._do_key_press_raw_action(screen, action),
+            priority=Priority.NORMAL
+        )
+        self._advance_step(screen, action.get('operation'))
+
+    def _handle_key_hold_operation(self, screen: ScreenMonitorInfo, action: dict):
+        """key_hold operation 처리"""
+        self.io_scheduler.request(
+            component=self.monitor_id,
+            screen_id=screen.screen_id,
+            action=lambda: self._do_key_hold_action(screen, action),
+            priority=Priority.NORMAL
+        )
+        self._advance_step(screen, action.get('operation'))
 
     def _handle_click_operation(self, screen: ScreenMonitorInfo, action: dict):
         """click operation 처리"""
@@ -645,6 +666,50 @@ class CombatMonitor(BaseMonitor):
     # ========================================================================
     # IO Actions (스케줄러가 실행)
     # ========================================================================
+    def _do_key_press_raw_action(self, screen: ScreenMonitorInfo, action: dict):
+        """key_press_raw 액션 실행 (press 또는 release만 수행)"""
+        key = action.get('key')
+        event = action.get('event')  # 'press' 또는 'release'
+
+        if not key:
+            print(f"ERROR: [{self.monitor_id}] key_press_raw operation missing 'key'")
+            return
+
+        if not event or event not in ['press', 'release']:
+            print(f"ERROR: [{self.monitor_id}] key_press_raw operation missing or invalid 'event'")
+            return
+
+        if event == 'press':
+            keyboard.press(key)
+        else:  # release
+            keyboard.release(key)
+
+        self._apply_delay(action)
+
+    def _do_key_hold_action(self, screen: ScreenMonitorInfo, action: dict):
+        """key_hold 액션 실행 (press → duration → release)"""
+        if not self._click_relative(screen, 'safe_click_point', delay_after=0.3):
+            print(f"ERROR: [{self.monitor_id}] Failed to click safe_click_point for {screen.screen_id}")
+            return
+
+        key = action.get('key')
+        duration = action.get('duration', 0.0)
+
+        if not key:
+            print(f"ERROR: [{self.monitor_id}] key_hold operation missing 'key'")
+            return
+
+        # Press
+        keyboard.press(key)
+
+        # Hold
+        if duration > 0:
+            time.sleep(duration)
+
+        # Release
+        keyboard.release(key)
+
+        self._apply_delay(action)
 
     def _do_click_action(self, screen: ScreenMonitorInfo, action: dict):
         """click 액션 실행"""

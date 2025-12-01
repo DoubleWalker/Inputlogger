@@ -51,6 +51,8 @@ FIXED_UI_COORDS = {
         'shop_button': (56, 43),
         'tower_click_1': (711, 66),  #
         'tower_click_2': (724, 185),  #
+        'wp3_jump_point_1': (354, 210),  # 점프대 클릭 1
+        'wp3_jump_point_2': (359, 173)
           #
     },
     'S2': {
@@ -65,8 +67,11 @@ FIXED_UI_COORDS = {
         'flight_button':(515,349),  #
         'shop_button':(51,45),
         'arena_entry_option1': (578, 210),  #
-        'tower_click_1': (795, 76),  #
-        'tower_click_2': (818, 205),  #
+        'tower_click_1': (780, 75),  #
+        'tower_click_2': (808, 204),  #
+        'map_marker_reference':(420,190),
+        'wp3_jump_point_1': (395, 231),  # 점프대 클릭 1
+        'wp3_jump_point_2': (404, 189),  # 점프대 클릭 2 (확인 사살용)
           #
     },
     'S3': {
@@ -77,13 +82,16 @@ FIXED_UI_COORDS = {
         'field_return_start': (688, 327),  #
         'graveyard_confirm': (1, 2),  # 실제 좌표 측정 필요
         'field_schedule_button': (657, 203),  #
-        'flight_button':(467,316),  #
+        'flight_button':(467,313),  #
         'field_return_button': (502,308),
         'shop_button': (79, 42),
         # 새로 추가된 좌표 (빈칸)
         'arena_entry_option1': (511, 184),  #
-        'tower_click_1': (683, 70),  #
-        'tower_click_2': (714, 185),  #
+        'tower_click_1': (691, 64),  #
+        'tower_click_2': (714, 230),
+        'map_marker_reference':(382,180),
+        'wp3_jump_point_1': (365, 206),  # 점프대 클릭 1
+        'wp3_jump_point_2': (375, 170)
           #
     },
     'S4': {
@@ -99,7 +107,10 @@ FIXED_UI_COORDS = {
         'field_return_button': (507,316),
         'arena_entry_option1': (502, 184),  #
         'tower_click_1': (700, 62),  #
-        'tower_click_2': (714, 186),  #
+        'tower_click_2': (714, 186),
+        'map_marker_reference': (387,173),#
+        'wp3_jump_point_1': (362, 205),  # 점프대 클릭 1
+        'wp3_jump_point_2': (363, 168)
           #
     },
     'S5': {
@@ -116,6 +127,8 @@ FIXED_UI_COORDS = {
         'arena_entry_option1': (754, 353),  #
         'tower_click_1': (1084, 98),  #
         'tower_click_2': (1114, 290),  #
+        'wp3_jump_point_1': (543, 370),  # 점프대 클릭 1
+        'wp3_jump_point_2': (549, 326)
           #
     },
 }

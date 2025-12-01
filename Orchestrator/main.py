@@ -28,4 +28,3 @@ if __name__ == "__main__":
     finally:
         if orchestrator:
              orchestrator.shutdown() # 예외 발생 시에도 종료 시도
-        print("Orchestrator System finished.")

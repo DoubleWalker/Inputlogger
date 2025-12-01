@@ -3,6 +3,8 @@
 from enum import Enum, auto
 from typing import final
 
+from pyautogui import click
+
 
 # =============================================================================
 # 🎯 로컬룰 1: 상태 정의 (SRM1 전투 로직)
@@ -226,7 +228,7 @@ ScreenState.INITIALIZING: {
                 {'template': 'SHOP_BUTTON', 'operation': 'click'},
 
                 # Step 1: 15초 대기 (상점 로딩)
-                {'operation': 'wait_duration', 'duration': 15.0},
+                {'operation': 'wait_duration', 'duration': 5.0},
 
                 # Step 1: 구매 버튼 찾을 때까지 대기
                 {'template': 'PURCHASE_BUTTON', 'operation': 'wait'},
@@ -289,17 +291,23 @@ ScreenState.INITIALIZING: {
             {'operation': 'click_relative', 'key': 'main_menu_button', 'context': 'ARENA', 'initial': True},
             {'operation': 'click', 'template': 'ARENA_MENU_ICON', 'context': 'ARENA'},
             {'operation': 'key_press', 'key': 'y', 'context': 'ARENA'},
-            {'operation': 'wait_duration', 'duration': 35.0, 'context': 'ARENA'},
-            # WP1 도착 확인 (ARENA 템플릿)
-            {'operation': 'wait', 'template': 'ARENA', 'timeout': 10.0, 'context': 'ARENA'},
-
-            # WP2 (기존과 유사)
+            {'operation': 'wait_duration', 'duration': 10.0, 'context': 'ARENA'},
+            {'template': 'ARENA_ENTRY_UI', 'operation': 'wait', 'timeout': 30.0, 'initial': True},
+            {'template': 'ARENA_ENTRY_UI', 'operation': 'click'},
+            {'operation': 'wait_duration', 'duration': 25.0, 'context': 'ARENA'},
+            # 말타기 끝, WP2 시작 (기존과 유사)
             {'operation': 'key_press', 'key': 'm', 'context': 'ARENA'},
-            # ... (TOWER_CLICK_1, 2 등) ...
-            {'operation': 'wait_duration', 'duration': 15.0, 'context': 'ARENA'}, # 맵 이동 대기
+            {'operation': 'click_relative', 'key': 'tower_click_1','context': 'ARENA'},
+            {'operation': 'wait_duration', 'duration': 2.0, 'context': 'ARENA'},
+            {'operation': 'click_relative', 'key': 'tower_click_2','context': 'ARENA'},
+            {'operation': 'click_relative', 'key': 'tower_click_2','context': 'ARENA'},
+            {'operation': 'wait_duration', 'duration': 1.0, 'context': 'ARENA'},
+            {'operation': 'key_press', 'key': 'y', 'context': 'ARENA'},
+            {'operation': 'wait_duration', 'duration': 5.0, 'context': 'ARENA'}, # 맵 이동 대기
             # WP2 도착 확인
-            {'operation': 'wait', 'template': 'WAYPOINT_2', 'timeout': 10.0, 'context': 'ARENA'},
-
+            # 1. 지도 열기
+            {'operation': 'key_press', 'key': 'm', 'context': 'ARENA'},
+            {'operation': 'wait_duration', 'duration': 1.0, 'context': 'ARENA'},
             {'operation': 'execute_subroutine', 'name': '_do_wp3_movement', 'context': 'ARENA','final':True}
         ]
     },
@@ -386,61 +394,10 @@ SRM1_CONFIG = {
 def get_state_policy(state: ScreenState, screen_id: str = None) -> dict:
     """
     특정 상태의 정책을 반환합니다.
-    screen_id가 제공되면 RETURNING 상태에서 화면별 WP 시퀀스를 주입합니다.
+    (v4.0 수정: WP 시퀀스를 여기서 풀지 않고, Monitor가 통째로 실행하도록 위임함)
     """
-    base_policy = SRM1_STATE_POLICIES.get(state, {})
+    return SRM1_STATE_POLICIES.get(state, {})
 
-    # RETURNING 상태이고 screen_id가 제공된 경우에만 WP 시퀀스 주입
-    if state == ScreenState.RETURNING and screen_id:
-        from .srm_config_wp_sequences import get_wp_sequence
-
-        # 기존 정책 복사
-        policy = base_policy.copy()
-
-        # sequence_config가 있는지 확인
-        if 'sequence_config' not in policy:
-            return policy
-
-        # actions 복사
-        actions = policy['sequence_config'].get('actions', [])[:]
-
-        # WP3 관련 항목 찾기 (execute_subroutine으로 시작하는 부분)
-        wp3_start_idx = None
-        wp3_end_idx = None
-
-        for i, action in enumerate(actions):
-            if action.get('operation') == 'execute_subroutine' and action.get('name') == '_do_wp3_movement':
-                wp3_start_idx = i
-                # WP3~WP5 관련 항목 모두 찾기 (다음 비-WP 항목까지)
-                for j in range(i, len(actions)):
-                    if actions[j].get('context') == 'ARENA':
-                        wp3_end_idx = j
-                    else:
-                        break
-                if wp3_end_idx is None:
-                    wp3_end_idx = i
-                break
-
-        # WP3 시퀀스가 발견되면 교체
-        if wp3_start_idx is not None:
-            # 해당 스크린의 녹화된 시퀀스 로드
-            wp_sequence = get_wp_sequence(screen_id, 'wp3', context='ARENA')
-
-            if wp_sequence:
-                # 기존 WP3~WP5 제거하고 새 시퀀스 삽입
-                before_wp = actions[:wp3_start_idx]
-                after_wp = actions[wp3_end_idx + 1:]
-
-                new_actions = before_wp + wp_sequence + after_wp
-
-                # 새 정책에 업데이트된 actions 적용
-                policy['sequence_config']['actions'] = new_actions
-
-                print(f"INFO: Screen {screen_id}: WP sequence injected ({len(wp_sequence)} operations)")
-
-        return policy
-
-    return base_policy
 def get_all_states() -> list:
     """SRM1이 지원하는 모든 상태 목록을 반환합니다."""
     return list(SRM1_STATE_POLICIES.keys())

@@ -2,6 +2,7 @@
 # 전체 리팩토링 버전 - 기능 동일, 가독성 및 유지보수성 개선
 
 import pyautogui
+import pytweening
 import traceback
 import cv2
 import time
@@ -121,7 +122,10 @@ class CombatMonitor(BaseMonitor):
             'execute_subroutine': self._handle_subroutine,
             'set_focus': self._handle_set_focus,
             'click_relative': self._handle_click_relative_operation,
-            'key_press_raw': self._handle_key_press_raw_operation
+            'key_press_raw': self._handle_key_press_raw_operation,
+            'click_xy_operation': self._handle_click_xy_operation,
+            'mouse_drag': self._handle_mouse_drag_operation,
+            'mouse_scroll': self._handle_mouse_scroll_operation
         }
 
         self._verify_templates()
@@ -412,7 +416,7 @@ class CombatMonitor(BaseMonitor):
 
     def _execute_policy_step(self, screen: ScreenMonitorInfo):
         """범용 정책 실행기"""
-        policy = srm_config.get_state_policy(screen.current_state)
+        policy = srm_config.get_state_policy(screen.current_state, screen.screen_id)
         action_type = policy.get('action_type')
 
         # time_based_wait 처리
@@ -536,6 +540,26 @@ class CombatMonitor(BaseMonitor):
         )
         self._advance_step(screen, action.get('operation'))
 
+    def _handle_mouse_drag_operation(self, screen: ScreenMonitorInfo, action: dict):
+        """mouse_drag operation 처리"""
+        self.io_scheduler.request(
+            component=self.monitor_id,
+            screen_id=screen.screen_id,
+            action=lambda: self._do_mouse_drag_action(screen, action),
+            priority=Priority.NORMAL
+        )
+        self._advance_step(screen, action.get('operation'))
+
+    def _handle_mouse_scroll_operation(self, screen: ScreenMonitorInfo, action: dict):
+        """mouse_scroll operation 처리 핸들러"""
+        self.io_scheduler.request(
+            component=self.monitor_id,
+            screen_id=screen.screen_id,
+            action=lambda: self._do_mouse_scroll_action(screen, action),
+            priority=Priority.NORMAL
+        )
+        self._advance_step(screen, action.get('operation'))
+
     def _handle_key_hold_operation(self, screen: ScreenMonitorInfo, action: dict):
         """key_hold operation 처리"""
         self.io_scheduler.request(
@@ -586,19 +610,82 @@ class CombatMonitor(BaseMonitor):
         )
         self._advance_step(screen, action.get('operation'))
 
+
     def _handle_subroutine(self, screen: ScreenMonitorInfo, action: dict):
-        """execute_subroutine operation 처리"""
-        subroutine_name = action.get('name')
-        if subroutine_name == '_do_flight':
-            self.io_scheduler.request(
-                component=self.monitor_id,
-                screen_id=screen.screen_id,
-                action=lambda: self._do_flight(screen),
-                priority=Priority.NORMAL
-            )
-            self._advance_step(screen, action.get('operation'))
-        else:
-            print(f"ERROR: [{self.monitor_id}] Unknown subroutine '{subroutine_name}'")
+            """execute_subroutine operation 처리"""
+            subroutine_name = action.get('name')
+
+            if subroutine_name == '_do_flight':
+                # (기존 코드 유지)
+                self.io_scheduler.request(
+                    component=self.monitor_id,
+                    screen_id=screen.screen_id,
+                    action=lambda: self._do_flight(screen),
+                    priority=Priority.NORMAL
+                )
+                self._advance_step(screen, action.get('operation'))
+
+            elif subroutine_name == '_do_wp3_movement':
+                # ★ [신규] WP3 이동 시퀀스 처리 (CRITICAL 우선순위)
+                print(f"INFO: [{self.monitor_id}] Requesting Atomic WP3 Macro for {screen.screen_id}")
+                self.io_scheduler.request(
+                    component=self.monitor_id,
+                    screen_id=screen.screen_id,
+                    action=lambda: self._do_wp3_movement(screen),
+                    priority=Priority.URGENT  # ★ 절대 방해받지 않음
+                )
+                self._advance_step(screen, action.get('operation'))
+
+            else:
+                print(f"ERROR: [{self.monitor_id}] Unknown subroutine '{subroutine_name}'")
+
+        # [신규 메서드 추가] _do_wp3_movement
+    def _do_wp3_movement(self, screen: ScreenMonitorInfo):
+            """
+            WP3 시퀀스를 원자적(Atomic)으로 실행하는 매크로 함수.
+            스케줄러 안에서 실행되므로, 이 함수가 끝날 때까지 다른 IO는 차단됨.
+            """
+            from .config.srm_config_wp_sequences import get_wp_sequence
+
+            # 1. 시퀀스 데이터 로드
+            sequence = get_wp_sequence(screen.screen_id, 'wp3', 'ARENA')
+            if not sequence:
+                print(f"WARN: [{self.monitor_id}] No WP3 sequence found for {screen.screen_id}")
+                return
+
+            print(
+                f"INFO: [{self.monitor_id}] Starting Atomic WP3 Sequence ({len(sequence)} ops) for {screen.screen_id}")
+
+            try:
+                # 2. 포커스 확보 (필수)
+
+                # 3. 시퀀스 순차 실행 (tester.py와 동일한 방식)
+                for i, op in enumerate(sequence):
+                    op_type = op.get('operation')
+
+                    # 각 동작을 _do_... 메서드에 직접 위임 (스케줄러 거치지 않음!)
+                    if op_type == 'mouse_drag':
+                        self._do_mouse_drag_action(screen, op)
+                    elif op_type == 'key_press_raw':
+                        self._do_key_press_raw_action(screen, op)
+                    elif op_type == 'key_hold':
+                        self._do_key_hold_action(screen, op)
+                    elif op_type == 'click_relative':
+                        self._do_click_relative_action(screen, op)
+                    elif op_type == 'key_press':
+                        self._do_keypress_action(screen, op)
+                    elif op_type == 'wait_duration':
+                        # wait_duration은 _do 메서드가 없으므로 직접 처리
+                        time.sleep(op.get('duration', 0.1))
+
+                    # 디버깅용 (필요시 주석 해제)
+                    # print(f"   [{i+1}/{len(sequence)}] {op_type} done.")
+
+                print(f"INFO: [{self.monitor_id}] Atomic WP3 Sequence Completed.")
+
+            except Exception as e:
+                print(f"ERROR: [{self.monitor_id}] WP3 Sequence Failed: {e}")
+                traceback.print_exc()
 
     def _handle_wait_duration(self, screen: ScreenMonitorInfo, action: dict):
         """wait_duration operation 처리"""
@@ -616,6 +703,10 @@ class CombatMonitor(BaseMonitor):
     def _handle_wait_template(self, screen: ScreenMonitorInfo, action: dict):
         """wait (템플릿 대기) operation 처리"""
         template_key = action.get('template')
+
+        # 🔥 step 시작 시간 초기화 확인
+        if screen.policy_step_start_time == 0.0:
+            screen.policy_step_start_time = time.time()
 
         if self._check_template_present(screen, template_key):
             print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: "
@@ -655,6 +746,15 @@ class CombatMonitor(BaseMonitor):
         self._change_state(screen, next_state)
         screen.policy_step = 0
         screen.policy_step_start_time = 0.0
+
+    def _handle_click_xy_operation(self, screen: ScreenMonitorInfo, action: dict):
+        """click_xy operation 처리 (x, y 좌표 직접 클릭)"""
+        self.io_scheduler.request(
+            component=self.monitor_id,
+            screen_id=screen.screen_id,
+            action=lambda: self._do_click_xy_action(screen, action),
+            priority=Priority.NORMAL
+        )
 
     def _advance_step(self, screen: ScreenMonitorInfo, operation: str):
         """다음 스텝으로 진행"""
@@ -737,6 +837,41 @@ class CombatMonitor(BaseMonitor):
 
         self._apply_delay(action)
 
+    def _do_mouse_drag_action(self, screen: ScreenMonitorInfo, action: dict):
+        """
+        마우스 드래그 실행 (moveTo -> dragTo) + Tweening 적용
+        """
+        from_x = action.get('from_x')
+        from_y = action.get('from_y')
+        to_x = action.get('to_x')
+        to_y = action.get('to_y')
+        duration = action.get('duration', 0.5)
+        button = action.get('button', 'left')
+
+        if None in [from_x, from_y, to_x, to_y]:
+            print(f"ERROR: [{self.monitor_id}] mouse_drag missing coordinates")
+            return
+
+        # 스크린 절대 좌표 계산
+        region_x, region_y, _, _ = screen.region
+        abs_start_x = region_x + from_x
+        abs_start_y = region_y + from_y
+        abs_end_x = region_x + to_x
+        abs_end_y = region_y + to_y
+
+        try:
+            # 1. 시작 지점으로 이동
+            pyautogui.moveTo(abs_start_x, abs_start_y)
+
+            # 2. 드래그 실행 (Tweening 적용!)
+            # tester.py에서 성공했던 그 느낌 그대로
+            pyautogui.dragTo(abs_end_x, abs_end_y, duration=duration, button=button, tween=pyautogui.easeOutQuad)
+
+        except Exception as e:
+            print(f"ERROR: [{self.monitor_id}] Drag failed: {e}")
+
+        self._apply_delay(action)
+
     def _do_keypress_action(self, screen: ScreenMonitorInfo, action: dict):
         """key_press 액션 실행"""
         if not self._click_relative(screen, 'safe_click_point', delay_after=0.3):
@@ -748,6 +883,22 @@ class CombatMonitor(BaseMonitor):
             keyboard.press_and_release(key)
         else:
             print(f"ERROR: [{self.monitor_id}] key_press operation missing 'key'")
+
+        self._apply_delay(action)
+
+    def _do_mouse_scroll_action(self, screen: ScreenMonitorInfo, action: dict):
+        """실제 마우스 스크롤 실행"""
+        amount = action.get('amount', 0)
+        if amount == 0: return
+
+        # 1. 화면 중앙 좌표 계산
+        region_x, region_y, region_w, region_h = screen.region
+        center_x = region_x + (region_w // 2)
+        center_y = region_y + (region_h // 2)
+
+        # 2. 마우스를 화면 중앙으로 이동 후 스크롤 (pyautogui 지원 기능)
+        # (마우스가 엉뚱한 곳에 있으면 스크롤이 안 먹힐 수 있으므로 중앙 이동 필수)
+        pyautogui.scroll(amount, x=center_x, y=center_y)
 
         self._apply_delay(action)
 
@@ -766,6 +917,18 @@ class CombatMonitor(BaseMonitor):
 
         self._apply_delay(action)
 
+    def _do_click_xy_action(self, screen: ScreenMonitorInfo, action: dict):
+        """click_xy 액션 실행"""
+        x = action.get('x')
+        y = action.get('y')
+
+        if x is None or y is None:
+            print(f"ERROR: [{self.monitor_id}] click_xy operation missing 'x' or 'y'")
+            return
+
+        self._click_relative(screen, (x, y), delay_after=0.0)
+        self._apply_delay(action)
+
     def _apply_delay(self, action: dict):
         """액션의 delay_after 적용"""
         delay = action.get('delay_after', 0)
@@ -773,14 +936,22 @@ class CombatMonitor(BaseMonitor):
             time.sleep(delay)
 
     def _do_flight(self, screen: ScreenMonitorInfo):
-        """도주 버튼 클릭 실행"""
+        """도주 버튼 클릭 실행 (상태에 따라 깨우기 동작 분기)"""
         try:
-            # 화면 활성화
-            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waking up screen...")
-            if not self._wake_screen(screen):
-                return
+            # ★ [핵심 수정] 상태에 따라 깨우기(Wake) 여부 결정
+            if screen.current_state == ScreenState.S1_EMERGENCY_FLEE:
+                # S1 긴급 도주: 자고 있을 수 있으므로 확실하게 깨움 (클릭 + ESC)
+                print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: S1 Emergency Flee. Waking up screen...")
+                if not self._wake_screen(screen):
+                    return
+            else:
+                # 일반 HOSTILE: 이미 화면을 인식 중이므로 깨우기 동작(ESC) 생략하고 즉시 도주
+                # (불필요한 ESC가 메뉴를 닫거나 팝업을 띄우는 문제 방지)
+                pass
 
-            # 도주 버튼 클릭
+            # ---------------------------------------------------------
+            # 이 아래는 기존 도주 로직과 동일 (도주 버튼 템플릿 찾기 & 클릭)
+            # ---------------------------------------------------------
             flight_template_path = template_paths.get_template(screen.screen_id, 'FLIGHT_BUTTON')
             if not flight_template_path or not os.path.exists(flight_template_path):
                 print(f"WARN: [{self.monitor_id}] Flight template not found. Using fixed coordinates...")
@@ -849,8 +1020,8 @@ class CombatMonitor(BaseMonitor):
 
         region_x, region_y, _, _ = screen.region
         try:
-            click_x = int(region_x + relative_coord[0] + np.random.randint(-random_offset, random_offset + 1))
-            click_y = int(region_y + relative_coord[1] + np.random.randint(-random_offset, random_offset + 1))
+            click_x = int(region_x + relative_coord[0] )
+            click_y = int(region_y + relative_coord[1] )
         except ValueError:
             print(f"ERROR: [{self.monitor_id}] Invalid coordinate values for '{coord_key}'.")
             return False

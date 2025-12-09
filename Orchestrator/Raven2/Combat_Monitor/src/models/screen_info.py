@@ -1,8 +1,8 @@
 # Orchestrator/Raven2/Combat_Monitor/src/models/screen_info.py 수정 제안
 
 from enum import Enum
-from dataclasses import dataclass
-from typing import Tuple
+from dataclasses import dataclass, field
+from typing import Tuple, Dict, Any
 
 class ScreenState(Enum):
     SLEEP = 0       # 잠금 상태 (정상)
@@ -24,9 +24,25 @@ class ScreenState(Enum):
 class CombatScreenInfo:
     window_id: str
     region: Tuple[int, int, int, int]
-    ratio: float = 1.0  # 기본값 1.0으로 설정
-    current_state: ScreenState = ScreenState.SLEEP # 초기 상태는 SLEEP 유지
+    ratio: float = 1.0
+
+    # [수정] current_state 필드 제거 -> 프로퍼티로 대체
+    # current_state: ScreenState = ScreenState.SLEEP
+
+    # [신규] 공유 상태 딕셔너리 참조 (초기화 시 주입받음)
+    _shared_state_ref: Dict[str, Any] = field(default_factory=dict, repr=False)
+
     retry_count: int = 0
-    # ⬇️ SRM1의 '엔진' 구동을 위해 이 두 필드 추가 ⬇️
     policy_step: int = 0
     policy_step_start_time: float = 0.0
+
+    # [신규] current_state를 프로퍼티로 정의하여 공유 딕셔너리 접근
+    @property
+    def current_state(self):
+        # 딕셔너리에 없으면 기본값 SLEEP 반환
+        return self._shared_state_ref.get(self.window_id, ScreenState.SLEEP)
+
+    @current_state.setter
+    def current_state(self, new_state):
+        # 딕셔너리에 값 쓰기 (모든 모니터가 즉시 알게 됨)
+        self._shared_state_ref[self.window_id] = new_state

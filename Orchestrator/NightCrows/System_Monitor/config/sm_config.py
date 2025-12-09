@@ -67,23 +67,45 @@ def policy_connection_error(screen: dict) -> Generator[Dict[str, Any], Any, None
 def policy_client_crashed(screen: dict) -> Generator[Dict[str, Any], Any, None]:
     """
     [상황반장: 클라이언트 크래시]
-    v1의 'detect_and_click' (retry 3회) 로직을 번역합니다.
+    APP_ICON 클릭 후 실제 실행 여부(아이콘 소멸 여부)를 검증하는 로직 추가
     """
     print(f"INFO: [{screen['screen_id']}] 상황반장: '클라이언트 크래시' 접수. 3회 재시작 시도.")
 
-    # v1의 'retry_config': max_attempts: 3, retry_delay: 3.0
-    for attempt in range(1, 4):  # 1, 2, 3
+    # v1의 'retry_config': max_attempts: 3
+    for attempt in range(1, 4):
+        # 1. 아이콘 클릭 시도
         pos = yield {
             'operation': 'click_if_present',
             'template_name': 'APP_ICON'
         }
+
         if pos:
-            print(f"INFO: [{screen['screen_id']}] 앱 아이콘 클릭 성공 (재시작).")
-            return  # 성공! 제너레이터 종료
+            print(f"INFO: [{screen['screen_id']}] 앱 아이콘 클릭 시도({attempt}). 10초 후 실행 여부 검증...")
 
-        yield {'operation': 'wait_duration', 'duration': 3.0}
+            # 2. 10초 대기 (앱이 실행되어 화면을 덮거나 아이콘이 사라질 시간)
+            yield {'operation': 'wait_duration', 'duration': 10.0}
 
-    raise Exception("Failed to click APP_ICON after 3 attempts")
+            # 3. 검증: 아이콘이 여전히 화면에 있는지 확인
+            # (timeout을 1초로 짧게 주어 '존재 여부'만 빠르게 체크)
+            still_there = yield {
+                'operation': 'wait_for_template',
+                'template_name': 'APP_ICON',
+                'timeout': 1.0
+            }
+
+            if not still_there:
+                # 아이콘을 못 찾음 -> 게임 창이 떴거나 아이콘이 사라짐 -> 성공!
+                print(f"INFO: [{screen['screen_id']}] 앱 실행 확인됨 (아이콘 사라짐).")
+                return  # 성공적으로 제너레이터 종료 -> RESTARTING_APP 상태로 전이
+
+            # 아이콘이 여전히 있음 -> 클릭이 씹혔거나 실행 실패 -> 루프 계속(재시도)
+            print(f"WARN: [{screen['screen_id']}] 앱 아이콘이 여전히 화면에 있습니다. 클릭 실패로 간주하고 재시도합니다.")
+
+        # 클릭 실패 또는 검증 실패 시 잠시 대기 후 재시도
+        yield {'operation': 'wait_duration', 'duration': 2.0}
+
+    # 3회 다 시도해도 실패하면 예외 발생
+    raise Exception("Failed to launch APP (icon persists) after 3 attempts")
 
 
 def policy_restarting_app(screen: dict) -> Generator[Dict[str, Any], Any, None]:
@@ -126,44 +148,82 @@ def policy_returning_to_game(screen: dict) -> Generator[Dict[str, Any], Any, Non
     print(f"INFO: [{screen['screen_id']}] 게임 복귀 시간 경과. 'NORMAL'로 이동.")
 
 
+# System_Monitor/config/sm_config.py
+
 def policy_login_required(screen: dict) -> Generator[Dict[str, Any], Any, None]:
     """
-    [상황반장: 로그인 필요 (시퀀스)]
-    v1의 'action_type: sequence' (max_attempts: 10) 로직을 번역합니다.
+    [상황반장: 로그인 필요]
+    의도:
+    1. Focus (클라이언트에 입력 전달 -> 광고 트리거)
+    2. 광고 팝업이 있다면 모두 닫기 (여러 개일 수 있음 -> Loop)
+    3. 로그인 버튼 클릭
     """
-    print(f"INFO: [{screen['screen_id']}] 상황반장: '로그인 시퀀스' 접수 (최대 10회).")
+    print(f"INFO: [{screen['screen_id']}] 상황반장: '로그인 시퀀스' 시작.")
 
-    # v1의 'sequence_config': max_attempts: 10
-    for attempt in range(1, 11):  # 1부터 10까지
-        print(f"INFO: [{screen['screen_id']}] 로그인 시도 ({attempt}/10)")
-
+    for attempt in range(1, 11):
         try:
-            # 1. 'set_focus' 지시 (v1 시퀀스 1단계)
+            # ---------------------------------------------------------
+            # 1단계: 클라이언트 깨우기 (Trigger)
+            # ---------------------------------------------------------
+            # 이 클릭이 입력되어야 광고가 팝업되기 시작함
             yield {'operation': 'set_focus'}
 
-            # 2. 'click_if_present(AD_POPUP)' 지시 (v1 시퀀스 2단계)
-            yield {
-                'operation': 'click_if_present',
-                'template_name': 'AD_POPUP'
-            }
+            # 클릭 후 광고가 뜰 때까지 약간의 딜레이 필요
+            yield {'operation': 'wait_duration', 'duration': 3.5}
 
-            # 3. 'click(LOGIN_BUTTON)' 지시 (v1 시퀀스 3단계)
-            # 'click' 지시는 monitor.py에 의해 '못찾으면 예외 발생'으로 처리됨
+            # ---------------------------------------------------------
+            # 2단계: 광고 팝업 "박멸" 루프 (While Loop)
+            # ---------------------------------------------------------
+            # "광고가 있으면 닫고, 없으면 통과해라. 또 나오면 또 닫아라."
+            ad_close_count = 0
+            while True:
+                # monitor.py에게 "광고 있으면 클릭해보고 결과 알려줘"라고 지시
+                # found_ad에는 클릭된 좌표(True) 혹은 None(False)이 들어옴
+                found_ad = yield {
+                    'operation': 'click_if_present',
+                    'template_name': 'AD_POPUP'
+                }
+
+                if found_ad:
+                    ad_close_count += 1
+                    print(f"INFO: [{screen['screen_id']}] {ad_close_count}번째 광고 팝업 닫음.")
+                    # 닫았으면 팝업 닫히는 애니메이션 & 다음 팝업 대기
+                    yield {'operation': 'wait_duration', 'duration': 1.5}
+                    # continue 되어 다시 while문 처음으로 -> 또 있는지 확인
+                else:
+                    # 더 이상 광고가 발견되지 않음 -> 루프 탈출
+                    if ad_close_count > 0:
+                        print(f"INFO: [{screen['screen_id']}] 모든 광고 팝업 제거 완료.")
+                    break
+            # ---------------------------------------------------------
+            # ✅ [추가] 2.5단계: 로그인 전 재정비 (Buffer & Focus)
+            # ---------------------------------------------------------
+
+            # 1. 앞쪽 버퍼: 광고 닫힘 애니메이션 등이 완전히 끝날 때까지 대기
+            yield {'operation': 'wait_duration', 'duration': 1.0}
+
+            # 2. 화면 중앙 클릭 (Focus): 확실하게 메인 화면 활성화
+            yield {'operation': 'set_focus'}
+
+            # 3. 뒤쪽 버퍼: 클릭에 의한 미세한 UI 변화나 렉 대기
+            yield {'operation': 'wait_duration', 'duration': 1.0}
+
+            # ---------------------------------------------------------
+            # 3단계: 로그인 버튼 클릭
+            # ---------------------------------------------------------
             pos = yield {
                 'operation': 'click',
                 'template_name': 'LOGIN_BUTTON'
             }
 
-            # 'click'이 성공하면 (예외가 발생 안하면) 로그인 성공
             print(f"INFO: [{screen['screen_id']}] 로그인 버튼 클릭 성공.")
-            return  # 성공! 제너레이터 종료 (-> 'complete' 전이)
+            return  # 성공 시 제너레이터 종료
 
         except Exception as e:
-            # 'click'이 실패(예외)하면 catch
+            # 로그인 버튼을 못 찾았거나 중간에 문제 발생 시
             print(f"WARN: [{screen['screen_id']}] 로그인 시도 {attempt} 실패: {e}")
-            yield {'operation': 'wait_duration', 'duration': 3.0}  # 3초 후 재시도
+            yield {'operation': 'wait_duration', 'duration': 3.0}
 
-    # 10회 루프를 모두 돌았는데 return하지 못하면 예외 발생 (-> 'fail' 전이)
     raise Exception("Failed to login after 10 attempts")
 
 

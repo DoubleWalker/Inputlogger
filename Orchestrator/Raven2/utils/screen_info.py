@@ -78,6 +78,6 @@ FIXED_UI_COORDS = {
         'retreat_confirm_button': (607, 520),
         'unlock_button':(35,625),
         'mail_icon':(918,623),
-        'notice_tab':(106,427) # 정확한 좌표 측정 필요
+        'notice_tab':(106,427) #
     },
 }

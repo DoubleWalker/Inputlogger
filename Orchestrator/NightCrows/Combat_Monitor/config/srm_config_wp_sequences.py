@@ -18,72 +18,107 @@ S1_WP3_ARENA = [
 
     # 3. 목적지(점프대) 클릭 - ★ 여기가 핵심 수정 사항 ★
     # x, y 대신 key를 사용하여 screen_info.py의 좌표를 불러옵니다.
+    {'operation': 'click_relative', 'key': 'map_marker_reference', 'delay_after': 0.8},
     {'operation': 'click_relative', 'key': 'wp3_jump_point_1', 'delay_after': 0.8, 'context': 'ARENA'},
     {'operation': 'click_relative', 'key': 'wp3_jump_point_2', 'delay_after': 0.5, 'context': 'ARENA'},
 
-    # 4. 이동 대기
+    # S1 WP3 시퀀스 (ARENA) - 녹화 데이터 랙 방지 튜닝 버전
     {'operation': 'key_press', 'key': 'm', 'delay_after': 0.5, 'context': 'ARENA'},
     {'operation': 'wait_duration', 'duration': 10.0, 'context': 'ARENA'},
     # =========================================================================
-    {'operation': 'key_hold', 'key': 'space', 'delay_after': 0.304, 'context': 'ARENA', 'duration': 0.16},
-    {'operation': 'key_hold', 'key': 'space', 'delay_after': 0.24, 'context': 'ARENA', 'duration': 0.128},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.104, 'context': 'ARENA', 'duration': 0.12},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.136, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.113, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.264, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.648, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.6, 'context': 'ARENA', 'duration': 0.128},
-    {'operation': 'key_press', 'key': 'a', 'delay_after': 0.735, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.329, 'context': 'ARENA', 'duration': 0.152},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.192, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 1.8, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.896, 'context': 'ARENA', 'duration': 0.152},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.168, 'context': 'ARENA', 'duration': 0.128},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.217, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.103, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.12, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.312, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'a', 'delay_after': 0.624, 'context': 'ARENA', 'duration': 0.272},
-    {'operation': 'key_hold', 'key': 'a', 'delay_after': 0.48, 'context': 'ARENA', 'duration': 0.168},
-    {'operation': 'key_hold', 'key': 'a', 'delay_after': 0.944, 'context': 'ARENA', 'duration': 0.152},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.176, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.12, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.136, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 1.408, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'a', 'delay_after': 1.393, 'context': 'ARENA', 'duration': 0.184},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.192, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.135, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.12, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.144, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.528, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'a', 'delay_after': 1.753, 'context': 'ARENA', 'duration': 0.2},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.352, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.176, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.168, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.144, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 2.351, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.152, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.136, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.136, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 1.329, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'f', 'delay_after': 0.208, 'context': 'ARENA', 'duration': 0.12},
-    {'operation': 'key_press', 'key': 'q', 'delay_after': 0, 'context': 'ARENA'},
 
-    # 여기에 변환된 S1 시퀀스 붙여넣기
+    # [이륙 구간]
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.3, 'context': 'ARENA'},  # 0.168 -> 0.3 (확실하게)
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.3, 'context': 'ARENA'},  # 0.152 -> 0.3
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.2, 'context': 'ARENA', 'duration': 0.2},  # duration 늘림
+
+    # [상승 기동 1]
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
+    # 0.152 -> 0.2
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
+    # 0.128 -> 0.2
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.4, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.8, 'context': 'ARENA'},
+
+    # [활강 및 정지 1]
+    {'operation': 'key_press', 'key': 'shift', 'delay_after': 2.0, 'context': 'ARENA'},  # 1.984 -> 2.0
+
+    # [상승 기동 2 - 여기가 랙 취약 구간]
+    # Shift 직후 바로 S+Space가 들어가면 씹힐 수 있음 -> delay_after 0.3으로 확보
+    {'operation': 'key_press', 'key': 'shift', 'delay_after': 0.3, 'context': 'ARENA'},  # 0.129 -> 0.3 (중요!)
+
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.3, 'context': 'ARENA'},
+    # 0.263 -> 0.3
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    # 0.088 -> 0.15
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    # 0.12 -> 0.15
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    # 0.088 -> 0.15
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.2, 'context': 'ARENA'},
+    # 0.192 -> 0.2
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.9, 'context': 'ARENA'},
+
+    # [활강 및 정지 2]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 2.0, 'context': 'ARENA', 'duration': 0.15},  # 1.936 -> 2.0
+
+    # [상승 기동 3]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.3, 'context': 'ARENA', 'duration': 0.2},
+    # 0.096 -> 0.3 (중요!)
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.7, 'context': 'ARENA'},
+
+    # [활강 및 정지 3]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 2.2, 'context': 'ARENA', 'duration': 0.15},  # 2.113 -> 2.2
+
+    # [상승 기동 4]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.3, 'context': 'ARENA', 'duration': 0.2},  # 0.088 -> 0.3
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 1.1, 'context': 'ARENA'},
+
+    # [활강 및 정지 4]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 2.1, 'context': 'ARENA', 'duration': 0.15},  # 2.04 -> 2.1
+
+    # [상승 기동 5]
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.7, 'context': 'ARENA'},
+
+    # [활강 및 정지 5]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 2.0, 'context': 'ARENA', 'duration': 0.15},
+
+    # [마지막 전진 비행]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.3, 'context': 'ARENA', 'duration': 0.2},  # 0.08 -> 0.3
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 2.6, 'context': 'ARENA'},
+
+    # [착륙 시퀀스]
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 2.3, 'context': 'ARENA'},  # 길게 날아가기
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 1.3, 'context': 'ARENA'},
+    {'operation': 'key_hold', 'key': 'f', 'delay_after': 0.3, 'context': 'ARENA', 'duration': 0.2},
+    {'operation': 'key_hold', 'key': 'q', 'delay_after': 0, 'context': 'ARENA', 'duration': 0.2},
+
 ]
 
 # S2 WP3 시퀀스 (ARENA)
@@ -108,95 +143,97 @@ S2_WP3_ARENA = [
     # 4. 이동 대기
     {'operation': 'key_press', 'key': 'm', 'delay_after': 0.5, 'context': 'ARENA'},
     {'operation': 'wait_duration', 'duration': 10.0, 'context': 'ARENA'},
-    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.224, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'space', 'delay_after': 0.112, 'context': 'ARENA', 'duration': 0.104},
-    {'operation': 'key_press', 'key': 'shift', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.12, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.24, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.665, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 1.12, 'context': 'ARENA', 'duration': 0.112},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.088, 'context': 'ARENA', 'duration': 0.12},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.168, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.089, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.647, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 1.081, 'context': 'ARENA', 'duration': 0.128},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.752, 'context': 'ARENA', 'duration': 0.128},
+    # [이륙 구간]
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.3, 'context': 'ARENA'},  # 0.168 -> 0.3 (확실하게)
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.3, 'context': 'ARENA'},  # 0.152 -> 0.3
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.2, 'context': 'ARENA', 'duration': 0.2},  # duration 늘림
+
+    # [상승 기동 1]
     {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.12, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.12, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.136, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 1.544, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.897, 'context': 'ARENA', 'duration': 0.119},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.144, 'context': 'ARENA', 'duration': 0.136},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.168, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.544, 'context': 'ARENA'},
-    {'operation': 'key_press', 'key': 'shift', 'delay_after': 1.216, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.096, 'context': 'ARENA', 'duration': 0.137},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.176, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.095, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.088, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.088, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.192, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.12, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.496, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.768, 'context': 'ARENA', 'duration': 0.136},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.128, 'context': 'ARENA', 'duration': 0.152},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.208, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.12, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 2.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.175, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.144, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.088, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.176, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 2.297, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'a', 'delay_after': 1.456, 'context': 'ARENA', 'duration': 0.24},
-    {'operation': 'key_hold', 'key': 'space', 'delay_after': 0.808, 'context': 'ARENA', 'duration': 0.127},
-    {'operation': 'key_press', 'key': 'f', 'delay_after': 0.432, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'q', 'delay_after': 0, 'context': 'ARENA', 'duration': 0.137},
+    # 0.152 -> 0.2
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
+    # 0.128 -> 0.2
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.4, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.8, 'context': 'ARENA'},
+
+    # [활강 및 정지 1]
+    {'operation': 'key_press', 'key': 'shift', 'delay_after': 2.0, 'context': 'ARENA'},  # 1.984 -> 2.0
+
+    # [상승 기동 2 - 여기가 랙 취약 구간]
+    # Shift 직후 바로 S+Space가 들어가면 씹힐 수 있음 -> delay_after 0.3으로 확보
+    {'operation': 'key_press', 'key': 'shift', 'delay_after': 0.3, 'context': 'ARENA'},  # 0.129 -> 0.3 (중요!)
+
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.3, 'context': 'ARENA'},
+    # 0.263 -> 0.3
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    # 0.088 -> 0.15
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    # 0.12 -> 0.15
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    # 0.088 -> 0.15
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.2, 'context': 'ARENA'},
+    # 0.192 -> 0.2
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.9, 'context': 'ARENA'},
+
+    # [활강 및 정지 2]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 2.0, 'context': 'ARENA', 'duration': 0.15},  # 1.936 -> 2.0
+
+    # [상승 기동 3]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.3, 'context': 'ARENA', 'duration': 0.2},
+    # 0.096 -> 0.3 (중요!)
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.7, 'context': 'ARENA'},
+
+    # [활강 및 정지 3]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 2.2, 'context': 'ARENA', 'duration': 0.15},  # 2.113 -> 2.2
+
+    # [상승 기동 4]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.3, 'context': 'ARENA', 'duration': 0.2},  # 0.088 -> 0.3
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 1.1, 'context': 'ARENA'},
+
+    # [활강 및 정지 4]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 2.1, 'context': 'ARENA', 'duration': 0.15},  # 2.04 -> 2.1
+
+    # [상승 기동 5]
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.7, 'context': 'ARENA'},
+
+    # [활강 및 정지 5]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 2.0, 'context': 'ARENA', 'duration': 0.15},
+
+    # [마지막 전진 비행]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.3, 'context': 'ARENA', 'duration': 0.2},  # 0.08 -> 0.3
+    # 2. 전진 비행 (Space 3회 반복, 3초 간격)
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 3.0, 'context': 'ARENA'},
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 3.0, 'context': 'ARENA'},
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 3.0, 'context': 'ARENA'},
+
+    # =========================================================================
+    # 4. [착륙] 사냥 시작
+    # =========================================================================
+    {'operation': 'wait_duration', 'duration': 1.0, 'context': 'ARENA'},  # 착륙 지점 확인용 대기
+    {'operation': 'key_hold', 'key': 'f', 'delay_after': 0.3, 'context': 'ARENA', 'duration': 0.2},  # 날개 접기
+    {'operation': 'key_hold', 'key': 'q', 'delay_after': 0, 'context': 'ARENA', 'duration': 0.2},  # 자동사냥
+
+    # 시퀀스 종료 대기
+    {'operation': 'wait_duration', 'duration': 1.0, 'context': 'ARENA'},
+
+
 
 ]
 
@@ -219,94 +256,117 @@ S3_WP3_ARENA = [
     {'operation': 'click_relative', 'key': 'wp3_jump_point_2', 'delay_after': 0.5, 'context': 'ARENA'},
     # 4. 이동 대기
     {'operation': 'key_press', 'key': 'm', 'delay_after': 0.5, 'context': 'ARENA'},
-    {'operation': 'wait_duration', 'duration': 10.0, 'context': 'ARENA'},
-    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.216, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'space', 'delay_after': 0.104, 'context': 'ARENA', 'duration': 0.12},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.08, 'context': 'ARENA', 'duration': 0.104},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.136, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.456, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.689, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 1.295, 'context': 'ARENA', 'duration': 0.128},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.112, 'context': 'ARENA', 'duration': 0.128},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.192, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 2.057, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.304, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.136, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.088, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.48, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 1.847, 'context': 'ARENA', 'duration': 0.136},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.081, 'context': 'ARENA', 'duration': 0.144},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.184, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.088, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.704, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 1.392, 'context': 'ARENA', 'duration': 0.128},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.08, 'context': 'ARENA', 'duration': 0.152},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.199, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.12, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.088, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.088, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.777, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 1.088, 'context': 'ARENA', 'duration': 0.112},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.224, 'context': 'ARENA', 'duration': 0.136},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.184, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.144, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.392, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 1.712, 'context': 'ARENA', 'duration': 0.168},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.344, 'context': 'ARENA', 'duration': 0.144},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.296, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.088, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.832, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'a', 'delay_after': 1.553, 'context': 'ARENA', 'duration': 0.272},
-    {'operation': 'key_hold', 'key': 'space', 'delay_after': 0.096, 'context': 'ARENA', 'duration': 0.143},
-    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.144, 'context': 'ARENA'},
-    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'space', 'delay_after': 1.856, 'context': 'ARENA', 'duration': 0.104},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.168, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.097, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 1.96, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'f', 'delay_after': 0.152, 'context': 'ARENA', 'duration': 0.103},
-    {'operation': 'key_hold', 'key': 'q', 'delay_after': 0, 'context': 'ARENA', 'duration': 0.128},
+    {'operation': 'wait_duration', 'duration': 8.0, 'context': 'ARENA'},
+    # 1. W 누르기 (떼지 않음)
+    {'operation': 'key_press_raw', 'key': 'w', 'event': 'press', 'delay_after': 0.05, 'context': 'ARENA'},
+
+    # 2. A 누르기 (이제 W+A 상태) -> 0.1~0.2초 정도 유지 (이 시간이 이동 거리 결정)
+    {'operation': 'key_press_raw', 'key': 'a', 'event': 'press', 'delay_after': 0.6, 'context': 'ARENA'},
+
+    # 3. 키 떼기 (이동 멈춤)
+    {'operation': 'key_press_raw', 'key': 'w', 'event': 'release', 'delay_after': 0, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'a', 'event': 'release', 'delay_after': 0.2, 'context': 'ARENA'},
+    # [이륙 구간]
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.3, 'context': 'ARENA'},  # 0.168 -> 0.3 (확실하게)
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.3, 'context': 'ARENA'},  # 0.152 -> 0.3
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.2, 'context': 'ARENA', 'duration': 0.2},  # duration 늘림
+
+    # [상승 기동 1]
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
+    # 0.152 -> 0.2
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
+    # 0.128 -> 0.2
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.4, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.8, 'context': 'ARENA'},
+
+    # [활강 및 정지 1]
+    {'operation': 'key_press', 'key': 'shift', 'delay_after': 2.0, 'context': 'ARENA'},  # 1.984 -> 2.0
+
+    # [상승 기동 2 - 여기가 랙 취약 구간]
+    # Shift 직후 바로 S+Space가 들어가면 씹힐 수 있음 -> delay_after 0.3으로 확보
+    {'operation': 'key_press', 'key': 'shift', 'delay_after': 0.3, 'context': 'ARENA'},  # 0.129 -> 0.3 (중요!)
+
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.3, 'context': 'ARENA'},
+    # 0.263 -> 0.3
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    # 0.088 -> 0.15
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    # 0.12 -> 0.15
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    # 0.088 -> 0.15
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.2, 'context': 'ARENA'},
+    # 0.192 -> 0.2
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.9, 'context': 'ARENA'},
+
+    # [활강 및 정지 2]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 2.0, 'context': 'ARENA', 'duration': 0.15},  # 1.936 -> 2.0
+
+    # [상승 기동 3]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.3, 'context': 'ARENA', 'duration': 0.2},
+    # 0.096 -> 0.3 (중요!)
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.7, 'context': 'ARENA'},
+
+    # [활강 및 정지 3]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 2.2, 'context': 'ARENA', 'duration': 0.15},  # 2.113 -> 2.2
+
+    # [상승 기동 4]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.3, 'context': 'ARENA', 'duration': 0.2},  # 0.088 -> 0.3
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 1.1, 'context': 'ARENA'},
+
+    # [활강 및 정지 4]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 2.1, 'context': 'ARENA', 'duration': 0.15},  # 2.04 -> 2.1
+
+    # [상승 기동 5]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.3, 'context': 'ARENA', 'duration': 0.2},  # 0.088 -> 0.3
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.7, 'context': 'ARENA'},
+
+    # [활강 및 정지 5]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 2.0, 'context': 'ARENA', 'duration': 0.15},
+
+    # [마지막 전진 비행]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.3, 'context': 'ARENA', 'duration': 0.2},  # 0.08 -> 0.3
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.75, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+
+    # [착륙 시퀀스]
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 2.3, 'context': 'ARENA'},  # 길게 날아가기
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 1.3, 'context': 'ARENA'},
+    {'operation': 'key_hold', 'key': 'f', 'delay_after': 0.3, 'context': 'ARENA', 'duration': 0.2},
+    {'operation': 'key_hold', 'key': 'q', 'delay_after': 0, 'context': 'ARENA', 'duration': 0.2},
+
 ]
 
 # S4 WP3 시퀀스 (ARENA)
@@ -328,148 +388,116 @@ S4_WP3_ARENA = [
     {'operation': 'click_relative', 'key': 'wp3_jump_point_2', 'delay_after': 0.5, 'context': 'ARENA'},
     # 4. 이동 대기
     {'operation': 'key_press', 'key': 'm', 'delay_after': 0.5, 'context': 'ARENA'},
-    {'operation': 'wait_duration', 'duration': 10.0, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'space', 'delay_after': 0.232, 'context': 'ARENA', 'duration': 0.135},
-    {'operation': 'key_hold', 'key': 'space', 'delay_after': 0.128, 'context': 'ARENA', 'duration': 0.12},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.08, 'context': 'ARENA', 'duration': 0.12},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.136, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.449, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 1.096, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.936, 'context': 'ARENA', 'duration': 0.16},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.08, 'context': 'ARENA', 'duration': 0.12},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.136, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.088, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.799, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.745, 'context': 'ARENA', 'duration': 0.12},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.104, 'context': 'ARENA', 'duration': 0.112},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.176, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.088, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.088, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.232, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.784, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.672, 'context': 'ARENA', 'duration': 0.136},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.112, 'context': 'ARENA', 'duration': 0.128},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.184, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.121, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.087, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.12, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 1.647, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.288, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.144, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.12, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.12, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.088, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.152, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.088, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.088, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.16, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 1.496, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.289, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.144, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.12, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.12, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.176, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 1.383, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.36, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.168, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.136, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.121, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.144, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.152, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 1.208, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.152, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.12, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.12, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.12, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.152, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.127, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.12, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.136, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.272, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.473, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 1.216, 'context': 'ARENA', 'duration': 0.152},
-    {'operation': 'key_press', 'key': 's', 'delay_after': 0.944, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.08, 'context': 'ARENA', 'duration': 0.104},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.128, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.08, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.184, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 1.105, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'a', 'delay_after': 0.568, 'context': 'ARENA', 'duration': 0.831},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.192, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.136, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.112, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.136, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.096, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 1.272, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'a', 'delay_after': 0.983, 'context': 'ARENA', 'duration': 0.745},
-    {'operation': 'key_hold', 'key': 'a', 'delay_after': 0.832, 'context': 'ARENA', 'duration': 0.12},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.144, 'context': 'ARENA'},
-    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 2.513, 'context': 'ARENA'},
-    {'operation': 'key_press', 'key': 'f', 'delay_after': 0.104, 'context': 'ARENA'},
-    {'operation': 'key_hold', 'key': 'q', 'delay_after': 0, 'context': 'ARENA', 'duration': 0.128},
+    {'operation': 'wait_duration', 'duration': 8.0, 'context': 'ARENA'},
+    # 1. W 누르기 (떼지 않음)
+    {'operation': 'key_press_raw', 'key': 'w', 'event': 'press', 'delay_after': 0.05, 'context': 'ARENA'},
+
+    # 2. A 누르기 (이제 W+A 상태) -> 0.1~0.2초 정도 유지 (이 시간이 이동 거리 결정)
+    {'operation': 'key_press_raw', 'key': 'a', 'event': 'press', 'delay_after': 0.3, 'context': 'ARENA'},
+
+    # 3. 키 떼기 (이동 멈춤)
+    {'operation': 'key_press_raw', 'key': 'w', 'event': 'release', 'delay_after': 0, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'a', 'event': 'release', 'delay_after': 0.3, 'context': 'ARENA'},
+    # 다음 동작 전 안정화
+    # [이륙 구간]
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.3, 'context': 'ARENA'},  # 0.168 -> 0.3 (확실하게)
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.3, 'context': 'ARENA'},  # 0.152 -> 0.3
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.2, 'context': 'ARENA', 'duration': 0.2},  # duration 늘림
+
+    # [상승 기동 1]
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
+    # 0.152 -> 0.2
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
+    # 0.128 -> 0.2
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.4, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.8, 'context': 'ARENA'},
+
+    # [활강 및 정지 1]
+    {'operation': 'key_press', 'key': 'shift', 'delay_after': 2.0, 'context': 'ARENA'},  # 1.984 -> 2.0
+
+    # [상승 기동 2 - 여기가 랙 취약 구간]
+    # Shift 직후 바로 S+Space가 들어가면 씹힐 수 있음 -> delay_after 0.3으로 확보
+    {'operation': 'key_press', 'key': 'shift', 'delay_after': 0.3, 'context': 'ARENA'},  # 0.129 -> 0.3 (중요!)
+
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.3, 'context': 'ARENA'},
+    # 0.263 -> 0.3
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    # 0.088 -> 0.15
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    # 0.12 -> 0.15
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    # 0.088 -> 0.15
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.2, 'context': 'ARENA'},
+    # 0.192 -> 0.2
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.9, 'context': 'ARENA'},
+
+    # [활강 및 정지 2]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 2.0, 'context': 'ARENA', 'duration': 0.15},  # 1.936 -> 2.0
+
+    # [상승 기동 3]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.3, 'context': 'ARENA', 'duration': 0.2},
+    # 0.096 -> 0.3 (중요!)
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.7, 'context': 'ARENA'},
+
+    # [활강 및 정지 3]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 2.2, 'context': 'ARENA', 'duration': 0.15},  # 2.113 -> 2.2
+
+    # [상승 기동 4]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.3, 'context': 'ARENA', 'duration': 0.2},  # 0.088 -> 0.3
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 1.1, 'context': 'ARENA'},
+
+    # [활강 및 정지 4]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 2.1, 'context': 'ARENA', 'duration': 0.15},  # 2.04 -> 2.1
+
+    # [상승 기동 5]
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.7, 'context': 'ARENA'},
+
+    # [활강 및 정지 5]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 2.0, 'context': 'ARENA', 'duration': 0.15},
+
+    # [마지막 전진 비행]
+    {'operation': 'key_hold', 'key': 'shift', 'delay_after': 0.3, 'context': 'ARENA', 'duration': 0.2},  # 0.08 -> 0.3
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'press', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 's', 'event': 'release', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.75, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'press', 'delay_after': 0.15, 'context': 'ARENA'},
+    {'operation': 'key_press_raw', 'key': 'space', 'event': 'release', 'delay_after': 0.15, 'context': 'ARENA'},
+
+    # [착륙 시퀀스]
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 2.3, 'context': 'ARENA'},  # 길게 날아가기
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 0.2, 'context': 'ARENA'},
+    {'operation': 'key_press', 'key': 'space', 'delay_after': 1.3, 'context': 'ARENA'},
+    {'operation': 'key_hold', 'key': 'f', 'delay_after': 0.3, 'context': 'ARENA', 'duration': 0.2},
+    {'operation': 'key_hold', 'key': 'q', 'delay_after': 0, 'context': 'ARENA', 'duration': 0.2},
 
 
 ]

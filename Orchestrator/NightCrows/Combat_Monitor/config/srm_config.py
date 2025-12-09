@@ -214,48 +214,62 @@ ScreenState.INITIALIZING: {
     },
 
     ScreenState.BUYING_POTIONS: {
-        # 1. 무엇을 감지할지 - sequence는 빈 배열 (하위 상태함수)
-        'targets': [],  # ✅ 하위 상태함수 - 복잡한 potion_step 진행 있음
+        'targets': [],
+        'action_type': 'sequence',
 
-        # 2. 어떻게 할지 - 물약 구매의 복잡한 내부 step들
-        'action_type': 'sequence',  # ✅ 하위 상태함수용 범용 프레임워크
-
-        # 시퀀스 설정 - 기존 potion_step 0,1,2를 표준화된 actions로 변환
         'sequence_config': {
             'actions': [
-                # Step 0: 상점 클릭
-                {'template': 'SHOP_BUTTON', 'operation': 'wait', 'timeout': 30.0, 'initial': True},
+                # 1. [수정] 시작 시 '안전한 좌표'를 클릭하여 포커스 확보 (set_focus 대체)
+                {
+                    'operation': 'click_relative',
+                    'key': 'safe_click_point',
+                    'initial': True,
+                    'delay_after': 0.5  # 포커스 후 약간 대기
+                },
+
+                # 2. 상점 버튼 찾기 (실패 시 처음부터 재시도)
+                {'template': 'SHOP_BUTTON', 'operation': 'wait', 'timeout': 30.0,
+                 'on_timeout': 'fail_sequence'},
                 {'template': 'SHOP_BUTTON', 'operation': 'click'},
 
-                # Step 1: 15초 대기 (상점 로딩)
+                # 3. 상점 로딩 대기 (이 시간 동안 S3 등 다른 창이 위로 올라올 수 있음)
                 {'operation': 'wait_duration', 'duration': 5.0},
 
-                # Step 1: 구매 버튼 찾을 때까지 대기
-                {'template': 'PURCHASE_BUTTON', 'operation': 'wait'},
+                # 4. [수정] 중요! 구매 버튼 찾기 전, 다시 한번 '안전한 좌표' 클릭으로 창을 맨 앞으로!
+                {
+                    'operation': 'click_relative',
+                    'key': 'safe_click_point',
+                    'delay_after': 0.5
+                },
 
-                # Step 2: 구매 시퀀스
+                # 5. 구매 버튼 대기 (확실히 떴는지 확인)
+                {'template': 'PURCHASE_BUTTON', 'operation': 'wait', 'timeout': 10.0,
+                 'on_timeout': 'fail_sequence'},
+
+                # 6. 구매 진행
                 {'template': 'PURCHASE_BUTTON', 'operation': 'click'},
                 {'operation': 'wait_duration', 'duration': 1.0},
+
+                {'template': 'CONFIRM_BUTTON', 'operation': 'wait', 'timeout': 5.0,
+                 'on_timeout': 'fail_sequence'},
                 {'template': 'CONFIRM_BUTTON', 'operation': 'click'},
                 {'operation': 'wait_duration', 'duration': 1.0},
 
-                # 상점 닫기 (🔥 final: True 제거)
+                # 7. 상점 닫기 (실패해도 다음 단계 진행을 위해 optional 처리하거나 그냥 진행)
                 {'operation': 'key_press', 'key': 'esc'},
                 {'operation': 'wait_duration', 'duration': 0.5},
                 {'operation': 'key_press', 'key': 'esc'},
-                {'operation': 'wait_duration', 'duration': 1.0,'final': True}  # <-- final: True 제거됨
-
+                {'operation': 'wait_duration', 'duration': 1.0, 'final': True}
             ]
         },
 
-        # 3. 어디로 갈지 - 구매 완료 시 복귀로
         'transitions': {
-            'sequence_complete': ScreenState.RETURNING,  # 🔥 ARENA 컨텍스트는 여기서 RETURNING으로 갑니다.
-            'sequence_failed': ScreenState.BUYING_POTIONS,  # 재시도
+            'sequence_complete': ScreenState.RETURNING,
+            # [중요] 실패 시 다시 물약 구매 시도 (무한 루프 방지를 위해 모니터링 필요)
+            'sequence_failed': ScreenState.BUYING_POTIONS,
             'sequence_in_progress': ScreenState.BUYING_POTIONS
         },
 
-        # 4. 조건부 흐름제어 - 성공할 때까지 재시도
         'conditional_flow': 'sequence_with_retry'
     },
     # 🌟 [신규] 사냥 복귀 정책 추가

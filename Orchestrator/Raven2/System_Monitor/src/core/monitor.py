@@ -1,382 +1,313 @@
-# Orchestrator/Raven2/System_Monitor/src/core/monitor.py (수정됨)
+# Orchestrator/Raven2/System_Monitor/src/core/monitor.py
 """
-System Monitor 브릿지 (v3. SM1 아키텍처 적용)
-- IO 스케줄러 연동
-- 비차단(non-blocking) 시퀀스 실행
+System Monitor 브릿지 (v3 제너레이터 '상황반장' 아키텍처)
+- '바보 실행기' (Dumb Executor) 모델
+- 모든 로직은 sm_config.py의 제너레이터 함수로 위임
+- monitor는 제너레이터의 '지시서'를 받아 IO 스케줄러에 요청
 """
 
 import time
 import threading
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any, Tuple
+import pyautogui
+from Orchestrator.src.core.io_scheduler import Priority
+from Orchestrator.Raven2.utils.image_utils import set_focus
+from Orchestrator.Raven2.utils.screen_info import SCREEN_REGIONS
 
-# ❗️ [수정] 로컬룰 import 경로 변경
+# ❗️ [신규] SRM 상태 확인을 위해 ScreenState 임포트
+from Orchestrator.Raven2.Combat_Monitor.src.models.screen_info import ScreenState
+
+# 로컬룰 import
 from Orchestrator.Raven2.System_Monitor.config.template_paths import get_template, verify_template_paths
 from Orchestrator.Raven2.System_Monitor.config.sm_config import (
     SystemState,
     SM_CONFIG,
     SM_EXCEPTION_POLICIES,
-    get_state_policy,
-    validate_state_policies
+    get_state_policies,
+    get_detection_policy,
+    validate_config
 )
-
-# ❗️ [수정] 글로벌룰 import 경로 변경 (Raven2 유틸 사용)
-from Orchestrator.Raven2.utils import image_utils
-from Orchestrator.Raven2.utils.image_utils import set_focus
-from Orchestrator.Raven2.utils.screen_info import SCREEN_REGIONS
-from Orchestrator.src.core.io_scheduler import Priority
 
 
 class SystemMonitor:
-    """SM 브릿지 - 화면별 개별 객체성 관리 (RAVEN2)"""
+    """SM 브릿지 - v3 제너레이터 모델 (Raven2)"""
 
-    def __init__(self, monitor_id: str, vd_name: str, orchestrator=None):
+    # ❗️ [수정] shared_states 인자 추가
+    def __init__(self, monitor_id: str, vd_name: str, orchestrator=None, shared_states=None):
         self.orchestrator = orchestrator
-        # ❗️ [수정] IO 스케줄러 주입
         self.io_scheduler = orchestrator.io_scheduler
 
-        # 설정 검증 (Raven2 config 사용)
-        if not validate_state_policies():
-            raise ValueError(f"[{monitor_id}] 상태 정책 검증 실패")
+        if not validate_config():
+            raise ValueError(f"[{monitor_id}] sm_config.py 설정 검증 실패")
         if not verify_template_paths():
             raise FileNotFoundError(f"[{monitor_id}] 템플릿 파일 검증 실패")
 
         self.monitor_id = monitor_id
         self.vd_name = vd_name
 
+        # ❗️ [신규] 공유 상태 저장소 저장
+        self.shared_states = shared_states if shared_states is not None else {}
+
         self.local_config = SM_CONFIG
         self.exception_policies = SM_EXCEPTION_POLICIES
+
+        self.state_policy_map = get_state_policies()
+        self.detection_policy_map = get_detection_policy()
+
         self.screens = {}
         self._initialize_screens()
 
-        print(f"INFO: [{self.monitor_id}] SystemMonitor Bridge initialized for {vd_name} (RAVEN2)")
+        print(f"INFO: [{self.monitor_id}] SystemMonitor Bridge initialized (Generator Model)")
         print(f"INFO: [{self.monitor_id}] Target screens: {list(self.screens.keys())}")
 
     def _initialize_screens(self):
-        """(변경 없음)"""
+        """screen_info.py 기반으로 화면 객체들 생성 (동일)"""
         target_screens = self.local_config['target_screens']['included']
         for screen_id in target_screens:
             self.add_screen(screen_id)
 
     def add_screen(self, screen_id: str) -> bool:
-        """(v3: policy_step, step_timer_end 추가)"""
+        """화면 객체 생성 (v3 제너레이터 상태 필드 추가)"""
         if screen_id not in SCREEN_REGIONS:
             print(f"WARN: [{self.monitor_id}] Unknown screen_id: {screen_id}")
             return False
 
+        # ❗️ [신규] 공유 상태 초기값 등록 (SRM이 먼저 등록했을 수도 있음)
+        if screen_id not in self.shared_states:
+            self.shared_states[screen_id] = SystemState.NORMAL
+
         screen_region = SCREEN_REGIONS[screen_id]
 
+        # ❗️ [수정] current_state 필드 제거 (공유 상태 사용)
         self.screens[screen_id] = {
             'screen_id': screen_id,
-            'current_state': SystemState.NORMAL,
+            # 'current_state': SystemState.NORMAL,  <-- 삭제됨
             'state_enter_time': time.time(),
             'region': screen_region,
-
-            # ❗️ [수정] v3 실행기 상태 변수 추가
-            'policy_step': 0,
-            'step_timer_end': 0.0,
-
-            'retry_count': 0,
-            'last_retry_time': 0.0,
-            'sequence_attempts': 0,
-            'initial_done': False,
+            'current_generator': None,
+            'generator_wait_start_time': 0.0,
+            'generator_wait_timeout': 0.0,
+            'generator_last_yielded_value': None,
         }
-        # ❗️ [수정] 'fixed_coords'는 SM2 monitor.py 원본에 있었으나,
-        #    SM1 아키텍처(config) 기반에서는 사용되지 않으므로 제거 (필요시 복구)
-        # 'fixed_coords': FIXED_UI_COORDS.get(screen_id, {})
-
-        print(f"INFO: [{self.monitor_id}] Added screen {screen_id} with region {screen_region}")
+        print(f"INFO: [{self.monitor_id}] Added screen {screen_id}")
         return True
 
     # =========================================================================
-    # 🔌 Orchestrator 인터페이스 (변경 없음)
+    # 🔌 Orchestrator 인터페이스 (run_loop 수정됨)
     # =========================================================================
 
     def run_loop(self, stop_event: threading.Event):
-        """(변경 없음)"""
-        print(f"INFO: [{self.monitor_id}] Starting SystemMonitor bridge loop... (RAVEN2)")
+        """Orchestrator 스레드에서 실행되는 메인 루프 (v3 모델)"""
+        print(f"INFO: [{self.monitor_id}] Starting SystemMonitor bridge loop... (Generator Model)")
+        check_interval = self.local_config['timing']['check_interval']
 
         while not stop_event.is_set():
             try:
-                check_interval = self.local_config['timing']['check_interval']
+                current_time = time.time()
+
                 for screen_id, screen_obj in self.screens.items():
-                    self._execute_screen_state_machine(screen_obj)
+                    # ❗️ [수정] 공유 상태 읽기
+                    current_state = self.shared_states.get(screen_id)
+
+                    # ❗️ [신규] 교통 정리: 내 담당(SystemState)이 아니면?
+                    if not isinstance(current_state, SystemState):
+                        # SRM 상태(ScreenState)라면 게임이 정상 동작 중이거나 전투 중임.
+                        # 하지만 SM은 '감시자'이므로 에러(팝업, 튕김) 감지는 계속 해야 함.
+
+                        # NORMAL 상태의 감지 로직만 빌려와서 실행 (상태 변경 없이 감지만 수행)
+                        # (감지되면 _handle_detect_only_state 내부에서 report_system_error 등을 통해 개입 시도)
+                        if SystemState.NORMAL in self.detection_policy_map:
+                            self._handle_detect_only_state(screen_obj, self.detection_policy_map[SystemState.NORMAL])
+                        continue
+
+                    # --- 이하 내 담당 상태(SystemState) 처리 ---
+
+                    if current_state in self.state_policy_map:
+                        policy = self.state_policy_map[current_state]
+                        self._run_generator_step(screen_obj, policy, current_time)
+
+                    elif current_state in self.detection_policy_map:
+                        policy = self.detection_policy_map[current_state]
+                        self._handle_detect_only_state(screen_obj, policy)
+                    else:
+                        pass
+
                 if stop_event.wait(check_interval):
                     break
             except Exception as e:
                 print(f"ERROR: [{self.monitor_id}] SystemMonitor loop exception: {e}")
                 self._handle_exception_policy('state_machine_error')
                 time.sleep(5.0)
+
         print(f"INFO: [{self.monitor_id}] SystemMonitor bridge loop stopped")
 
     def stop(self):
-        """(변경 없음)"""
         print(f"INFO: [{self.monitor_id}] SystemMonitor stopping...")
 
     # =========================================================================
-    # 🎯 화면별 상태머신 실행 엔진 (변경 없음)
+    # 🎯 v3 상태머신 실행 엔진
     # =========================================================================
 
-    def _execute_screen_state_machine(self, screen_obj: dict):
-        """(변경 없음)"""
-        policy = get_state_policy(screen_obj['current_state'])
-        if not policy:
-            print(
-                f"WARN: [{self.monitor_id}] No policy found for {screen_obj['current_state'].name} on {screen_obj['screen_id']}")
-            return
-        action_results = self._execute_action_type(policy, screen_obj)
-        result_key = self._execute_conditional_flow(policy, action_results, screen_obj)
-        self._handle_state_transition(policy, result_key, screen_obj)
+    def _handle_detect_only_state(self, screen_obj: dict, policy: dict):
+        """
+        [v3] '감지 전용' 상태 처리기 (예: NORMAL)
+        'targets'를 순회하며 템플릿을 감지하고, 발견 시 상태를 즉시 전이시킵니다.
+        """
+        targets = policy.get('targets', [])
 
-    def _execute_action_type(self, policy: dict, screen_obj: dict) -> dict:
-        """(변경 없음)"""
-        action_type = policy.get('action_type', 'detect_only')
-        if action_type == 'detect_only':
-            return self._handle_detection_targets(policy, screen_obj)
-        elif action_type == 'detect_and_click':
-            return self._handle_detection_targets(policy, screen_obj, should_click=True)
-        elif action_type == 'sequence':
-            # ❗️ [수정] _handle_sequence_execution으로 교체
-            return self._handle_sequence_execution(policy, screen_obj)
-        elif action_type == 'time_based_wait':
-            return self._handle_time_based_check(policy, screen_obj)
-        else:
-            print(f"WARN: [{self.monitor_id}] Unknown action_type: {action_type}")
-            return {}
+        for target in targets:
+            template_name = target.get('template_name')
+            next_state = target.get('next_state')
 
-    def _execute_conditional_flow(self, policy: dict, action_results: dict, screen_obj: dict) -> Optional[str]:
-        """(변경 없음)"""
-        flow_type = policy.get('conditional_flow', 'trigger')
-        if flow_type == 'trigger':
-            return self._handle_immediate_trigger(action_results)
-        elif flow_type == 'retry':
-            return self._handle_retry_strategy(policy, action_results, screen_obj)
-        elif flow_type == 'hold':
-            return self._handle_wait_until_condition(action_results)
-        elif flow_type == 'wait_for_duration':
-            return self._handle_duration_based_flow(action_results)
-        elif flow_type == 'sequence_with_retry':
-            return self._handle_sequence_retry_strategy(policy, action_results, screen_obj)
+            if not template_name or not next_state:
+                continue
+
+            template_path = get_template(screen_obj['screen_id'], template_name)
+
+            pos = self._detect_template(screen_obj, template_path=template_path)
+
+            if pos:  # 템플릿을 찾았다면
+                print(f"INFO: [{screen_obj['screen_id']}] DetectOnly: '{template_name}' 발견.")
+
+                # --- Orchestrator에게 오류 보고 및 확인 ---
+                is_false_positive = False
+                if self.orchestrator:
+                    # 리턴 값 캡처 (True면 "거짓 양성이니 무시해라")
+                    is_false_positive = self.orchestrator.report_system_error(self.monitor_id, screen_obj['screen_id'])
+
+                if is_false_positive:
+                    print(
+                        f"INFO: [{screen_obj['screen_id']}] Orchestrator confirmed False Positive. SM1 will NOT transition state.")
+                    return  # 상태 전이 중단
+
+                # (is_false_positive가 False인 경우에만 전이)
+                self._transition_screen_to_state(screen_obj, next_state, f"detected: {template_name}")
+                return  # 감지했으므로 루프 종료
+
+    def _run_generator_step(self, screen_obj: dict, policy: dict, current_time: float):
+        """[v3] '제너레이터' 상태 처리기 (예: LOGGING_IN)"""
+
+        # 1. 대기 확인
+        if screen_obj['generator_wait_start_time'] > 0.0:
+            if current_time < screen_obj['generator_wait_start_time']:
+                return
+            else:
+                screen_obj['generator_wait_start_time'] = 0.0
+
+        if screen_obj['generator_wait_timeout'] > 0.0:
+            if current_time > screen_obj['generator_wait_timeout']:
+                screen_obj['generator_wait_timeout'] = 0.0
+                try:
+                    screen_obj['current_generator'].throw(Exception("Template Wait Timeout"))
+                except StopIteration:
+                    pass
+                except Exception:
+                    pass
+                return
+
+        # 2. 제너레이터 생성
+        if not screen_obj['current_generator']:
+            gen_func = policy['generator']
+            screen_obj['current_generator'] = gen_func(screen_obj)
+            screen_obj['generator_last_yielded_value'] = None
+
+        # 3. 제너레이터 실행
+        try:
+            # A. 실행 권한 부여
+            instruction = screen_obj['current_generator'].send(
+                screen_obj['generator_last_yielded_value']
+            )
+
+            # B. 지시사항 수행
+            try:
+                result_value = self._process_instruction(screen_obj, instruction)
+                screen_obj['generator_last_yielded_value'] = result_value
+
+            except Exception as io_error:
+                print(f"WARN: [{screen_obj['screen_id']}] Instruction failed: {io_error}. Throwing to generator...")
+                recovery_instruction = screen_obj['current_generator'].throw(io_error)
+                result_value = self._process_instruction(screen_obj, recovery_instruction)
+                screen_obj['generator_last_yielded_value'] = result_value
+
+        except StopIteration:
+            next_state = policy['transitions']['complete']
+            self._transition_screen_to_state(screen_obj, next_state, "generator_complete")
+
+        except Exception as e:
+            print(f"ERROR: [{screen_obj['screen_id']}] Generator failed or unhandled error: {e}")
+            next_state = policy['transitions']['fail']
+
+            if screen_obj['current_generator']:
+                screen_obj['current_generator'].close()
+                screen_obj['current_generator'] = None
+
+            self._transition_screen_to_state(screen_obj, next_state, "generator_failed")
+
+    def _process_instruction(self, screen_obj: dict, instruction: Dict[str, Any]) -> Any:
+        """[v3] 지시 처리기"""
+
+        if not instruction:
+            return None
+
+        op = instruction.get('operation')
+        screen_id = screen_obj['screen_id']
+
+        if op == 'wait_duration':
+            duration = instruction.get('duration', 1.0)
+            screen_obj['generator_wait_start_time'] = time.time() + duration
+            return None
+
+        elif op == 'wait_for_template':
+            template_name = instruction['template_name']
+            template_path = get_template(screen_id, template_name)
+            timeout = instruction.get('timeout', 5.0)
+
+            pos = self._detect_template(screen_obj, template_path=template_path)
+            if pos:
+                screen_obj['generator_wait_timeout'] = 0.0
+                return pos
+            else:
+                if screen_obj['generator_wait_timeout'] == 0.0:
+                    screen_obj['generator_wait_timeout'] = time.time() + timeout
+                return None
+
+        elif op == 'click':
+            template_name = instruction['template_name']
+            template_path = get_template(screen_id, template_name)
+
+            pos = self._detect_template(screen_obj, template_path=template_path)
+            if not pos:
+                raise Exception(f"Template not found for click: {template_name}")
+
+            action_lambda = lambda: pyautogui.click(pos[0], pos[1])
+            self._request_io_action(screen_obj, action_lambda)
+            return pos
+
+        elif op == 'click_if_present':
+            template_name = instruction['template_name']
+            template_path = get_template(screen_id, template_name)
+
+            pos = self._detect_template(screen_obj, template_path=template_path)
+            if pos:
+                action_lambda = lambda: pyautogui.click(pos[0], pos[1])
+                self._request_io_action(screen_obj, action_lambda)
+            return pos
+
+        elif op == 'set_focus':
+            action_lambda = lambda: set_focus(screen_id)
+            self._request_io_action(screen_obj, action_lambda)
+            return None
+
         else:
-            print(f"WARN: [{self.monitor_id}] Unknown conditional_flow: {flow_type}")
+            print(f"WARN: [{screen_id}] 알 수 없는 지시어: {op}")
             return None
 
     # =========================================================================
-    # 🎯 action_type 핸들러들 - (❗️핵심 수정)
+    # 🔧 유틸리티
     # =========================================================================
 
-    def _handle_detection_targets(self, policy: dict, screen_obj: dict, should_click: bool = False) -> dict:
-        """(❗️ [수정] 감지 시 Orchestrator에 오류 보고 추가)"""
-        targets = policy.get('targets', [])
-        if not targets:
-            return {}
-
-        screen_id = screen_obj['screen_id']
-        region = screen_obj['region']
-
-        for target in targets:
-            template_name = target.get('template')
-            result_key = target.get('result', 'detected')
-            template_path = get_template(screen_id, template_name)
-            if not template_path:
-                continue
-
-            # (Sensor) 감지
-            if self._detect_template(screen_obj, template_path=template_path):
-                # --- 🌟 [추가] Orchestrator에게 화면별 오류 보고 ---
-                if self.orchestrator:
-                    # SRM2가 이 화면(screen_id)에서만 손 떼도록 요청
-                    self.orchestrator.report_system_error(self.monitor_id, screen_id)
-                # --- 🌟 추가 완료 ---
-
-                if should_click:
-                    action_lambda = lambda p=template_path, r=region: image_utils.click_image(
-                        template_path=p,
-                        region=r,
-                        threshold=0.85,
-                        screenshot_img=None
-                    )
-                    self._request_io_action(screen_obj, action_lambda)
-
-                return {result_key: True}
-        return {}
-
-    def _handle_time_based_check(self, policy: dict, screen_obj: dict) -> dict:
-        """(변경 없음)"""
-        current_time = time.time()
-        elapsed = current_time - screen_obj['state_enter_time']
-        expected_duration = policy.get('expected_duration', 30.0)
-        timeout = policy.get('timeout', 60.0)
-        return {
-            'elapsed_time': elapsed,
-            'duration_passed': elapsed >= expected_duration,
-            'timeout_reached': elapsed >= timeout
-        }
-
-    # ❗️ [수정] SM1의 비차단 시퀀스 핸들러로 교체
-    def _handle_sequence_execution(self, policy: dict, screen_obj: dict) -> dict:
-        """
-        [v3 SM1 아키텍처] policy_step 기반 비차단 시퀀스 핸들러
-        - 'wait_duration'은 내부 타이머로 처리
-        - 'click_if_present' (선택적 클릭) 지원
-        """
-        sequence_config = policy.get('sequence_config', {})
-        actions = sequence_config.get('actions', [])
-        step_index = screen_obj.get('policy_step', 0)
-
-        screen_id = screen_obj['screen_id']
-        region = screen_obj['region']
-
-        # 1. 시퀀스 완료 확인
-        if step_index >= len(actions):
-            screen_obj['policy_step'] = 0
-            return {'sequence_complete': True}
-
-        # 2. 진행 중인 '스텝별 타이머' 확인 (wait_duration 처리)
-        if screen_obj['step_timer_end'] > 0:
-            if time.time() < screen_obj['step_timer_end']:
-                return {'sequence_in_progress': True}  # 아직 대기 중
-            else:
-                screen_obj['step_timer_end'] = 0.0
-                screen_obj['policy_step'] += 1
-                step_index += 1
-                if step_index >= len(actions):
-                    screen_obj['policy_step'] = 0
-                    return {'sequence_complete': True}
-
-        # 3. 현재 스텝의 액션 가져오기
-        action = actions[step_index]
-        operation = action.get('operation')
-        template_name = action.get('template')
-
-        # 4. [Sensor] 비동기 대기 (wait)
-        if operation == 'wait':
-            template_path = get_template(screen_id, template_name)
-            if self._detect_template(screen_obj, template_path=template_path):
-                screen_obj['policy_step'] += 1
-            return {'sequence_in_progress': True}
-
-        # 5. [Sensor + Execution] 조건부 클릭 (click)
-        if operation == 'click':
-            template_path = get_template(screen_id, template_name)
-            if self._detect_template(screen_obj, template_path=template_path):
-                action_lambda = lambda p=template_path, r=region: image_utils.click_image(
-                    template_path=p, region=r, threshold=0.85, screenshot_img=None
-                )
-                self._request_io_action(screen_obj, action_lambda)
-                screen_obj['policy_step'] += 1
-            return {'sequence_in_progress': True}
-
-        # 6. [Sensor + Execution] 선택적 클릭 (click_if_present)
-        if operation == 'click_if_present':
-            template_path = get_template(screen_id, template_name)
-            if self._detect_template(screen_obj, template_path=template_path):
-                action_lambda = lambda p=template_path, r=region: image_utils.click_image(
-                    template_path=p, region=r, threshold=0.85, screenshot_img=None
-                )
-                self._request_io_action(screen_obj, action_lambda)
-            # ❗️ 'click'과 달리, 템플릿이 없어도 무조건 다음 스텝으로
-            screen_obj['policy_step'] += 1
-            return {'sequence_in_progress': True}
-
-        # 7. [Execution] 즉시 실행 (set_focus)
-        action_lambda = None
-        if operation == 'set_focus':
-            action_lambda = lambda sid=screen_id: set_focus(sid)
-
-        if action_lambda:
-            self._request_io_action(screen_obj, action_lambda)
-            screen_obj['policy_step'] += 1
-            return {'sequence_in_progress': True}
-
-        # 8. [Non-Blocking Timer] wait_duration
-        if operation == 'wait_duration':
-            duration = action.get('duration', 1.0)
-            screen_obj['step_timer_end'] = time.time() + duration
-            # ❗️ policy_step은 증가시키지 않음!
-            return {'sequence_in_progress': True}
-
-        # 9. 알 수 없는 operation
-        print(f"WARN: [{self.monitor_id}] 알 수 없는 시퀀스 operation: {operation}")
-        screen_obj['policy_step'] += 1
-        return {'sequence_in_progress': True}
-
-    # =========================================================================
-    # 🔄 conditional_flow 핸들러들
-    # =========================================================================
-
-    def _handle_immediate_trigger(self, action_results: dict) -> Optional[str]:
-        """(변경 없음)"""
-        for result_key, detected in action_results.items():
-            if detected and result_key not in ['elapsed_time']:
-                return result_key
-        return None
-
-    def _handle_retry_strategy(self, policy: dict, action_results: dict, screen_obj: dict) -> Optional[str]:
-        """재시도 전략 - 화면별 재시도 카운트 관리"""
-        retry_config = policy.get('retry_config', {})
-        max_attempts = retry_config.get('max_attempts', 3)
-        retry_delay = retry_config.get('retry_delay', 2.5)
-        failure_result = retry_config.get('failure_result', 'retry_failed')
-
-        # 성공 조건 확인
-        for result_key, detected in action_results.items():
-            if detected and result_key not in ['elapsed_time']:
-                screen_obj['retry_count'] = 0  # 성공 시 리셋
-                return result_key
-
-        # 재시도 타이밍 및 횟수 관리
-        current_time = time.time()
-        if current_time - screen_obj['last_retry_time'] < retry_delay:
-            return None  # 딜레이 미달
-
-        screen_obj['retry_count'] += 1
-        screen_obj['last_retry_time'] = current_time
-
-        if screen_obj['retry_count'] >= max_attempts:
-            screen_obj['retry_count'] = 0  # 리셋
-            return failure_result
-
-        return None
-
-    def _handle_wait_until_condition(self, action_results: dict) -> Optional[str]:
-        """(변경 없음 - 'hold' flow type용)"""
-        for result_key, detected in action_results.items():
-            if detected and result_key not in ['elapsed_time']:
-                return result_key
-        return None
-
-    def _handle_duration_based_flow(self, action_results: dict) -> Optional[str]:
-        """(변경 없음)"""
-        if action_results.get('duration_passed', False):
-            return 'duration_passed'
-        elif action_results.get('timeout_reached', False):
-            return 'timeout_reached'
-        return None
-
-    def _handle_sequence_retry_strategy(self, policy: dict, action_results: dict, screen_obj: dict) -> Optional[str]:
-        """시퀀스 전용 재시도 전략 - 화면별 시퀀스 카운트 관리"""
-        sequence_config = policy.get('sequence_config', {})
-        max_attempts = sequence_config.get('max_attempts', 12)
-
-        # 성공 확인
-        if action_results.get('sequence_complete', False):
-            screen_obj['sequence_attempts'] = 0  # 상태 정리
-            return 'sequence_complete'
-
-        # 실패 카운트 관리
-        screen_obj['sequence_attempts'] += 1
-        if screen_obj['sequence_attempts'] > max_attempts:
-            screen_obj['sequence_attempts'] = 0  # 상태 정리
-            return 'sequence_failed'
-
-        return None
-
-    # =========================================================================
-    # 🔧 글로벌룰 호출 함수들 (❗️ [수정])
-    # =========================================================================
-
-    def _detect_template(self, screen_obj: dict, template_path=None, template_name=None) -> bool:
-        """(❗️ [수정] IO Lock 제거, Orchestrator 캡처 사용)"""
+    def _detect_template(self, screen_obj: dict, template_path=None, template_name=None) -> Optional[Tuple[int, int]]:
+        """템플릿 위치 반환 (좌표 튜플 또는 None)"""
         if template_path:
             path = template_path
         elif template_name:
@@ -385,69 +316,67 @@ class SystemMonitor:
             raise ValueError("template_path or template_name required")
 
         try:
-            # ❗️ [수정] with self.io_lock: 제거
             screenshot = self.orchestrator.capture_screen_safely(screen_obj['screen_id'])
 
-            # ❗️ [수정] Raven2 유틸 사용
-            return image_utils.is_image_present(
+            # Raven2 유틸 사용
+            from Orchestrator.Raven2.utils.image_utils import return_ui_location
+            return return_ui_location(
                 template_path=path,
                 region=screen_obj['region'],
-                threshold=0.85,
+                threshold=0.82,
                 screenshot_img=screenshot
             )
         except Exception as e:
             print(f"WARN: [{self.monitor_id}] Template detection error: {e}")
-            return False
+            return None
 
-    # ❗️ [추가] IO 스케줄러 요청 헬퍼
     def _request_io_action(self, screen_obj, action_lambda, priority=Priority.NORMAL):
-        """IO 스케줄러에 작업을 요청하는 중앙 헬퍼"""
+        """IO 스케줄러 요청"""
         screen_id = screen_obj['screen_id']
         self.io_scheduler.request(
-            component="SM2",
+            component="SM1",
             screen_id=screen_id,
             action=action_lambda,
             priority=priority
         )
 
-    # ❗️ [삭제] _click_template, _set_screen_focus 함수 삭제
-    # (IO 스케줄러로 통합됨)
-
     # =========================================================================
-    # 🔄 상태 전이 및 예외 처리 (❗️ [수정] v3 상태 변수 리셋 추가)
+    # 🔄 상태 전이 및 예외 처리
     # =========================================================================
-
-    def _handle_state_transition(self, policy: dict, result_key: str, screen_obj: dict):
-        """(변경 없음)"""
-        if not result_key:
-            return
-        transitions = policy.get('transitions', {})
-        next_state = transitions.get(result_key, screen_obj['current_state'])
-        if next_state != screen_obj['current_state']:
-            self._transition_screen_to_state(screen_obj, next_state, f"result: {result_key}")
 
     def _transition_screen_to_state(self, screen_obj: dict, new_state: SystemState, reason: str):
-        """(❗️ [수정] v3 상태 변수 리셋 추가)"""
-        old_state = screen_obj['current_state']
-        screen_obj['current_state'] = new_state
+        """화면별 상태 전이 실행 (v3: 공유 상태 사용)"""
+        screen_id = screen_obj['screen_id']
+
+        # ❗️ [수정] 공유 상태 읽기
+        old_state = self.shared_states.get(screen_id)
+
+        if old_state == new_state:
+            return
+
+        print(f"INFO: [{self.monitor_id}] {screen_id}: {old_state.name} → {new_state.name} ({reason})")
+
+        if screen_obj['current_generator']:
+            try:
+                screen_obj['current_generator'].close()
+            except Exception as e:
+                print(f"WARN: [{screen_id}] Generator close error: {e}")
+
+        # ❗️ [수정] 공유 상태 쓰기
+        self.shared_states[screen_id] = new_state
         screen_obj['state_enter_time'] = time.time()
 
-        # ❗️ [수정] v3 시퀀스 상태 정리
-        screen_obj['policy_step'] = 0
-        screen_obj['step_timer_end'] = 0.0
-
-        screen_obj['retry_count'] = 0
-        screen_obj['last_retry_time'] = 0.0
-        screen_obj['sequence_attempts'] = 0
-        screen_obj['initial_done'] = False
-
-        print(f"INFO: [{self.monitor_id}] {screen_obj['screen_id']}: {old_state.name} → {new_state.name} ({reason})")
+        screen_obj['current_generator'] = None
+        screen_obj['generator_wait_start_time'] = 0.0
+        screen_obj['generator_wait_timeout'] = 0.0
+        screen_obj['generator_last_yielded_value'] = None
 
     def _handle_exception_policy(self, error_type: str):
-        """(변경 없음)"""
+        """예외 처리 정책"""
         if error_type in self.exception_policies:
             policy = self.exception_policies[error_type]
             action = policy.get('default_action', 'RETURN_TO_NORMAL')
+
             if action == 'RETURN_TO_NORMAL':
                 for screen_obj in self.screens.values():
                     self._transition_screen_to_state(screen_obj, SystemState.NORMAL, f"exception policy: {error_type}")
@@ -457,9 +386,11 @@ class SystemMonitor:
 # 🔌 Orchestrator 호출 인터페이스
 # =============================================================================
 
-def create_system_monitor(monitor_id: str, vd_name: str, orchestrator=None) -> SystemMonitor:
+# ❗️ [수정] shared_states 인자 추가
+def create_system_monitor(monitor_id: str, vd_name: str, orchestrator=None, shared_states=None) -> SystemMonitor:
     """Orchestrator에서 호출하는 팩토리 함수"""
-    return SystemMonitor(monitor_id, vd_name, orchestrator)
+    return SystemMonitor(monitor_id, vd_name, orchestrator, shared_states)
+
 
 if __name__ == "__main__":
-    print("SM2 Monitor (v3 아키텍처) 테스트는 Orchestrator를 통해 실행해야 합니다.")
+    print("이 파일은 직접 실행할 수 없으며, Orchestrator가 로드해야 합니다.")

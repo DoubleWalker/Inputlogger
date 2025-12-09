@@ -51,8 +51,9 @@ FIXED_UI_COORDS = {
         'shop_button': (56, 43),
         'tower_click_1': (711, 66),  #
         'tower_click_2': (724, 185),  #
+        'map_marker_reference':(380,180),
         'wp3_jump_point_1': (354, 210),  # 점프대 클릭 1
-        'wp3_jump_point_2': (359, 173)
+        'wp3_jump_point_2': (359, 182)
           #
     },
     'S2': {
@@ -97,7 +98,7 @@ FIXED_UI_COORDS = {
     'S4': {
         # 기존 좌표 유지
         'safe_click_point': (0, 140),
-        'main_menu_button': (748, 15),
+        'main_menu_button': (713, 15),
         'field_return_reset': (543, 324),  #
         'field_return_start': (732, 323),  #
         'graveyard_confirm': (1, 2),  #

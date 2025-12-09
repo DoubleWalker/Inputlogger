@@ -14,13 +14,14 @@ import win32con
 import sys
 import numpy as np
 from dataclasses import dataclass, field
-from typing import Tuple, List, Dict, Optional, Callable
+from typing import Tuple, List, Dict, Optional, Callable, Any
 from Orchestrator.NightCrows.utils import image_utils
 from Orchestrator.NightCrows.utils.screen_info import FIXED_UI_COORDS
 from Orchestrator.src.core.io_scheduler import IOScheduler, Priority
 from .config import srm_config, template_paths
 from .config.srm_config import ScreenState
 from enum import Enum, auto
+from Orchestrator.NightCrows.System_Monitor.config.sm_config import SystemState
 
 
 # ============================================================================
@@ -48,7 +49,11 @@ class ScreenMonitorInfo:
     """모니터링할 개별 화면의 정보"""
     screen_id: str
     region: Tuple[int, int, int, int]
-    current_state: ScreenState = ScreenState.NORMAL
+
+
+    # [신규] 공유 상태 딕셔너리 참조
+    _shared_state_ref: Dict[str, Any] = field(default_factory=dict, repr=False)
+
     retry_count: int = 0
     last_state_change_time: float = 0.0
     s1_completed: bool = False
@@ -56,15 +61,31 @@ class ScreenMonitorInfo:
     policy_step_start_time: float = 0.0
     party_check_count: int = 0
 
+    # [신규] 프로퍼티 정의
+    @property
+    def current_state(self):
+        return self._shared_state_ref.get(self.screen_id, ScreenState.NORMAL)
+
+    @current_state.setter
+    def current_state(self, new_state):
+        self._shared_state_ref[self.screen_id] = new_state
+
 
 class BaseMonitor:
     """오케스트레이터와 호환되는 모니터의 기본 클래스"""
 
-    def __init__(self, monitor_id: str, config: Optional[Dict], vd_name: str, orchestrator=None):
+    def __init__(self, monitor_id="SRM1", config=None, vd_name="VD1",
+                 orchestrator=None, io_scheduler=None, shared_states=None):  # <--- [추가]
+        super().__init__()
+        if io_scheduler is None:
+            raise ValueError(f"[{self.monitor_id}] io_scheduler must be provided!")
+
+        self.io_scheduler = io_scheduler
         self.orchestrator = orchestrator
         self.monitor_id = monitor_id
         self.config = config if isinstance(config, dict) else {}
         self.vd_name = vd_name
+        self.shared_states = shared_states if shared_states is not None else {}
 
     def run_loop(self, stop_event: threading.Event):
         raise NotImplementedError("Subclasses should implement this method.")
@@ -92,8 +113,10 @@ class CombatMonitor(BaseMonitor):
     SAFE_STATES = [ScreenState.NORMAL, ScreenState.RETURNING, ScreenState.INITIALIZING]
 
     def __init__(self, monitor_id="SRM1", config=None, vd_name="VD1",
-                 orchestrator=None, io_scheduler=None):
-        super().__init__(monitor_id, config, vd_name, orchestrator)
+                 orchestrator=None, io_scheduler=None, shared_states=None):
+
+        # 🔴 [수정] 부모 클래스(BaseMonitor)에 io_scheduler와 shared_states까지 전달하도록 수정
+        super().__init__(monitor_id, config, vd_name, orchestrator, io_scheduler, shared_states)
 
         if io_scheduler is None:
             raise ValueError(f"[{self.monitor_id}] io_scheduler must be provided!")
@@ -159,7 +182,11 @@ class CombatMonitor(BaseMonitor):
             print(f"WARNING: [{self.monitor_id}] Screen '{screen_id}' already added. Skipping.")
             return
 
-        screen = ScreenMonitorInfo(screen_id=screen_id, region=region)
+        screen = ScreenMonitorInfo(
+            screen_id=screen_id,
+            region=region,
+            _shared_state_ref=self.shared_states  # <--- 전달
+        )
         self.screens.append(screen)
         print(f"INFO: [{self.monitor_id}] Screen added: ID={screen_id}, Region={region}")
 
@@ -462,21 +489,62 @@ class CombatMonitor(BaseMonitor):
 
     def _check_initialization_ready(self, screen: ScreenMonitorInfo) -> bool:
         """INITIALIZING 상태 대기 로직 (S2-S5)"""
+        # 1. 이미 초기화가 끝났으면 통과
         if screen.current_state != ScreenState.INITIALIZING:
             return True
 
+        # 2. S1(리더)은 스스로 판단하고 진행
         if screen.screen_id == 'S1':
             return True
 
-        if self.location_flag == Location.UNKNOWN:
+        # 3. 위치 정보가 이미 확보되었다면 통과
+        if self.location_flag != Location.UNKNOWN:
             print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: "
-                  f"Waiting for S1 to determine location...")
+                  f"Location confirmed ({self.location_flag.name}). Moving to NORMAL.")
+            self._change_state(screen, ScreenState.NORMAL)
+            screen.policy_step = 0
+            return False  # 이번 틱 종료, 다음 틱부터 NORMAL 로직 수행
+
+        # ---------------------------------------------------------
+        # [스마트 판단] S1 상태를 보고 대기 여부 결정
+        # ---------------------------------------------------------
+        s1_screen = self._find_screen('S1')
+
+        # S1이 아직 등록되지 않았으면 기다림
+        if not s1_screen:
+            print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: Waiting for S1 to register...")
             return False
 
+        # ✅ [핵심 수정] S1이 정상이 아닌 경우 (SM이 작업 중이거나, 위험 상태)
+        # 공유 메모리 덕분에 S1의 상태가 SystemState인지 바로 알 수 있음
+        is_s1_busy_with_system = isinstance(s1_screen.current_state, SystemState)
+
+        # S1이 SRM 차원에서 위험한 상태 (죽음, 적대 등)
+        unsafe_states = [ScreenState.DEAD, ScreenState.HOSTILE, ScreenState.S1_EMERGENCY_FLEE]
+        is_s1_unsafe = s1_screen.current_state in unsafe_states
+
+        # S1이 제정신이 아니라면(시스템 복구 중이거나 위험함), 우린 걍 각자도생(NORMAL) 한다.
+        if is_s1_busy_with_system or is_s1_unsafe:
+            print(f"WARN: [{self.monitor_id}] S1 is unavailable ({s1_screen.current_state}). "
+                  f"Forcing {screen.screen_id} to NORMAL (Break Dependency).")
+            self._change_state(screen, ScreenState.NORMAL)
+            screen.policy_step = 0
+            return False
+
+        # ---------------------------------------------------------
+        # S1도 INITIALIZING 중이라면 타임아웃 체크 (너무 오래 걸리면 포기)
+        if s1_screen.current_state == ScreenState.INITIALIZING:
+            elapsed = time.time() - s1_screen.last_state_change_time  # [이전 수정 반영]
+
+            if elapsed > 60.0:
+                print(f"WARN: [{self.monitor_id}] S1 initialization timed out ({elapsed:.0f}s). "
+                      f"Forcing {screen.screen_id} to NORMAL.")
+                self._change_state(screen, ScreenState.NORMAL)
+                screen.policy_step = 0
+                return False
+
         print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: "
-              f"S1 finished. Moving to NORMAL state.")
-        self._change_state(screen, ScreenState.NORMAL)
-        screen.policy_step = 0
+              f"Waiting for S1 to determine location...")
         return False
 
     def _complete_sequence(self, screen: ScreenMonitorInfo, policy: dict):
@@ -938,44 +1006,60 @@ class CombatMonitor(BaseMonitor):
     def _do_flight(self, screen: ScreenMonitorInfo):
         """도주 버튼 클릭 실행 (상태에 따라 깨우기 동작 분기)"""
         try:
-            # ★ [핵심 수정] 상태에 따라 깨우기(Wake) 여부 결정
             if screen.current_state == ScreenState.S1_EMERGENCY_FLEE:
-                # S1 긴급 도주: 자고 있을 수 있으므로 확실하게 깨움 (클릭 + ESC)
                 print(f"INFO: [{self.monitor_id}] Screen {screen.screen_id}: S1 Emergency Flee. Waking up screen...")
                 if not self._wake_screen(screen):
                     return
+
+                # ✅ 개선 1: 화면 깨운 후 0.8초 대기 (UI 렌더링 완료 기다림)
+                print(f"INFO: [{self.monitor_id}] Waiting for UI to render after wake-up...")
+                time.sleep(0.8)
             else:
-                # 일반 HOSTILE: 이미 화면을 인식 중이므로 깨우기 동작(ESC) 생략하고 즉시 도주
-                # (불필요한 ESC가 메뉴를 닫거나 팝업을 띄우는 문제 방지)
                 pass
 
-            # ---------------------------------------------------------
-            # 이 아래는 기존 도주 로직과 동일 (도주 버튼 템플릿 찾기 & 클릭)
-            # ---------------------------------------------------------
             flight_template_path = template_paths.get_template(screen.screen_id, 'FLIGHT_BUTTON')
             if not flight_template_path or not os.path.exists(flight_template_path):
                 print(f"WARN: [{self.monitor_id}] Flight template not found. Using fixed coordinates...")
                 self._click_relative(screen, 'flight_button', delay_after=0.2)
                 return
 
-            screenshot = self._capture_screenshot_safe(screen)
-            if screenshot is None:
-                return
+            # ✅ 개선 2: 최대 5회(2.5초) 동안 템플릿 등장 대기
+            max_wait_attempts = 5
+            wait_interval = 0.5
+            center_coords = None
 
-            center_coords = image_utils.return_ui_location(
-                template_path=flight_template_path,
-                region=screen.region,
-                threshold=self.confidence,
-                screenshot_img=screenshot
-            )
+            print(f"INFO: [{self.monitor_id}] Waiting for FLIGHT_BUTTON template to appear...")
+            for attempt in range(max_wait_attempts):
+                screenshot = self._capture_screenshot_safe(screen)
+                if screenshot is None:
+                    time.sleep(wait_interval)
+                    continue
+
+                center_coords = image_utils.return_ui_location(
+                    template_path=flight_template_path,
+                    region=screen.region,
+                    threshold=self.confidence,
+                    screenshot_img=screenshot
+                )
+
+                if center_coords:
+                    print(f"INFO: [{self.monitor_id}] FLIGHT_BUTTON found on attempt {attempt + 1}/{max_wait_attempts}")
+                    break
+
+                if attempt < max_wait_attempts - 1:
+                    time.sleep(wait_interval)
 
             if center_coords:
                 pyautogui.click(center_coords)
                 print(f"INFO: [{self.monitor_id}] Flight via template matching at {center_coords}.")
             else:
-                print(f"WARN: [{self.monitor_id}] Template matching failed. Using fixed coordinates...")
+                print(
+                    f"WARN: [{self.monitor_id}] Template matching failed after {max_wait_attempts} attempts. Using fixed coordinates...")
                 if self._click_relative(screen, 'flight_button', delay_after=0.2):
                     print(f"INFO: [{self.monitor_id}] Flight via fixed coordinates.")
+                    # ✅ 개선 3: 고정 좌표도 이중 클릭 (씹힘 방지)
+                    time.sleep(0.2)
+                    self._click_relative(screen, 'flight_button', delay_after=0.2)
                 else:
                     print(f"ERROR: [{self.monitor_id}] Both template and fixed coords failed.")
 
@@ -1041,8 +1125,16 @@ class CombatMonitor(BaseMonitor):
 
     def _handle_screen_state(self, screen: ScreenMonitorInfo, stop_event: threading.Event):
         """현재 화면 상태에 따라 처리"""
+
+        # 1. [공유 상태 읽기]
         state = screen.current_state
 
+        # 2. [교통 정리] 내 담당 상태(ScreenState)가 아니면 무시
+        if not isinstance(state, ScreenState):
+            # SM이 작업 중 (SystemState) -> 무시
+            return
+
+        # 3. [정상 로직]
         if state == ScreenState.NORMAL:
             self._handle_normal_state(screen)
         elif state in [ScreenState.DEAD, ScreenState.INITIALIZING, ScreenState.RECOVERING,

@@ -159,8 +159,13 @@ def policy_safe_zone(screen: Any) -> Generator[Dict[str, Any], Any, None]:
     yield {'operation': 'click', 'template_key': 'SHOP_UI_TEMPLATE'}
     # 4. time.sleep(1.5)
     yield {'operation': 'wait_duration', 'duration': 1.5}
-    # 5. wait_for_ui(buy_button, 3.0s)
-    yield {'operation': 'wait_for_template', 'template_key': 'BUY_BUTTON_TEMPLATE', 'timeout': 3.0}
+    # 5. wait_for_ui(buy_button) -> 시간을 5.0초에서 30.0초로 늘리거나, 아예 없앰(무한대기)
+    # SRM1은 기본적으로 30초 이상 기다리거나 무한 대기합니다.
+    yield {
+        'operation': 'wait_for_template',
+        'template_key': 'BUY_BUTTON_TEMPLATE',
+        'timeout': 30.0  # [수정] 5.0 -> 30.0 (렉 걸려도 충분히 기다림)
+    }
     # 6. click(buy_pos)
     yield {'operation': 'click', 'template_key': 'BUY_BUTTON_TEMPLATE'}
     # 7. time.sleep(0.8)
@@ -202,60 +207,56 @@ def policy_potions_purchased(screen: Any) -> Generator[Dict[str, Any], Any, None
     # 3. time.sleep(0.8)
     yield {'operation': 'wait_duration', 'duration': 0.8}
 
-    # 4. 드래그 로직 (v1의 모든 계산 로직을 그대로 이식)
-    screen_x, screen_y, screen_w, screen_h = screen.region
-    center_x = screen_x + (screen_w // 2)
-    center_y = screen_y + (screen_h // 2)
+    # =========================================================================
+    # 4. [수정됨] 드래그 로직 (직접 좌표 지정 방식)
+    # =========================================================================
 
-    base_start_offset_x = 100
-    base_start_offset_y = 50
-    base_drag_dist_x = 210
-    base_drag_dist_y = 150
-    drag_duration = 1.0
-
-    s3_start_offset_x_adj = 0
-    s3_start_offset_y_adj = 0
-    s3_drag_dist_x_adj = 0
-    s3_drag_dist_y_adj = 0
-
-    if screen.window_id == "S3":
-        print(f"[{screen.window_id}] Applying additional drag adjustments for S3.")
-        s3_start_offset_x_adj = -20
-        s3_start_offset_y_adj = -10
-        s3_drag_dist_x_adj = -20
-        s3_drag_dist_y_adj = -20
-
-    final_start_offset_x = base_start_offset_x + s3_start_offset_x_adj
-    final_start_offset_y = base_start_offset_y + s3_start_offset_y_adj
-    final_drag_dist_x = base_drag_dist_x + s3_drag_dist_x_adj
-    final_drag_dist_y = base_drag_dist_y + s3_drag_dist_y_adj
-
-    start_drag_abs_x = center_x + final_start_offset_x
-    start_drag_abs_y = center_y + final_start_offset_y
-    end_drag_abs_x = center_x - final_drag_dist_x
-    end_drag_abs_y = center_y + final_drag_dist_y
-
-    # (v1 클램핑 로직)
-    start_drag_abs_x = max(screen_x, min(start_drag_abs_x, screen_x + screen_w - 1))
-    start_drag_abs_y = max(screen_y, min(start_drag_abs_y, screen_y + screen_h - 1))
-    end_drag_abs_x = max(screen_x, min(end_drag_abs_x, screen_x + screen_w - 1))
-    end_drag_abs_y = max(screen_y, min(end_drag_abs_y, screen_y + screen_h - 1))
-
-    # ❗️ 'drag' 지시: 계산된 좌표로 드래그를 지시
-    yield {
-        'operation': 'drag',
-        'start_x': start_drag_abs_x, 'start_y': start_drag_abs_y,
-        'end_x': end_drag_abs_x, 'end_y': end_drag_abs_y,
-        'duration': drag_duration
+    # 화면별 드래그 좌표 설정 (상대 좌표: 게임화면 좌상단이 0,0 기준)
+    # 형식: '화면ID': ((시작X, 시작Y), (끝X, 끝Y))
+    drag_config = {
+        # 예시값입니다. 본인이 계산한 좌표로 수정해주세요.
+        "S1": ((480, 100), (480, 278)),
+        "S2": ((507, 70), (507, 274)),
+        "S3": ((485, 90), (485, 290)),  # S3만 좌표가 다르면 이렇게 수정
+        "S4": ((480, 84), (480, 250)),
+        "S5": ((863, 152), (863, 552))
     }
+
+    drag_coords = drag_config.get(screen.window_id)
+
+    if drag_coords:
+        # 화면의 현재 위치(좌상단)를 가져옵니다.
+        screen_x, screen_y, _, _ = screen.region
+
+        # 상대 좌표를 절대 좌표로 변환 (창이 이동해도 작동하도록)
+        start_rel, end_rel = drag_coords
+
+        abs_start_x = screen_x + start_rel[0]
+        abs_start_y = screen_y + start_rel[1]
+        abs_end_x = screen_x + end_rel[0]
+        abs_end_y = screen_y + end_rel[1]
+
+        print(f"INFO: [{screen.window_id}] 드래그 수행: ({abs_start_x}, {abs_start_y}) -> ({abs_end_x}, {abs_end_y})")
+
+        # 드래그 수행
+        yield {
+            'operation': 'drag',
+            'start_x': abs_start_x,
+            'start_y': abs_start_y,
+            'end_x': abs_end_x,
+            'end_y': abs_end_y,
+            'duration': 0.5  # 요청하신대로 0.5초 고정
+        }
+    else:
+        print(f"WARN: [{screen.window_id}] 드래그 설정이 없습니다. 스킵합니다.")
 
     # 5. time.sleep(1.0)
     yield {'operation': 'wait_duration', 'duration': 1.0}
 
     # 6. 드래그 후 UI 클릭 (v1의 하드코딩된 절대 좌표)
     after_drag_positions = {
-        "S1": (410, 60), "S2": (1106, 76), "S3": (367, 427),
-        "S4": (416, 766), "S5": (900, 600)
+        "S1": (606, 109), "S2": (1342, 132), "S3": (607, 480),
+        "S4": (604, 797), "S5": (1744, 673)
     }
     target_pos = after_drag_positions.get(screen.window_id)
     if not target_pos:
@@ -277,7 +278,7 @@ def policy_potions_purchased(screen: Any) -> Generator[Dict[str, Any], Any, None
 
     # 10. 마지막 상대 이동 후 클릭
     if pos2:
-        move_pixels_x = int(277 * screen.ratio)
+        move_pixels_x = int(265 * screen.ratio)
         move_pixels_y = int(64 * screen.ratio)
         final_x = pos2[0] - move_pixels_x
         final_y = pos2[1] - move_pixels_y
@@ -442,7 +443,8 @@ def get_state_policies() -> Dict[ScreenState, Dict[str, Any]]:
             'generator': policy_safe_zone,
             'transitions': {
                 'complete': ScreenState.POTIONS_PURCHASED,
-                'fail': ScreenState.SLEEP
+                # [수정] 실패 시 SLEEP으로 가지 않고, 다시 물약 구매 시도 (또는 ABNORMAL)
+                'fail': ScreenState.SAFE_ZONE
             }
         },
 

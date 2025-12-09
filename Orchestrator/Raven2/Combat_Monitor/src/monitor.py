@@ -12,6 +12,7 @@ import numpy as np
 import cv2
 from threading import Event
 from typing import List, Tuple, Optional, Dict, Any
+from Orchestrator.Raven2.System_Monitor.config.sm_config import SystemState
 
 # ❗️ 1. [참조] NightCrows의 BaseMonitor를 상속받아 호환성 확보
 from Orchestrator.NightCrows.Combat_Monitor.monitor import BaseMonitor
@@ -24,8 +25,7 @@ from Orchestrator.src.core.io_scheduler import IOScheduler, Priority
 from Orchestrator.Raven2.Combat_Monitor.src.models.screen_info import CombatScreenInfo, ScreenState
 from Orchestrator.Raven2.utils.screen_info import SCREEN_REGIONS, FIXED_UI_COORDS
 from Orchestrator.Raven2.utils.image_utils import return_ui_location, compare_images
-from Orchestrator.Raven2.Combat_Monitor.src.config.template_paths import TEMPLATE_PATHS
-
+from Orchestrator.Raven2.Combat_Monitor.src.config.template_paths import get_template
 
 class CombatMonitor(BaseMonitor):
     """
@@ -34,16 +34,18 @@ class CombatMonitor(BaseMonitor):
     모든 I/O는 IOScheduler를 통해 비동기적으로 요청됩니다.
     """
 
-    def __init__(self, monitor_id="SRM2_v3", config: Optional[Dict] = None, vd_name="VD1", orchestrator=None,
-                 io_scheduler: Optional[IOScheduler] = None):
+    def __init__(self, monitor_id="SRM1", config=None, vd_name="VD1",
+                 orchestrator=None, io_scheduler=None, shared_states=None):
 
-        # 1. BaseMonitor 초기화 (NightCrows 호환성)
-        super().__init__(monitor_id, config, vd_name, orchestrator)
+        # [수정] 부모에게 shared_states 전달
+        super().__init__(monitor_id, config, vd_name, orchestrator, io_scheduler, shared_states)
 
-        # 2. IOScheduler 주입 (v1과 동일)
         if io_scheduler is None:
             raise ValueError(f"[{self.monitor_id}] io_scheduler must be provided!")
         self.io_scheduler = io_scheduler
+
+        # [신규] 공유 상태 저장소 저장
+        self.shared_states = shared_states if shared_states is not None else {}
 
         # 3. v1의 변수들 (config에서 로드)
         self.check_interval = self.config.get('check_interval', 0.5)
@@ -59,12 +61,16 @@ class CombatMonitor(BaseMonitor):
     def add_screen(self, window_id: str, region: Tuple[int, int, int, int], ratio: float = 1.0):
         """모니터링할 화면을 등록합니다."""
 
-        # ❗️ v3: srm_config에서 초기 상태를 가져옴
+        # [신규] 공유 상태에 초기값 등록 (이미 있으면 건드리지 않음 - SM이 먼저 등록했을 수도 있음)
+        if window_id not in self.shared_states:
+            self.shared_states[window_id] = ScreenState.SLEEP
+
+        # [수정] CombatScreenInfo 생성 시 _shared_state_ref 전달
         screen = CombatScreenInfo(
             window_id=window_id,
             region=region,
             ratio=ratio,
-            current_state=ScreenState.SLEEP
+            _shared_state_ref=self.shared_states  # 참조 전달
         )
 
         # ❗️ v3: 제너레이터 실행을 위한 상태 변수들
@@ -133,18 +139,30 @@ class CombatMonitor(BaseMonitor):
     # 🎯 2. [v3] "감시요원의 두뇌" (핵심 실행기)
     # =========================================================================
 
+    def get_current_state(self, screen_id: str) -> Optional[ScreenState]:
+        """화면의 현재 상태 조회 (Orchestrator용)"""
+        screen = next((s for s in self.screens if s.window_id == screen_id), None)
+        if not screen:
+            print(f"WARN: [{self.monitor_id}] get_current_state: Screen {screen_id} not found.")
+            return None
+        return screen.current_state
+
     def _handle_screen_state(self, screen: CombatScreenInfo):
         """[v3] "감시요원"이 화면 상태를 보고 '상황반장'을 부르거나 '지시'를 처리합니다."""
 
         state = screen.current_state
 
-        # --- 1. '탐지 전용' 상태 (SLEEP, AWAKE) ---
+        # 2. [교통 정리] 내 담당 상태(ScreenState)가 아니면 무시
+        if not isinstance(state, ScreenState):
+            # SM이 작업 중인 상태 (SystemState) -> SRM은 건드리지 않음
+            # print(f"[{screen.window_id}] SM 작업 중({state}). SRM 대기.") # 디버깅용
+            return
+
+            # 3. [정상 로직] 내 담당 상태면 하던 일 계속
         if state in [ScreenState.SLEEP, ScreenState.AWAKE]:
-            # v1의 check_status 로직을 그대로 사용
             visual_status = self.check_status(screen)
             if visual_status != state:
-                print(f"[{screen.window_id}] Visual state changed: {state.name} -> {visual_status.name}.")
-                # 상태만 변경 (새 '상황반장'이 필요하면 다음 루프에서 할당됨)
+                # 상태 변경 시에도 프로퍼티를 통해 공유 딕셔너리가 업데이트됨
                 self._change_state(screen, visual_status)
             return
 
@@ -188,15 +206,26 @@ class CombatMonitor(BaseMonitor):
                 self._on_sequence_failed(screen, e)  # -> 'SLEEP' 등으로 상태 전이
                 return
 
-        # 2c. "상황반장"의 지시(instruction)를 처리할 차례인가?
+                # 2c. "상황반장"의 지시(instruction)를 처리할 차례인가?
         if screen.yielded_instruction:
-            # ❗️ "지시를 처리하고, 완료 여부(is_done)와 결과(result)를 받아옵니다."
-            is_done, result = self._process_instruction(screen, screen.yielded_instruction)
+                    try:
+                        # ❗️ "지시를 처리하고, 완료 여부(is_done)와 결과(result)를 받아옵니다."
+                        is_done, result = self._process_instruction(screen, screen.yielded_instruction)
 
-            if is_done:
-                # 지시가 '완료'되었으면
-                screen.yielded_instruction = None  # 다음 지시를 받을 수 있도록 비움
-                screen.last_result = result  # 다음 'send'를 위해 결과 저장
+                        if is_done:
+                            # 지시가 '완료'되었으면
+                            screen.yielded_instruction = None  # 다음 지시를 받을 수 있도록 비움
+                            screen.last_result = result  # 다음 'send'를 위해 결과 저장
+
+                    except Exception as e:
+                        # 🚨 [수정됨] 지시 수행 중 에러(타임아웃 등) 발생 시 처리
+                        print(f"WARN: [{screen.window_id}] 지시 수행 실패 ({e}). 시퀀스를 실패 처리합니다.")
+
+                        # 지시서 비우기 (중요: 안 비우면 다음 루프에서 또 실행함)
+                        screen.yielded_instruction = None
+
+                        # 시퀀스 실패 로직 호출 (상태 전이 발생 -> 예: SLEEP으로 리셋)
+                        self._on_sequence_failed(screen, e)
 
     # =========================================================================
     # 🎯 3. [v3] "지시 처리기" (Dispatcher)
@@ -243,16 +272,29 @@ class CombatMonitor(BaseMonitor):
                 screen.wait_start_time = 0.0  # 타이머 리셋
                 return True, pos  # (완료, 찾은 좌표 반환)
 
+            # 타이머 시작
             if screen.wait_start_time == 0.0:
-                screen.wait_start_time = time.time()  # 타임아웃 타이머 시작
+                screen.wait_start_time = time.time()
 
-            elapsed = time.time() - screen.wait_start_time
-            if elapsed >= instruction['timeout']:
-                screen.wait_start_time = 0.0  # 타이머 리셋
-                # ❗️ 타임아웃 시 '상황반장'에게 Exception을 발생시킴
-                raise Exception(f"Template '{instruction['template_key']}' timed out after {instruction['timeout']}s")
-            else:
-                return False, None  # (아직 대기 중)
+            # 타임아웃 체크 로직 개선
+            timeout = instruction.get('timeout')  # timeout 키가 없거나 None이면 무한 대기
+
+            if timeout is not None and timeout > 0:
+                elapsed = time.time() - screen.wait_start_time
+                if elapsed >= timeout:
+                    screen.wait_start_time = 0.0  # 타이머 리셋
+
+                    # [신규] optional=True이면 예외 없이 넘어감 (못 찾았지만 진행)
+                    if instruction.get('optional', False):
+                        print(
+                            f"WARN: [{screen.window_id}] Optional template '{instruction['template_key']}' not found. Proceeding.")
+                        return True, None
+
+                        # 필수 요소라면 예외 발생
+                    raise Exception(f"Template '{instruction['template_key']}' timed out after {timeout}s")
+
+            # 타임아웃이 없거나(무한대기), 시간 안 지났으면 계속 대기
+            return False, None
 
         # --- 4. [v3 config 전용 지시] (복합 지시) ---
         elif op == 'click_and_get_pos':
@@ -402,37 +444,7 @@ class CombatMonitor(BaseMonitor):
             [v2에서 복원] 'DEATH_RETURN_BUTTON' 같은 '키'를 실제 파일 경로로 변환합니다.
             (srm_config_raven2.py의 모든 키를 여기서 매핑해야 합니다)
             """
-            try:
-                if template_key == 'DEAD_TEMPLATE':
-                    return TEMPLATE_PATHS['status']['dead'].get(window_id)
-                if template_key == 'ABNORMAL_TEMPLATE':
-                    return TEMPLATE_PATHS['status']['abnormal'].get(window_id)
-                if template_key == 'AWAKE_TEMPLATE':
-                    return TEMPLATE_PATHS['status']['awake'].get(window_id)
-
-                if template_key == 'DEATH_RETURN_BUTTON':
-                    return TEMPLATE_PATHS['death']['return_button'].get(window_id)
-                if template_key == 'TOWN_UI_TEMPLATE':
-                    return TEMPLATE_PATHS['combat']['template1'].get(window_id)
-                if template_key == 'RETREAT_CONFIRM_BUTTON':
-                    return TEMPLATE_PATHS['retreat']['confirm_button'].get(window_id)
-                if template_key == 'RETREAT_BUTTON':
-                    return TEMPLATE_PATHS['retreat']['retreat_button'].get(window_id)
-
-                if template_key == 'SHOP_UI_TEMPLATE':
-                    return TEMPLATE_PATHS['potion']['shop_ui'].get(window_id)
-                if template_key == 'BUY_BUTTON_TEMPLATE':
-                    return TEMPLATE_PATHS['potion']['buy_button'].get(window_id)
-                if template_key == 'CONFIRM_TEMPLATE':
-                    return TEMPLATE_PATHS['potion']['confirm'].get(window_id)
-
-                if template_key == 'COMBAT_TEMPLATE_2':
-                    return TEMPLATE_PATHS['combat']['template2'].get(window_id)
-
-            except KeyError as e:
-                print(f"WARN: [{window_id}] _get_template_path_from_key: 키 오류 {e} (template_key: {template_key})")
-                return None
-            return None
+            return get_template(window_id, template_key)
 
     def check_status(self, screen_info: CombatScreenInfo) -> ScreenState:
         """[v1 계승] 'SLEEP'/'AWAKE' 상태에서 사용되는 기본 상태 검사기"""

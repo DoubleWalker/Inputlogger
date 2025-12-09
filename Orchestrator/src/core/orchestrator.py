@@ -12,7 +12,10 @@ from pathlib import Path
 import pyautogui
 import os
 from .io_scheduler import IOScheduler, Priority
-from Orchestrator.NightCrows.Combat_Monitor.config.srm_config import ScreenState
+# [수정] Raven2용 ScreenState 추가 (별칭 사용)
+from Orchestrator.NightCrows.Combat_Monitor.config.srm_config import ScreenState as NC_ScreenState
+from Orchestrator.Raven2.Combat_Monitor.src.models.screen_info import ScreenState as R2_ScreenState
+from .focus_monitor import FocusMonitor
 
 try:
     # VDManager 임포트 시도
@@ -111,12 +114,17 @@ class Orchestrator:
         self.last_focus_switch_time = time.time()
         self.pending_scheduled_task = None
         self.task_execution_lock = threading.Lock()
+        self.focus_monitor = FocusMonitor()
 
+        # 1. [신규] 공유 상태 저장소 생성 (화면 ID: 상태 Enum)
+        self.shared_screen_states = {}
+
+        # 2. 하위 모듈 초기화 시 공유 저장소 주입
         # --- Initialize Real SRM Components ---
-        self._initialize_srm_components()
+        self._initialize_srm_components(self.shared_screen_states)
 
         # --- Initialize SM Components ---
-        self._initialize_sm_components()
+        self._initialize_sm_components(self.shared_screen_states)
 
         print("Component initialization complete.")
 
@@ -148,13 +156,21 @@ class Orchestrator:
                 print(f"Error capturing screen for {screen_id}: {e}")
                 return None
 
-    def _initialize_srm_components(self):
+    def _initialize_srm_components(self, shared_states):
         """실제 SRM 컴포넌트 초기화"""
-        # SRM1 (NightCrows) 초기화
+        # SRM1 (NightCrows)
         if NightCrowsCombatMonitor:
             try:
                 srm1_config = {'confidence': 0.85}
-                self.srm1 = NightCrowsCombatMonitor(monitor_id="SRM1", config=srm1_config, vd_name="VD1", orchestrator=self, io_scheduler=self.io_scheduler)
+                # [수정] shared_states 전달
+                self.srm1 = NightCrowsCombatMonitor(
+                    monitor_id="SRM1",
+                    config=srm1_config,
+                    vd_name="VD1",
+                    orchestrator=self,
+                    io_scheduler=self.io_scheduler,
+                    shared_states=shared_states
+                )
 
                 # 화면 정보 추가
                 from Orchestrator.NightCrows.utils.screen_info import SCREEN_REGIONS
@@ -169,10 +185,15 @@ class Orchestrator:
         else:
             self.srm1 = None
 
-        # SRM2 (Raven2) 초기화
+        # SRM2 (Raven2)
         if Raven2CombatMonitor:
             try:
-                self.srm2 = Raven2CombatMonitor(orchestrator=self, io_scheduler=self.io_scheduler)
+                # [수정] shared_states 전달
+                self.srm2 = Raven2CombatMonitor(
+                    orchestrator=self,
+                    io_scheduler=self.io_scheduler,
+                    shared_states=shared_states
+                )
 
                 # 화면 정보 추가
                 from Orchestrator.Raven2.utils.screen_info import SCREEN_REGIONS as RAVEN2_REGIONS
@@ -189,14 +210,13 @@ class Orchestrator:
         else:
             self.srm2 = None
 
-    def _initialize_sm_components(self):
+    def _initialize_sm_components(self, shared_states):
         """실제 SM 컴포넌트 초기화"""
-        # SM1 (NightCrows) 초기화
+        # SM1 (NightCrows)
         if create_system_monitor:
             try:
-                # sm1_config = {}  # SystemMonitor 설정 (이 줄은 남겨두거나 삭제해도 됩니다)
-                # ❗️ config 인자 제거
-                self.sm1 = create_system_monitor("SM1", "VD1", orchestrator=self)
+                # [수정] shared_states 전달
+                self.sm1 = create_system_monitor("SM1", "VD1", orchestrator=self, shared_states=shared_states)
                 print("INFO: SM1 initialized successfully")
             except Exception as e:
                 print(f"ERROR: Failed to initialize SM1: {e}")
@@ -204,12 +224,11 @@ class Orchestrator:
         else:
             self.sm1 = None
 
-        # SM2 (Raven2) 초기화
+        # SM2 (Raven2)
         if create_system_monitor_raven2:
             try:
-                # sm2_config = {}  # SystemMonitor 설정 (이 줄은 남겨두거나 삭제해도 됩니다)
-                # ❗️ config 인자 제거
-                self.sm2 = create_system_monitor_raven2("SM2", "VD2", orchestrator=self)
+                # [수정] shared_states 전달
+                self.sm2 = create_system_monitor_raven2("SM2", "VD2", orchestrator=self, shared_states=shared_states)
                 print("INFO: SM2 initialized successfully")
             except Exception as e:
                 print(f"ERROR: Failed to initialize SM2: {e}")
@@ -410,7 +429,9 @@ class Orchestrator:
             # 위험 상태인 화면 개수 체크
             critical_count = 0
             for screen in current_srm.screens:
-                if hasattr(screen, 'current_state') and screen.current_state.name in critical_states:
+                # [수정] shared_states에서 상태 조회
+                screen_state = screen.current_state # 프로퍼티 사용
+                if hasattr(screen_state, 'name') and screen_state.name in critical_states:
                     critical_count += 1
 
             if critical_count > 0:
@@ -423,8 +444,11 @@ class Orchestrator:
             print(f"WARN: Error checking VD switch safety: {e}. Allowing switch.")
             return True
 
-    def run_orchestration_loop(self):
-        """메인 오케스트레이션 루프"""
+    def run_orchestration_loop(self,start_vd: str = "VD1"):
+        """
+        메인 오케스트레이션 루프
+        :param start_vd: 시작할 가상 데스크톱 ("VD1" or "VD2")
+        """
         if not self.vd_manager:
             print("Critical Error: VDManager is not available. Orchestrator cannot run.")
             return
@@ -432,11 +456,24 @@ class Orchestrator:
         stop_event_for_io = threading.Event()
         self.io_scheduler.start(stop_event_for_io)
 
-        print("Orchestrator starting main loop...")
+        print(f"Orchestrator starting main loop... (Start Target: {start_vd})")
         self.pending_scheduled_task = None
 
-        # 초기 상태: VD1 모니터링 시작
-        self.set_focus(VirtualDesktop.VD1, ActiveState.MONITORING_VD1)
+        # 로그 제어 변수들
+        io_busy_logged = False
+        io_busy_start = None
+        last_busy_log = None
+
+        self.focus_monitor.start()
+        print(f"Orchestrator starting main loop... (Start Target: {start_vd})")
+
+        # 🚀 [수정됨] 시작 VD 분기 처리
+        if start_vd == "VD2":
+            print(">>> [TEST MODE] Starting immediately with VD2 (Raven2) <<<")
+            self.set_focus(VirtualDesktop.VD2, ActiveState.MONITORING_VD2)
+        else:
+            print(">>> Starting with VD1 (NightCrows) <<<")
+            self.set_focus(VirtualDesktop.VD1, ActiveState.MONITORING_VD1)
 
         while True:
             try:
@@ -458,10 +495,33 @@ class Orchestrator:
                             time.sleep(1)
                             continue
 
-                # 3. [수정] IO 작업 중이 아닐 때만 시간 분할 로직 실행
-                if not self.io_scheduler.lock.locked():
+                # 3. IO 작업 상태 체크
+                io_is_busy = self.io_scheduler.lock.locked()
 
-                    # (기존 3번 로직 시작)
+                if io_is_busy:
+                    # IO 작업 시작 감지
+                    if not io_busy_logged:
+                        io_busy_start = time.time()
+                        last_busy_log = io_busy_start
+                        print(f"INFO: [Orchestrator] IO operations in progress - VD switch paused")
+                        io_busy_logged = True
+
+                    # 5초마다 진행 상황 요약
+                    now = time.time()
+                    if now - last_busy_log >= 10.0:
+                        elapsed = int(now - io_busy_start)
+                        print(f"INFO: [Orchestrator] IO still busy ({elapsed}s elapsed)")
+                        last_busy_log = now
+
+                else:
+                    # IO 작업 완료 감지
+                    if io_busy_logged:
+                        elapsed = time.time() - io_busy_start
+                        print(f"INFO: [Orchestrator] IO operations completed ({elapsed:.1f}s total)")
+                        io_busy_logged = False
+                        io_busy_start = None
+
+                    # IO 작업이 없을 때만 시간 분할 로직 실행
                     if self.active_state in [ActiveState.MONITORING_VD1, ActiveState.MONITORING_VD2]:
                         now = time.time()
                         duration_on_current_vd = now - self.last_focus_switch_time
@@ -487,8 +547,15 @@ class Orchestrator:
 
                             if safety_check:
                                 print(f"INFO: [T+{total_elapsed:.0f}s] All screens in safe state - ready for VD switch")
+
+                                # 카운트다운 시작
+                                print(f"INFO: Switching to {next_vd.name} in 5 seconds...")
+                                for i in range(5, 0, -1):
+                                    print(f"      {i}...")
+                                    time.sleep(1)
+
                                 print(
-                                    f"INFO: Time slice expired on {self.current_focus.name} after {duration_on_current_vd:.0f}s. Switching to {next_vd.name}")
+                                    f"INFO: Time slice expired on {self.current_focus.name} after {duration_on_current_vd:.0f}s. Switching NOW to {next_vd.name}")
                                 next_state = ActiveState.MONITORING_VD1 if next_vd == VirtualDesktop.VD1 else ActiveState.MONITORING_VD2
                                 self.set_focus(next_vd, next_state)
                             else:
@@ -501,11 +568,6 @@ class Orchestrator:
                                         f"WARN: [T+{total_elapsed:.0f}s] Max delay reached ({duration_on_current_vd:.0f}s). Force switching to {next_vd.name}")
                                     next_state = ActiveState.MONITORING_VD1 if next_vd == VirtualDesktop.VD1 else ActiveState.MONITORING_VD2
                                     self.set_focus(next_vd, next_state)
-                    # (기존 3번 로직 끝)
-
-                # [추가] IO 작업 중일 때 로그
-                elif self.active_state in [ActiveState.MONITORING_VD1, ActiveState.MONITORING_VD2]:
-                    print(f"INFO: [Orchestrator] IO Scheduler is busy. Pausing VD switch timer.")
 
                 time.sleep(1)
 
@@ -526,43 +588,49 @@ class Orchestrator:
         self.io_scheduler.request(component, screen_id, action, priority)
 
     def report_system_error(self, monitor_id: str, screen_id: str):
-        """
-        [신규] SM(System Monitor)이 치명적인 오류(연결 끊김 등)를 감지했을 때 호출됩니다.
-        Orchestrator가 해당 VD의 SRM(Combat Monitor)에게 스크린 제어를 중지하도록 명령합니다.
-        """
         try:
+            # === [NightCrows: SRM1] ===
             if monitor_id == "SM1" and self.srm1:
-                # --- 🌟 [신규] 맥락 확인 로직 ---
-                # 1. SRM1(monitor.py)에 추가된 get_current_state 함수를 호출
-                srm_state = self.srm1.get_current_state(screen_id)
+                # [수정] 공유 상태를 직접 확인
+                srm_state = self.shared_screen_states.get(screen_id)
 
-                # 2. SRM1이 '물약 구매' 또는 '복귀' 작업을 수행 중일 때 탐지된 오류는
-                #    정상적인 '확인' 버튼일 가능성이 높으므로 '무시'합니다.
-                if srm_state in [ScreenState.BUYING_POTIONS, ScreenState.RETURNING]:
+                if srm_state in [NC_ScreenState.BUYING_POTIONS, NC_ScreenState.RETURNING]:
                     print(
-                        f"Orchestrator: SM1 reported error on {screen_id}, but SRM1 is in a 'safe' state ({srm_state.name}). Ignoring report as False Positive.")
-                    # SRM1의 작업을 중단시키지 않고, SM1의 보고를 무시(return)
+                        f"Orchestrator: SM1 reported error on {screen_id}, but SRM1 is in a 'safe' state ({srm_state.name}). Ignoring report.")
                     return True
-                    # --- 🌟 맥락 확인 끝 ---
 
-                # 3. 만약 'NORMAL'이나 'HOSTILE' 등 예상치 못한 상태였다면, '진짜' 오류입니다.
                 print(
-                    f"Orchestrator: SM1 reported a REAL error on {screen_id} (SRM State: {srm_state}). Forcing SRM1 to reset screen.")
-                self.srm1.force_reset_screen(screen_id)  # 👈 기존 강제 리셋 로직 수행
+                    f"Orchestrator: SM1 reported a REAL error on {screen_id} (SRM State: {srm_state}). Forcing SRM1 to reset.")
+                self.srm1.force_reset_screen(screen_id)
                 return False
 
+            # === [Raven2: SRM2] ===
             elif monitor_id == "SM2" and self.srm2:
-                # (추후 Raven2에도 동일한 로직 적용 시 사용)
-                print(f"Orchestrator: SM2 reported error on {screen_id}. Forcing SRM2 to reset screen.")
-                self.srm2.force_reset_screen(screen_id) # SRM2에도 force_reset_screen 구현 필요
+                # [수정] 공유 상태를 직접 확인
+                srm_state = self.shared_screen_states.get(screen_id)
+
+                safe_states = [
+                    R2_ScreenState.SAFE_ZONE,
+                    R2_ScreenState.ABNORMAL
+                ]
+
+                if srm_state in safe_states:
+                    print(
+                        f"Orchestrator: SM2 reported error on {screen_id}, but SRM2 is in a 'safe' state ({srm_state.name}). Ignoring report.")
+                    return True
+
+                print(
+                    f"Orchestrator: SM2 reported error on {screen_id} (State: {srm_state}). Forcing SRM2 to reset screen.")
+                self.srm2.force_reset_screen(screen_id)
                 return False
 
         except Exception as e:
             print(f"ERROR: [Orchestrator] Failed during report_system_error handling: {e}")
             return False
-
     def shutdown(self):
         """오케스트레이터 종료 시 정리 작업"""
+        if self.focus_monitor:
+            self.focus_monitor.stop()
         print("Shutting down Orchestrator...")
         for key in list(self.active_monitors.keys()):
             self._stop_monitor_thread(key)

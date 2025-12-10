@@ -1139,7 +1139,8 @@ class CombatMonitor(BaseMonitor):
             self._handle_normal_state(screen)
         elif state in [ScreenState.DEAD, ScreenState.INITIALIZING, ScreenState.RECOVERING,
                        ScreenState.HOSTILE, ScreenState.FLEEING, ScreenState.S1_EMERGENCY_FLEE,
-                       ScreenState.BUYING_POTIONS, ScreenState.RESUME_COMBAT]:
+                       ScreenState.BUYING_POTIONS, ScreenState.RESUME_COMBAT
+                       ]:
             self._execute_policy_step(screen)
         elif state == ScreenState.RETURNING:
             self._handle_returning_state(screen)

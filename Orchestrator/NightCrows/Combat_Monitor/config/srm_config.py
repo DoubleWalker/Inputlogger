@@ -21,7 +21,8 @@ class ScreenState(Enum):
     FLEEING = auto()  # 도주 중
     BUYING_POTIONS = auto()  # 물약 구매 중 (구매+복귀 포함)
     RETURNING = auto()  # 복귀 중 (웨이포인트 포함)
-    RESUME_COMBAT = auto()  # 🌟 [신규] 사냥 복귀 상태
+    RESUME_COMBAT = auto()
+
 
 # =============================================================================
 # 🎯 로컬룰 2: SRM1 정책 정의 (4개 핵심 정책) - SM1 패턴 적용
@@ -272,22 +273,7 @@ ScreenState.INITIALIZING: {
 
         'conditional_flow': 'sequence_with_retry'
     },
-    # 🌟 [신규] 사냥 복귀 정책 추가
-    ScreenState.RESUME_COMBAT: {
-        'targets': [],
-        'action_type': 'sequence',
-        'sequence_config': {
-            'actions': [
-                {'operation': 'wait_duration', 'duration': 1.5, 'initial': True},
-                {'operation': 'key_press', 'key': 'q', 'final': True}  # 'final' 추가
-            ]
-        },
-        'transitions': {
-            'sequence_complete': ScreenState.NORMAL,  # 사냥 시작 후 NORMAL로
-            'sequence_failed': ScreenState.NORMAL  # 실패해도 NORMAL로
-        },
-        'conditional_flow': 'sequence_with_retry'  # 단순 실행 및 1회성 재시도
-    },
+
     ScreenState.RETURNING: {
         # 1. 무엇을 감지할지 - sequence는 빈 배열 (하위 상태함수)
         'targets': [],  # ✅ 하위 상태함수 - 복잡한 WP1~5 인덱스 진행 있음
@@ -326,14 +312,42 @@ ScreenState.INITIALIZING: {
         ]
     },
         'transitions': {
-        'sequence_complete': ScreenState.RESUME_COMBAT,
-        'sequence_failed': ScreenState.RESUME_COMBAT,  # 실패해도 일단 사냥 시도
+        'sequence_complete': ScreenState.NORMAL,
+        'sequence_failed': ScreenState.NORMAL,  # 실패해도 일단 사냥 시도
         'sequence_in_progress': ScreenState.RETURNING
     },
     'conditional_flow': 'sequence_with_retry'
+    },
+
+# SRM1_STATE_POLICIES 딕셔너리에 추가
+
+    ScreenState.RESUME_COMBAT: {
+        'targets': [],
+        'action_type': 'sequence',
+        'sequence_config': {
+            'actions': [
+                # 1. 화면 포커스 (safe_click_point 클릭)
+                {
+                    'operation': 'click_relative',
+                    'key': 'safe_click_point',
+                    'delay_after': 0.3,
+                    'initial': True
+                },
+                # 2. Q 키 눌러서 자동사냥 시작
+                {
+                    'operation': 'key_press',
+                    'key': 'q',
+                    'final': True
+                }
+            ]
+        },
+        'transitions': {
+            'sequence_complete': ScreenState.NORMAL,
+            'sequence_failed': ScreenState.NORMAL
+        },
+        'conditional_flow': 'sequence_with_retry'
     }
 }
-
 # =============================================================================
 # 🎯 로컬룰 3: SRM1 운영 설정 (전투 특화 파라미터)
 # =============================================================================

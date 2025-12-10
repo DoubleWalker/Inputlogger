@@ -117,15 +117,13 @@ class Orchestrator:
         self.focus_monitor = FocusMonitor()
 
         # 1. [신규] 공유 상태 저장소 생성 (화면 ID: 상태 Enum)
-        self.shared_screen_states = {}
+        self.vd1_shared_states = {}  # SRM1 ←→ SM1
+        self.vd2_shared_states = {}  # SRM2 ←→ SM2
 
         # 2. 하위 모듈 초기화 시 공유 저장소 주입
         # --- Initialize Real SRM Components ---
-        self._initialize_srm_components(self.shared_screen_states)
-
-        # --- Initialize SM Components ---
-        self._initialize_sm_components(self.shared_screen_states)
-
+        self._initialize_srm_components()
+        self._initialize_sm_components()
         print("Component initialization complete.")
 
         self.setup_schedule()
@@ -156,7 +154,7 @@ class Orchestrator:
                 print(f"Error capturing screen for {screen_id}: {e}")
                 return None
 
-    def _initialize_srm_components(self, shared_states):
+    def _initialize_srm_components(self):
         """실제 SRM 컴포넌트 초기화"""
         # SRM1 (NightCrows)
         if NightCrowsCombatMonitor:
@@ -169,7 +167,7 @@ class Orchestrator:
                     vd_name="VD1",
                     orchestrator=self,
                     io_scheduler=self.io_scheduler,
-                    shared_states=shared_states
+                    shared_states=self.vd1_shared_states
                 )
 
                 # 화면 정보 추가
@@ -192,7 +190,7 @@ class Orchestrator:
                 self.srm2 = Raven2CombatMonitor(
                     orchestrator=self,
                     io_scheduler=self.io_scheduler,
-                    shared_states=shared_states
+                    shared_states=self.vd2_shared_states
                 )
 
                 # 화면 정보 추가
@@ -210,13 +208,13 @@ class Orchestrator:
         else:
             self.srm2 = None
 
-    def _initialize_sm_components(self, shared_states):
+    def _initialize_sm_components(self):
         """실제 SM 컴포넌트 초기화"""
         # SM1 (NightCrows)
         if create_system_monitor:
             try:
                 # [수정] shared_states 전달
-                self.sm1 = create_system_monitor("SM1", "VD1", orchestrator=self, shared_states=shared_states)
+                self.sm1 = create_system_monitor("SM1", "VD1", orchestrator=self, shared_states=self.vd1_shared_states)
                 print("INFO: SM1 initialized successfully")
             except Exception as e:
                 print(f"ERROR: Failed to initialize SM1: {e}")
@@ -228,7 +226,7 @@ class Orchestrator:
         if create_system_monitor_raven2:
             try:
                 # [수정] shared_states 전달
-                self.sm2 = create_system_monitor_raven2("SM2", "VD2", orchestrator=self, shared_states=shared_states)
+                self.sm2 = create_system_monitor_raven2("SM2", "VD2", orchestrator=self, shared_states=self.vd2_shared_states)
                 print("INFO: SM2 initialized successfully")
             except Exception as e:
                 print(f"ERROR: Failed to initialize SM2: {e}")

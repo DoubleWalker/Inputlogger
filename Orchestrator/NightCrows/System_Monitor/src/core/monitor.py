@@ -381,6 +381,48 @@ class SystemMonitor:
                 for screen_obj in self.screens.values():
                     self._transition_screen_to_state(screen_obj, SystemState.NORMAL, f"exception policy: {error_type}")
 
+        # 기존 _handle_action_result 메서드 내부나, yield 처리 부분에 추가 필요
+        # SystemMonitor 구조상 generator가 yield한 operation을 처리하는 분기문이 있을 것입니다.
+
+    def _handle_key_drag_operation(self, screen_id: str, region: tuple, action_config: dict):
+        """
+        범용: 키(Ctrl/Shift 등)를 누른 채로 드래그 수행
+        (기존 _do_camera_drag_action을 범용화)
+        """
+        # IO 스케줄러에 요청 (람다로 감싸서)
+        self.io_scheduler.request(
+            component=self.monitor_id,
+            screen_id=screen_id,
+            action=lambda: self._execute_key_drag(region, action_config),
+            priority=Priority.NORMAL
+        )
+
+    def _execute_key_drag(self, region: tuple, config: dict):
+        """실제 PyAutoGUI 동작 실행"""
+        import pyautogui
+
+        key = config.get('key', 'ctrl')
+        from_x, from_y = config.get('from')
+        to_x, to_y = config.get('to')
+        duration = config.get('duration', 0.5)
+
+        region_x, region_y, _, _ = region
+        abs_start_x = region_x + from_x
+        abs_start_y = region_y + from_y
+        abs_end_x = region_x + to_x
+        abs_end_y = region_y + to_y
+
+        try:
+            pyautogui.keyDown(key)
+            pyautogui.moveTo(abs_start_x, abs_start_y)
+            pyautogui.dragTo(abs_end_x, abs_end_y, duration=duration, tween=pyautogui.easeOutQuad)
+        except Exception as e:
+            print(f"ERROR: Drag failed: {e}")
+        finally:
+            pyautogui.keyUp(key)  # 무조건 키 뗌
+
+        if config.get('delay_after'):
+            time.sleep(config.get('delay_after'))
 
 # =============================================================================
 # 🔌 Orchestrator 호출 인터페이스

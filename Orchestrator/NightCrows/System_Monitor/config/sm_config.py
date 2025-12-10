@@ -9,6 +9,7 @@ SM1 v3 리모델링 설정 (제너레이터 '상황반장' 아키텍처)
 
 from enum import Enum, auto
 from typing import Generator, Dict, Any, Optional
+from Orchestrator.NightCrows.Combat_Monitor.config.srm_config import ScreenState
 
 
 # =============================================================================
@@ -135,20 +136,58 @@ def policy_logging_in(screen: dict) -> Generator[Dict[str, Any], Any, None]:
     print(f"INFO: [{screen['screen_id']}] 로그인 시간 경과. 'RETURNING_TO_GAME'으로 이동.")
 
 
-def policy_returning_to_game(screen: dict) -> Generator[Dict[str, Any], Any, None]:
+def policy_returning_to_game(screen: dict) -> Generator:
     """
-    [상황반장: 게임 복귀 중]
-    v1의 'time_based_wait' (expected_duration: 15.0) 로직을 번역합니다.
+    게임 복귀 후 상황 파악 및 SRM 라우팅
     """
-    print(f"INFO: [{screen['screen_id']}] 상황반장: '게임 복귀' 대기 (15초).")
+    print(f"INFO: [{screen['screen_id']}] 게임 로딩 대기 및 컨텍스트 분석 시작")
 
-    # v1의 'expected_duration': 15.0
+    # 1. 로딩 대기
     yield {'operation': 'wait_duration', 'duration': 15.0}
 
-    print(f"INFO: [{screen['screen_id']}] 게임 복귀 시간 경과. 'NORMAL'로 이동.")
+    # 2. 카메라 원위치 (key_drag operation)
+    yield {
+        'operation': 'key_drag',
+        'key': 'ctrl',
+        'from': (400, 300),
+        'to': (400, 600),
+        'duration': 0.5,
+        'delay_after': 1.0
+    }
 
+    # 3. 상황 파악 및 라우팅
 
-# System_Monitor/config/sm_config.py
+    # 3-1. 파티원 근처 확인 (사냥터에 그대로)
+    party_nearby = yield {'operation': 'check_party_templates'}
+
+    if party_nearby:
+        print(f"INFO: [{screen['screen_id']}] 파티원 감지 → 사냥터 그대로 → RESUME_COMBAT_SIMPLE")
+        yield {
+            'operation': 'set_shared_state',
+            'state': ScreenState.RESUME_COMBAT
+        }
+        return
+
+    # 3-2. 마을 확인 (GRAVEYARD 또는 SHOP_BUTTON 중 하나라도 보이면)
+    in_town = yield {'operation': 'check_template', 'template': 'GRAVEYARD'}
+
+    if not in_town:
+        in_town = yield {'operation': 'check_template', 'template': 'SHOP_BUTTON'}
+
+    if in_town:
+        print(f"INFO: [{screen['screen_id']}] 마을 감지 → BUYING_POTIONS")
+        yield {
+            'operation': 'set_shared_state',
+            'state': ScreenState.BUYING_POTIONS
+        }
+        return
+
+    # 3-3. 알 수 없는 상태 → NORMAL (SRM이 자체 판단)
+    print(f"INFO: [{screen['screen_id']}] 위치 불명 → NORMAL (SRM 자체 감지 시작)")
+    yield {
+        'operation': 'set_shared_state',
+        'state': ScreenState.NORMAL
+    }
 
 def policy_login_required(screen: dict) -> Generator[Dict[str, Any], Any, None]:
     """
@@ -274,13 +313,19 @@ STATE_POLICY_MAP = {
             'fail': SystemState.LOGIN_REQUIRED  # v1의 'timeout_reached'
         }
     },
+    # Orchestrator/NightCrows/System_Monitor/config/sm_config.py
     SystemState.RETURNING_TO_GAME: {
+        # 🎯 핵심 정책: 이 상태에서 실행될 제너레이터 함수를 지정합니다.
         'generator': policy_returning_to_game,
+
+        # ➡️ 상태 전환 규칙:
+        # 제너레이터(policy_returning_to_game)가 모든 명령을 처리하고
+        # StopIteration을 발생시켜 완료되면(complete), NORMAL 상태로 전환합니다.
         'transitions': {
-            'complete': SystemState.NORMAL,  # v1의 'duration_passed'
-            'fail': SystemState.NORMAL  # v1의 'timeout_reached'
-        }
+            'complete': SystemState.NORMAL
+        },
     },
+
     SystemState.LOGIN_REQUIRED: {
         'generator': policy_login_required,
         'transitions': {

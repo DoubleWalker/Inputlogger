@@ -149,8 +149,8 @@ def policy_returning_to_game(screen: dict) -> Generator:
     yield {
         'operation': 'key_drag',
         'key': 'ctrl',
-        'from': (400, 300),
-        'to': (400, 600),
+        'from': (650, 178),
+        'to': (440, 178),
         'duration': 0.5,
         'delay_after': 1.0
     }
@@ -161,7 +161,7 @@ def policy_returning_to_game(screen: dict) -> Generator:
     party_nearby = yield {'operation': 'check_party_templates'}
 
     if party_nearby:
-        print(f"INFO: [{screen['screen_id']}] 파티원 감지 → 사냥터 그대로 → RESUME_COMBAT_SIMPLE")
+        print(f"INFO: [{screen['screen_id']}] 파티원 감지 → 사냥터 그대로 → RESUME_COMBAT")
         yield {
             'operation': 'set_shared_state',
             'state': ScreenState.RESUME_COMBAT

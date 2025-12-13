@@ -243,8 +243,39 @@ class SystemMonitor:
 
             self._transition_screen_to_state(screen_obj, next_state, "generator_failed")
 
+        # =========================================================================
+        # 🖱️ 입력 헬퍼 메서드 (내부용)
+        # =========================================================================
+
+    def _atomic_click(self, x: int, y: int):
+        """
+        [원자적 클릭] 이동 -> 누름 -> 대기 -> 뗌
+        - pyautogui.click()의 빠른 속도로 인한 입력 씹힘 방지
+        - 드래그(Ghost Drag) 발생 원천 차단
+        """
+        try:
+            # 1. 이동 후 안정화
+            pyautogui.moveTo(x, y)
+
+            # 2. 누르기 (Press)
+            pyautogui.mouseDown()
+            time.sleep(0.1)  # 0.1초 동안 확실히 누름 유지
+
+            # 3. 떼기 (Release)
+            pyautogui.mouseUp()
+            time.sleep(0.05)  # 뗀 상태 확실히 인식
+
+        except Exception as e:
+            print(f"WARN: Atomic Click Failed: {e}")
+            # 비상시 강제 Release
+            pyautogui.mouseUp()
+
+    # =========================================================================
+    # 🎯 v3 상태머신 실행 엔진
+    # =========================================================================
+
     def _process_instruction(self, screen_obj: dict, instruction: Dict[str, Any]) -> Any:
-        """[v3] 지시 처리기"""
+        """[v3] 지시 처리기 (Atomic Click 적용됨)"""
 
         if not instruction:
             return None
@@ -252,11 +283,13 @@ class SystemMonitor:
         op = instruction.get('operation')
         screen_id = screen_obj['screen_id']
 
+        # 1. 대기 (Duration)
         if op == 'wait_duration':
             duration = instruction.get('duration', 1.0)
             screen_obj['generator_wait_start_time'] = time.time() + duration
             return None
 
+        # 2. 템플릿 대기 (Wait for Template)
         elif op == 'wait_for_template':
             template_name = instruction['template_name']
             template_path = get_template(screen_id, template_name)
@@ -271,6 +304,7 @@ class SystemMonitor:
                     screen_obj['generator_wait_timeout'] = time.time() + timeout
                 return None
 
+        # 3. 클릭 (Click) - ✅ _atomic_click 사용
         elif op == 'click':
             template_name = instruction['template_name']
             template_path = get_template(screen_id, template_name)
@@ -279,29 +313,98 @@ class SystemMonitor:
             if not pos:
                 raise Exception(f"Template not found for click: {template_name}")
 
-            action_lambda = lambda: pyautogui.click(pos[0], pos[1])
+            # 람다로 감싸서 IO 스케줄러에 전달
+            action_lambda = lambda: self._atomic_click(pos[0], pos[1])
             self._request_io_action(screen_obj, action_lambda)
             return pos
 
+        # 4. 있으면 클릭 (Click if present) - ✅ _atomic_click 사용
         elif op == 'click_if_present':
             template_name = instruction['template_name']
             template_path = get_template(screen_id, template_name)
 
             pos = self._detect_template(screen_obj, template_path=template_path)
             if pos:
-                action_lambda = lambda: pyautogui.click(pos[0], pos[1])
+                action_lambda = lambda: self._atomic_click(pos[0], pos[1])
                 self._request_io_action(screen_obj, action_lambda)
             return pos
 
+        # 5. 포커스 (Set Focus) - ✅ 직접 좌표 계산 후 _atomic_click 사용
         elif op == 'set_focus':
-            action_lambda = lambda: set_focus(screen_id)
+            # 기존 image_utils.set_focus 대신 직접 중앙 좌표를 계산하여 클릭
+            # (이전 방식은 내부 구현을 알 수 없어 드래그 위험이 있었음)
+            region = screen_obj['region']
+            center_x = region[0] + region[2] // 2
+            center_y = region[1] + region[3] // 2
+
+            action_lambda = lambda: self._atomic_click(center_x, center_y)
             self._request_io_action(screen_obj, action_lambda)
             return None
+
+            # ... (이하 check_party_templates, set_shared_state 등 기존 코드 유지) ...
+
+            # 6. [업그레이드] 파티원 확인 (Multi-Template OR Check)
+        elif op == 'check_party_templates':
+            # 검사할 템플릿 후보 리스트 (template_paths.py에 등록된 키 이름들)
+            # 예: 파티원 1~4번 자리의 체력바, 혹은 직업별 아이콘 등
+            candidate_templates = [
+                'PARTY_MEMBER_1',
+                'PARTY_MEMBER_2',
+                'PARTY_MEMBER_3',
+                'PARTY_MEMBER_4'
+            ]
+
+            for template_key in candidate_templates:
+                try:
+                    # 템플릿 경로 로드
+                    template_path = get_template(screen_id, template_key)
+
+                    # 감지 시도 (timeout 없이 즉시 확인)
+                    pos = self._detect_template(screen_obj, template_path=template_path)
+
+                    if pos:
+                        # 하나라도 찾으면 즉시 True(좌표) 반환 후 종료
+                        print(f"INFO: [{screen_id}] 파티원 감지 성공 ({template_key})")
+                        return pos
+
+                except Exception as e:
+                    # 특정 템플릿 파일이 없거나 키가 없어도 무시하고 다음 후보 확인
+                    continue
+
+            # 후보를 모두 확인했는데도 없으면 None 반환
+            return None
+
+        # 7. [추가] 단순 템플릿 확인 (Check Template)
+        elif op == 'check_template':
+            template_name = instruction['template']
+            template_path = get_template(screen_id, template_name)
+            pos = self._detect_template(screen_obj, template_path=template_path)
+            return pos
+
+        # 8. [추가] 공유 상태 변경 (Set Shared State)
+        elif op == 'set_shared_state':
+            new_state = instruction.get('state')
+            if new_state:
+                self.shared_states[screen_id] = new_state
+                print(f"INFO: [{screen_id}] Shared State 전환 -> {new_state.name}")
+            return True
+
+        # 9. [추가] 드래그 동작 (Key Drag)
+        elif op == 'key_drag':
+            action_config = {
+                'key': instruction.get('key', 'ctrl'),
+                'from': instruction.get('from'),
+                'to': instruction.get('to'),
+                'duration': instruction.get('duration', 0.5),
+                'delay_after': instruction.get('delay_after', 0.0)
+            }
+            # 이미 클래스 하단에 정의된 메서드 활용
+            self._handle_key_drag_operation(screen_id, screen_obj['region'], action_config)
+            return True
 
         else:
             print(f"WARN: [{screen_id}] 알 수 없는 지시어: {op}")
             return None
-
     # =========================================================================
     # 🔧 유틸리티
     # =========================================================================

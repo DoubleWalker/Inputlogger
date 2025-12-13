@@ -44,6 +44,13 @@ TEMPLATES = {
         # 로그인 시퀀스 관련
         'AD_POPUP': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "ad_popup.png"),
         'LOGIN_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "login_button.png"),
+        'PARTY_MEMBER_1': os.path.join(SCREEN_TEMPLATE_PATHS['S1'],"party_slot_1.png"),
+        'PARTY_MEMBER_2': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "party_slot_2.png"),
+        'PARTY_MEMBER_3': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "party_slot_3.png"),
+        'PARTY_MEMBER_4': os.path.join(SCREEN_TEMPLATE_PATHS['S1'], "party_slot_4.png"),
+        'GRAVEYARD': r"C:\Users\yjy16\template\NightCrows\CombatMonitor\S1\graveyard.png",
+        'SHOP_BUTTON': r"C:\Users\yjy16\template\NightCrows\CombatMonitor\S1\shop_button.png",
+
     },
 
     'S2': {
@@ -56,6 +63,12 @@ TEMPLATES = {
         # 로그인 시퀀스 관련
         'AD_POPUP': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "ad_popup.png"),
         'LOGIN_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "login_button.png"),
+        'PARTY_MEMBER_1': os.path.join(SCREEN_TEMPLATE_PATHS['S2'],"party_slot_1.png"),
+        'PARTY_MEMBER_2': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "party_slot_2.png"),
+        'PARTY_MEMBER_3': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "party_slot_3.png"),
+        'PARTY_MEMBER_4': os.path.join(SCREEN_TEMPLATE_PATHS['S2'], "party_slot_4.png"),
+        'GRAVEYARD': r"C:\Users\yjy16\template\NightCrows\CombatMonitor\S2\graveyard.png",
+        'SHOP_BUTTON': r"C:\Users\yjy16\template\NightCrows\CombatMonitor\S2\shop_button.png",
     },
 
     'S3': {
@@ -68,6 +81,12 @@ TEMPLATES = {
         # 로그인 시퀀스 관련
         'AD_POPUP': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "ad_popup.png"),
         'LOGIN_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "login_button.png"),
+        'PARTY_MEMBER_1': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "party_slot_1.png"),
+        'PARTY_MEMBER_2': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "party_slot_2.png"),
+        'PARTY_MEMBER_3': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "party_slot_3.png"),
+        'PARTY_MEMBER_4': os.path.join(SCREEN_TEMPLATE_PATHS['S3'], "party_slot_4.png"),
+        'GRAVEYARD': r"C:\Users\yjy16\template\NightCrows\CombatMonitor\S3\graveyard.png",
+        'SHOP_BUTTON': r"C:\Users\yjy16\template\NightCrows\CombatMonitor\S3\shop_button.png",
     },
 
     'S4': {
@@ -80,6 +99,12 @@ TEMPLATES = {
         # 로그인 시퀀스 관련
         'AD_POPUP': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "ad_popup.png"),
         'LOGIN_BUTTON': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "login_button.png"),
+        'PARTY_MEMBER_1': os.path.join(SCREEN_TEMPLATE_PATHS['S4'],"party_slot_1.png"),
+        'PARTY_MEMBER_2': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "party_slot_2.png"),
+        'PARTY_MEMBER_3': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "party_slot_3.png"),
+        'PARTY_MEMBER_4': os.path.join(SCREEN_TEMPLATE_PATHS['S4'], "party_slot_4.png"),
+        'GRAVEYARD': r"C:\Users\yjy16\template\NightCrows\CombatMonitor\S4\graveyard.png",
+        'SHOP_BUTTON': r"C:\Users\yjy16\template\NightCrows\CombatMonitor\S4\shop_button.png",
     }
 }
 

@@ -1087,7 +1087,7 @@ class CombatMonitor(BaseMonitor):
 
     def _click_relative(self, screen: ScreenMonitorInfo, coord_key: str,
                         delay_after: float = 0.5, random_offset: int = 2) -> bool:
-        """상대 좌표 클릭"""
+        """상대 좌표 클릭 (드래그 방지용 안전 클릭 적용)"""
         if not screen or not screen.region or not hasattr(screen, 'screen_id'):
             print(f"ERROR: [{self.monitor_id}] Invalid screen for relative click.")
             return False
@@ -1104,21 +1104,38 @@ class CombatMonitor(BaseMonitor):
 
         region_x, region_y, _, _ = screen.region
         try:
-            click_x = int(region_x + relative_coord[0] )
-            click_y = int(region_y + relative_coord[1] )
+            # 좌표 계산 (int 변환 필수)
+            click_x = int(region_x + relative_coord[0])
+            click_y = int(region_y + relative_coord[1])
         except ValueError:
             print(f"ERROR: [{self.monitor_id}] Invalid coordinate values for '{coord_key}'.")
             return False
 
         try:
-            pyautogui.click(click_x, click_y)
+            # ✅ [수정] 안전한 클릭 시퀀스 (Ghost Drag 방지)
+
+            # 1. 좌표로 이동
+            pyautogui.moveTo(click_x, click_y)
+
+            # 2. 누르기 (Press)
+            pyautogui.mouseDown()
+
+            # 3. 확실하게 눌린 상태 유지 (OS가 인식할 시간 부여)
+            time.sleep(0.1)
+
+            # 4. 떼기 (Release)
+            pyautogui.mouseUp()
+
+            # 5. 떼고 나서도 아주 잠깐 대기 (OS가 '드래그 끝' 인식할 시간 부여)
+            time.sleep(0.05)
+
             if delay_after > 0:
                 time.sleep(delay_after)
             return True
+
         except Exception as e:
             print(f"ERROR: [{self.monitor_id}] Failed to click '{coord_key}': {e}")
             return False
-
     # ========================================================================
     # State Handlers
     # ========================================================================

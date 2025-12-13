@@ -59,8 +59,13 @@ class IOScheduler:
 
                     # 3. ★★★ 전달받은 람다(action) 실행 ★★★
                     try:
-                        # 이 action_lambda()가 monitor.py에서 보낸
-                        # lambda: self._initiate_flight(screen) 등을 실행합니다.
+                        # ✅ [핵심 수정] 안전장치: 작업 시작 전 '손 털기'
+                        # 이전 작업이 마우스를 누른 채로 끝났을 경우를 대비해 강제로 뗍니다.
+                        # (좌표 이동 없이 현재 위치에서 버튼만 뗌)
+                        import pyautogui
+                        pyautogui.mouseUp(button='left')
+
+                        # 실제 작업 실행
                         action_lambda()
 
                         print(f"--- [IO END]   ({component}/{screen_id}) ---")

@@ -590,7 +590,7 @@ class Orchestrator:
             # === [NightCrows: SRM1] ===
             if monitor_id == "SM1" and self.srm1:
                 # [수정] 공유 상태를 직접 확인
-                srm_state = self.shared_screen_states.get(screen_id)
+                srm_state = self.vd1_shared_states.get(screen_id)
 
                 if srm_state in [NC_ScreenState.BUYING_POTIONS, NC_ScreenState.RETURNING]:
                     print(
@@ -605,7 +605,7 @@ class Orchestrator:
             # === [Raven2: SRM2] ===
             elif monitor_id == "SM2" and self.srm2:
                 # [수정] 공유 상태를 직접 확인
-                srm_state = self.shared_screen_states.get(screen_id)
+                srm_state = self.vd2_shared_states.get(screen_id)
 
                 safe_states = [
                     R2_ScreenState.SAFE_ZONE,

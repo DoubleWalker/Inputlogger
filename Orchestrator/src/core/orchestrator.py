@@ -77,10 +77,10 @@ except ImportError as e:
 
 # 각 컴포넌트의 main.py 경로
 COMPONENT_PATHS = {
-    "DP1": Path("Orchestrator/NightCrows/Daily_Present/main.py"),
-    "MO1": Path("Orchestrator/NightCrows/Mail_opener/main.py"),
-    "DP2": Path("Orchestrator/Raven2/Daily_Present/main.py"),
-    "MO2": Path("Orchestrator/Raven2/Mail_opener/main.py"),
+    "DP1": Path("NightCrows/Daily_Present/main.py"),
+    "MO1": Path("NightCrows/Mail_opener/main.py"),
+    "DP2": Path("Raven2/Daily_Present/main.py"),
+    "MO2": Path("Raven2/Mail_opener/main.py"),
 }
 
 

@@ -12,6 +12,7 @@ from typing import Generator, Dict, Any, Optional
 from Orchestrator.NightCrows.Combat_Monitor.config.srm_config import ScreenState
 
 
+
 # =============================================================================
 # 🎯 로컬룰 1: 상태 정의 (이름/값은 v1과 동일하게 유지)
 # =============================================================================
@@ -25,7 +26,6 @@ class SystemState(Enum):
     LOGIN_REQUIRED = auto()
     LOGGING_IN = auto()
     RETURNING_TO_GAME = auto()
-
 
 # =============================================================================
 # 🎯 로컬룰 2: "상황반장" 정책 (v1 로직의 제너레이터 '번역')
@@ -136,58 +136,152 @@ def policy_logging_in(screen: dict) -> Generator[Dict[str, Any], Any, None]:
     print(f"INFO: [{screen['screen_id']}] 로그인 시간 경과. 'RETURNING_TO_GAME'으로 이동.")
 
 
-def policy_returning_to_game(screen: dict) -> Generator:
+def policy_returning_to_game(screen: dict) -> Generator[Dict[str, Any], Any, None]:
     """
-    게임 복귀 후 상황 파악 및 SRM 라우팅
+    [업그레이드] 게임 복귀 후 '악착같이' 사냥터로 보내는 라우팅 (최적화 버전)
+    전략:
+      1. 파티 확인 성공 -> 즉시 RESUME_COMBAT (마을 확인 생략)
+      2. 파티 확인 실패 -> 파티 초대 -> 마을 확인 -> BUYING_POTIONS or RESUME_COMBAT
     """
-    print(f"INFO: [{screen['screen_id']}] 게임 로딩 대기 및 컨텍스트 분석 시작")
+    # 1. 변수 정의 (screen 딕셔너리에서 id 추출)
+    screen_id = screen['screen_id']
 
-    # 1. 로딩 대기
-    yield {'operation': 'wait_duration', 'duration': 15.0}
+    # ✅ [설정 로드] SM_CONFIG에서 설정값 가져오기
+    party_config = SM_CONFIG.get('party_settings', {})
+    manager_screen = party_config.get('manager_screen', 'S5')  # 설정된 관리자 화면 (기본값 S5)
 
-    # 2. 카메라 원위치 (key_drag operation)
+    # 내 캐릭터 이름 찾기 (없으면 에러 방지를 위해 예외처리)
+    my_char_name = party_config.get('character_names', {}).get(screen_id)
+
+    if not my_char_name:
+        print(f"WARN: [{screen_id}] 캐릭터 이름 설정이 없습니다. 파티 초대가 실패할 수 있습니다.")
+        my_char_name = "Unknown"
+
+    print(f"INFO: [{screen_id}] 게임 로딩 대기 및 정밀 컨텍스트 분석 시작")
+
+    # 2. 로딩 대기 및 초기화 (공통 수행)
+    yield {'operation': 'wait_duration', 'duration': 15.0}  # 로딩 대기
+
+    # 화면 청소
+    for _ in range(3):
+        yield {'operation': 'key_press', 'key': 'esc'}
+        yield {'operation': 'wait_duration', 'duration': 0.8}
+
+    # 카메라 원위치
     yield {
         'operation': 'key_drag',
         'key': 'ctrl',
-        'from': (650, 178),
-        'to': (440, 178),
+        'from': (380, 100),
+        'to': (380, 250),
         'duration': 0.5,
         'delay_after': 1.0
     }
 
-    # 3. 상황 파악 및 라우팅
+    # 3. 파티 상태 체크
+    party_is_full = True
+    member_templates = ['PARTY_MEMBER_1', 'PARTY_MEMBER_2', 'PARTY_MEMBER_3', 'PARTY_MEMBER_4']
 
-    # 3-1. 파티원 근처 확인 (사냥터에 그대로)
-    party_nearby = yield {'operation': 'check_party_templates'}
+    for template_name in member_templates:
+        pos = yield {'operation': 'check_template', 'template': template_name}
+        if not pos:
+            party_is_full = False
+            print(f"INFO: [{screen_id}] 파티원 슬롯 '{template_name}' 비어있음.")
+            break
 
-    if party_nearby:
-        print(f"INFO: [{screen['screen_id']}] 파티원 감지 → 사냥터 그대로 → RESUME_COMBAT")
+    # =========================================================================
+    # 🚀 분기 1: 파티원이 모두 있음 (최상의 시나리오)
+    # =========================================================================
+    if party_is_full:
+        print(f"INFO: [{screen_id}] 파티원 확인 완료. 마을 확인 건너뛰고 즉시 전투 재개.")
+
+        # 즉시 SRM에게 전투 재개 지시
         yield {
             'operation': 'set_shared_state',
             'state': ScreenState.RESUME_COMBAT
         }
-        return
+        return  # ★ 여기서 제너레이터 종료
 
-    # 3-2. 마을 확인 (GRAVEYARD 또는 SHOP_BUTTON 중 하나라도 보이면)
-    in_town = yield {'operation': 'check_template', 'template': 'GRAVEYARD'}
+    # =========================================================================
+    # 🔧 분기 2: 파티원이 없음 -> 초대 후 위치 판단
+    # =========================================================================
+    print(f"INFO: [{screen_id}] 파티원 부족 -> {manager_screen}를 통해 파티 초대 로직 실행.")
 
-    if not in_town:
-        in_town = yield {'operation': 'check_template', 'template': 'SHOP_BUTTON'}
+    # ❌ [삭제] MANAGER_SCREEN = 'S5' (하드코딩 삭제)
+    # 이제 상단에서 정의한 manager_screen 변수를 사용합니다.
 
-    if in_town:
-        print(f"INFO: [{screen['screen_id']}] 마을 감지 → BUYING_POTIONS")
+    try:
+        # 4-1. [원격 제어] 파티 초대 시퀀스 (모든 동작을 manager_screen에서 수행)
+
+        # 1. 관리자 화면 포커스 (활성화)
+        yield {'operation': 'set_focus', 'target_screen': manager_screen}
+        yield {'operation': 'wait_duration', 'duration': 1.0}
+
+        # 2. 파티창 열기 (L)
+        yield {'operation': 'key_press', 'key': 'L', 'target_screen': manager_screen}
+        yield {'operation': 'wait_duration', 'duration': 1.0}
+
+        # 3. 초대 버튼 클릭
+        yield {
+            'operation': 'click',
+            'template_name': 'PARTY_INVITE_BUTTON',
+            'target_screen': manager_screen
+        }
+        yield {'operation': 'wait_duration', 'duration': 1.0}
+
+        # 4. 입력창 클릭
+        yield {
+            'operation': 'click',
+            'template_name': 'PARTY_INPUT_FIELD',
+            'target_screen': manager_screen
+        }
+        yield {'operation': 'wait_duration', 'duration': 0.5}
+
+        # 5. 텍스트 입력
+        # ❌ [삭제] MY_CHAR_NAME = "Character_S1" (하드코딩 삭제)
+        # ✅ [수정] 상단에서 가져온 설정값 my_char_name 사용
+        yield {
+            'operation': 'input_text',
+            'text': my_char_name,
+            'target_screen': manager_screen
+        }
+        yield {'operation': 'wait_duration', 'duration': 0.5}
+
+        # 6. 발송 버튼
+        yield {
+            'operation': 'click',
+            'template_name': 'PARTY_SEND_INVITE_BUTTON',
+            'target_screen': manager_screen
+        }
+        print(f"INFO: [{screen_id}] {manager_screen}에게 파티 초대 요청 보냄 완료.")
+
+        # 7. 파티창 닫기 (L)
+        yield {'operation': 'key_press', 'key': 'L', 'target_screen': manager_screen}
+        yield {'operation': 'wait_duration', 'duration': 1.0}
+
+        # 8. (초대 수락 로직은 주석 처리된 상태 유지)
+
+    except Exception as e:
+        print(f"ERROR: [{screen_id}] 파티 초대 시퀀스 실패: {e}. {manager_screen} UI 닫기 시도.")
+        # 실패 시 관리자 화면의 UI 닫기 시도
+        yield {'operation': 'key_press', 'key': 'esc', 'target_screen': manager_screen}
+        yield {'operation': 'wait_duration', 'duration': 1.0}
+
+    # 5. 마을 여부 확인
+    print(f"INFO: [{screen_id}] 파티 초대 후 위치(마을/필드) 확인.")
+    town_pos = yield {'operation': 'check_template', 'template': 'TOWN_ZONE_INDICATOR'}
+
+    if town_pos:
+        print(f"INFO: [{screen_id}] 마을 감지됨 -> 정비 후 복귀(BUYING_POTIONS).")
         yield {
             'operation': 'set_shared_state',
             'state': ScreenState.BUYING_POTIONS
         }
-        return
-
-    # 3-3. 알 수 없는 상태 → NORMAL (SRM이 자체 판단)
-    print(f"INFO: [{screen['screen_id']}] 위치 불명 → NORMAL (SRM 자체 감지 시작)")
-    yield {
-        'operation': 'set_shared_state',
-        'state': ScreenState.NORMAL
-    }
+    else:
+        print(f"INFO: [{screen_id}] 필드 감지됨(또는 마을 아님) -> 전투 재개(RESUME_COMBAT).")
+        yield {
+            'operation': 'set_shared_state',
+            'state': ScreenState.RESUME_COMBAT
+        }
 
 def policy_login_required(screen: dict) -> Generator[Dict[str, Any], Any, None]:
     """
@@ -313,7 +407,6 @@ STATE_POLICY_MAP = {
             'fail': SystemState.LOGIN_REQUIRED  # v1의 'timeout_reached'
         }
     },
-    # Orchestrator/NightCrows/System_Monitor/config/sm_config.py
     SystemState.RETURNING_TO_GAME: {
         # 🎯 핵심 정책: 이 상태에서 실행될 제너레이터 함수를 지정합니다.
         'generator': policy_returning_to_game,
@@ -356,6 +449,19 @@ SM_CONFIG = {
     'game_settings': {
         'game_type': 'nightcrows',
         'vd_name': 'VD1'
+    },
+    # ✅ [신규 추가] 파티 관리 설정
+    'party_settings': {
+        # 초대 권한이 있는 관리자 화면 ID
+        'manager_screen': 'S5',
+
+        # 화면 ID별 실제 게임 캐릭터 이름 (초대 시 입력할 텍스트)
+        'character_names': {
+            'S1': 'ZERO33',  # 실제 캐릭터 닉네임으로 변경
+            'S2': '아라뷰',
+            'S3': '리니지망함',
+            'S4': '유동캐피'
+        }
     }
 }
 
